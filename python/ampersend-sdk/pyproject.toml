@@ -1,0 +1,14 @@
+[project]
+name = "ampersend-sdk"
+version = "0.0.1"
+description = "Unofficial x402 payment protocol extension for A2A"
+dependencies = [
+    "a2a-sdk",
+    "google-adk>=1.14.0,<=1.14.1",
+    "x402-a2a",
+    "x402>=0.1.4",
+]
+
+[build-system]
+requires = ["uv_build>=0.8.22,<0.9.0"]
+build-backend = "uv_build"
