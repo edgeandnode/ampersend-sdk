@@ -16,14 +16,14 @@ class X402Authorization(NamedTuple):
     authorization_id: str
 
 
-class X402Authorizer(ABC):
+class X402Treasurer(ABC):
     @abstractmethod
-    async def authorize(
+    async def onPaymentRequired(
         self,
         payment_required: x402PaymentRequiredResponse,
         context: Dict[str, Any] | None = None,
     ) -> X402Authorization | None:
-        """Authorize a payment."""
+        """Authorize or reject a payment."""
 
     @abstractmethod
     async def onStatus(

@@ -15,7 +15,7 @@ from a2a.types import (
 )
 from x402_a2a.core.utils import x402Utils
 
-from ...x402.authorizer import X402Authorizer
+from ...x402.treasurer import X402Treasurer
 from .a2a_client_extensions_interceptor import x402_extension_interceptor
 from .x402_middleware import x402_middleware
 
@@ -24,7 +24,7 @@ class X402Client(BaseClient):
     def __init__(
         self,
         *,
-        authorizer: X402Authorizer,
+        treasurer: X402Treasurer,
         card: AgentCard,
         config: ClientConfig,
         transport: ClientTransport,
@@ -44,10 +44,10 @@ class X402Client(BaseClient):
             middleware=middleware,
             **kwargs,
         )
-        self.manual_init(authorizer=authorizer)
+        self.manual_init(treasurer=treasurer)
 
-    def manual_init(self, authorizer: X402Authorizer) -> None:
-        self._authorizer = authorizer
+    def manual_init(self, treasurer: X402Treasurer) -> None:
+        self._treasurer = treasurer
         self._x402Utils = x402Utils()
 
     @override
@@ -58,7 +58,7 @@ class X402Client(BaseClient):
         context: ClientCallContext | None = None,
     ) -> AsyncIterator[ClientEvent | Message]:
         async for i in x402_middleware(
-            authorizer=self._authorizer,
+            treasurer=self._treasurer,
             context=context,
             request=request,
             send_message=super().send_message,
