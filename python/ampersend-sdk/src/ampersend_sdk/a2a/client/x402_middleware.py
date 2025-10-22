@@ -7,7 +7,7 @@ from x402_a2a import create_payment_submission_message
 from x402_a2a.core.utils import x402Utils
 from x402_a2a.types import PaymentStatus
 
-from ...x402.authorizer import X402Authorization, X402Authorizer
+from ...x402.treasurer import X402Authorization, X402Treasurer
 
 logger = logging.getLogger(__name__)
 
@@ -22,24 +22,24 @@ class MessageSender(Protocol):
 
 
 async def _onStatus(
-    authorizer: X402Authorizer,
+    treasurer: X402Treasurer,
     status: PaymentStatus,
     authorization: X402Authorization,
     context: Dict[str, Any] | None = None,
 ) -> None:
     try:
         # TODO: don't await
-        await authorizer.onStatus(
+        await treasurer.onStatus(
             status=status,
             authorization=authorization,
             context=context,
         )
     except Exception as e:
-        logger.error(f'authorizer.onStatus failed with "{e}"')
+        logger.error(f'treasurer.onStatus failed with "{e}"')
 
 
 async def x402_middleware(
-    authorizer: X402Authorizer,
+    treasurer: X402Treasurer,
     send_message: MessageSender,
     request: Message,
     utils: x402Utils,
@@ -68,7 +68,7 @@ async def x402_middleware(
 
             if authorization is not None:
                 await _onStatus(
-                    authorizer=authorizer,
+                    treasurer=treasurer,
                     status=payment_status,
                     authorization=authorization,
                 )
@@ -96,16 +96,16 @@ async def x402_middleware(
                 continue
 
             try:
-                authorization = await authorizer.authorize(
+                authorization = await treasurer.onPaymentRequired(
                     payment_required=payment_required
                 )
             except Exception as e:
-                logger.error(f'authorizer.authorize failed with "{e}"')
+                logger.error(f'treasurer.onPaymentRequired failed with "{e}"')
                 yield base_response
                 continue
 
             if authorization is None:
-                logger.info(f"authorizer rejected to pay for task {task.id}")
+                logger.info(f"treasurer rejected to pay for task {task.id}")
                 yield base_response
                 continue
 

@@ -6,13 +6,13 @@ from a2a.client.transports import JsonRpcTransport, RestTransport
 from a2a.types import Message
 from x402_a2a.core.utils import x402Utils
 
-from ...x402.authorizer import X402Authorizer
+from ...x402.treasurer import X402Treasurer
 from .a2a_client_extensions_interceptor import x402_extension_interceptor
 from .x402_middleware import x402_middleware
 
 
 class X402ClientComposed:
-    def __init__(self, client: BaseClient, authorizer: X402Authorizer):
+    def __init__(self, client: BaseClient, treasurer: X402Treasurer):
         if (
             isinstance(client._transport, (JsonRpcTransport, RestTransport))
             and x402_extension_interceptor not in client._transport.interceptors
@@ -20,7 +20,7 @@ class X402ClientComposed:
             client._transport.interceptors.append(x402_extension_interceptor)
 
         self._client = client
-        self._authorizer = authorizer
+        self._treasurer = treasurer
         self._x402Utils = x402Utils()
 
     async def send_message(
@@ -30,7 +30,7 @@ class X402ClientComposed:
         context: ClientCallContext | None = None,
     ) -> AsyncIterator[ClientEvent | Message]:
         async for i in x402_middleware(
-            authorizer=self._authorizer,
+            treasurer=self._treasurer,
             context=context,
             request=request,
             send_message=self._client.send_message,

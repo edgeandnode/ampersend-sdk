@@ -11,7 +11,7 @@ from google.adk.a2a.converters.part_converter import (
 from google.adk.agents.remote_a2a_agent import DEFAULT_TIMEOUT, RemoteA2aAgent
 from httpx import AsyncClient
 
-from ...x402.authorizer import X402Authorizer
+from ...x402.treasurer import X402Treasurer
 from .x402_client_factory import X402ClientFactory
 
 
@@ -19,7 +19,7 @@ class X402RemoteA2aAgent(RemoteA2aAgent):
     def __init__(
         self,
         *,
-        authorizer: X402Authorizer,
+        treasurer: X402Treasurer,
         name: str,
         agent_card: Union[AgentCard, str],
         description: str = "",
@@ -41,7 +41,7 @@ class X402RemoteA2aAgent(RemoteA2aAgent):
             a2a_client_factory=a2a_client_factory,
             **kwargs,
         )
-        self._authorizer = authorizer
+        self._treasurer = treasurer
 
     @override
     async def _ensure_httpx_client(self) -> AsyncClient:
@@ -49,7 +49,7 @@ class X402RemoteA2aAgent(RemoteA2aAgent):
 
         assert self._a2a_client_factory is not None
         self._a2a_client_factory = X402ClientFactory(
-            authorizer=self._authorizer,
+            treasurer=self._treasurer,
             config=self._a2a_client_factory._config,
         )
 

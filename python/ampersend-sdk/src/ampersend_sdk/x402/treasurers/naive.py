@@ -7,15 +7,15 @@ from x402_a2a import (
 )
 from x402_a2a.types import PaymentStatus, x402PaymentRequiredResponse
 
-from ..authorizer import X402Authorization, X402Authorizer
+from ..treasurer import X402Authorization, X402Treasurer
 from ..wallet import X402Wallet
 
 
-class NaiveX402Authorizer(X402Authorizer):
+class NaiveTreasurer(X402Treasurer):
     def __init__(self, wallet: X402Wallet):
         self._wallet = wallet
 
-    async def authorize(
+    async def onPaymentRequired(
         self,
         payment_required: x402PaymentRequiredResponse,
         context: Dict[str, Any] | None = None,
