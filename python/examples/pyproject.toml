@@ -1,0 +1,13 @@
+[project]
+name = "examples"
+version = "0.0.1"
+description = "Examples"
+dependencies = [
+    "google-adk>=1.14.0,<=1.14.1",
+    "ampersend-sdk",
+    "eth_account",
+]
+
+[build-system]
+requires = ["uv_build>=0.8.22,<0.9.0"]
+build-backend = "uv_build"
