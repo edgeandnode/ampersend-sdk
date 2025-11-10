@@ -1,0 +1,10 @@
+{
+  "extends": "../../packages/tsconfig.base.jsonc",
+  "references": [{ "path": "../../packages/ampersend-sdk/tsconfig.src.json" }],
+  "compilerOptions": {
+    "rootDir": "src",
+    "tsBuildInfoFile": ".tsbuildinfo/src.tsbuildinfo",
+    "types": ["node"]
+  },
+  "include": ["src"]
+}

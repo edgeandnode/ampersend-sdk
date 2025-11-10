@@ -4,3 +4,6 @@
 !.envrc
 **/__pycache__
 node_modules
+**/*.tsbuildinfo
+**/dist
+tmp

@@ -1,118 +1,109 @@
 # Ampersend SDK
 
-A collection of SDKs and tooling for building applications with [x402](https://github.com/edgeandnode/x402) payment capabilities. Currently includes Python tooling with TypeScript support planned for the future.
+Multi-language SDK for building applications with [x402](https://github.com/coinbase/x402) payment capabilities. Supports both buyer (client) and seller (server) roles with flexible payment verification and authorization patterns.
 
-The SDK enables developers to integrate payment flows into their applications, supporting both buyer (client) and seller (server) roles with flexible payment verification and authorization patterns.
+## 📦 Language Support
 
-## 📦 Current Language Support
+- **Python** - A2A protocol integration with wallet implementations and payment middleware
+  - [Python SDK Documentation](./python/README.md)
 
-- **Python** - Full SDK with A2A protocol integration, wallet implementations, and payment middleware
+- **TypeScript** - MCP protocol integration with client, proxy, and server implementations
+  - [TypeScript SDK Documentation](./typescript/README.md)
 
-## 🚀 Prerequisites
+## 🚀 Quick Start
 
-**uv** is required for dependency management. Install with:
-
-```bash
-# macOS/Linux
-curl -LsSf https://astral.sh/uv/install.sh | sh
-
-# Windows
-powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
-
-# Alternative: Homebrew
-brew install uv
-```
-
-## ⚙️ Setup
-
-1. **Install Python 3.13:**
-
-   ```bash
-   uv python install 3.13
-   ```
-
-2. **Install dependencies:**
-
-   ```bash
-   uv sync --frozen --group dev
-   ```
-
-3. **Configure environment variables:**
-
-   ```bash
-   cp .env.example .env
-   # Edit .env and fill in your values:
-   # - EXAMPLES_A2A_BUYER__PRIVATE_KEY: Private key for buyer's wallet
-   # - EXAMPLES_A2A_BUYER__SELLER_AGENT_URL: URL of seller agent (default: http://localhost:8001)
-   # - GOOGLE_API_KEY: Required for seller's Google Search tool
-   # - EXAMPLES_A2A_SELLER__PAY_TO_ADDRESS: Ethereum address to receive payments
-   ```
-
-4. **Obtain required credentials:**
-
-   **Google API Key** (required for seller example):
-
-   1. Visit [Google AI Studio](https://aistudio.google.com/app/apikey)
-   2. Sign in with your Google account
-   3. Click "Get API key" or "Create API key"
-   4. Copy the generated key and add it to your `.env` file
-
-   **USDC Testnet Tokens** (required for buyer example):
-
-   Use the [Circle USDC testnet faucet](https://faucet.circle.com) to obtain test USDC for your buyer wallet address.
-
-### 💡 Optional: direnv
-
-For automatic environment variable loading, install [direnv](https://direnv.net/):
+### Python (A2A Protocol)
 
 ```bash
-# macOS
-brew install direnv
+# Install Python 3.13
+uv python install 3.13
 
-# Then add to your shell config (e.g., ~/.zshrc):
-eval "$(direnv hook zsh)"
+# Install dependencies
+uv sync --frozen --group dev
 
-# Allow direnv in this directory:
-direnv allow
-```
+# Configure environment
+cp .env.example .env
+# Edit .env with your credentials
 
-## 🔧 Development
-
-**Run tests:**
-
-```bash
-uv run -- pytest                      # All tests
-```
-
-**Linting and formatting:**
-
-```bash
-uv run -- ruff check python          # Lint
-uv run -- ruff format python         # Format
-uv run -- mypy python                # Type check
-```
-
-## 🤖 Running Examples
-
-The examples demonstrate a buyer agent querying a seller agent that requires payment.
-
-**Terminal 1 - Start the seller agent:**
-
-```bash
+# Run example seller
 uv --directory=python/examples run -- uvicorn examples.a2a.seller.adk.agent:a2a_app --host localhost --port 8001
+
+# Run example buyer (in another terminal)
+echo "your query" | uv --directory=python/examples run -- adk run src/examples/a2a/buyer/adk
 ```
 
-**Terminal 2 - Run the buyer agent:**
+**→ [Full Python documentation](./python/README.md)**
 
-Option 1: Command-line query
+### TypeScript (MCP Protocol)
 
 ```bash
-echo "when was x402 founded?" | uv --directory=python/examples run -- adk run src/examples/a2a/buyer/adk
+# Install dependencies
+cd typescript
+pnpm install
+
+# Configure environment
+cp .env.example .env
+# Edit .env with your credentials
+
+# Run MCP proxy server
+pnpm --filter ampersend-sdk proxy:dev
+
+# Or run FastMCP example server
+pnpm --filter fastmcp-x402-server dev
 ```
 
-Option 2: Interactive web UI
+**→ [Full TypeScript documentation](./typescript/README.md)**
 
-```bash
-uv --directory=python/examples run -- adk web src/examples/a2a/buyer
-# Open http://localhost:8000 in your browser
+## 📚 Documentation
+
+### Core Concepts
+
+**x402 Protocol** - Transport-agnostic payment protocol for agent and LLM applications that enables pay-per-request patterns. See [x402 specification](https://github.com/coinbase/x402).
+
+**Supported Transports:**
+
+- **A2A** (Agent-to-Agent) - Transport protocol for agent communication with payment capabilities
+- **MCP** (Model Context Protocol) - Transport protocol for LLM-tool integration with payment capabilities
+
+**Key Components:**
+
+- **Treasurer** - Authorizes and tracks payments
+- **Wallet** - Creates and signs payment proofs (EOA and Smart Account support)
+- **Client** - Initiates requests with payment handling
+- **Server** - Verifies payments and processes requests
+
+### Repository Structure
+
 ```
+ampersend-sdk/
+├── python/
+│   ├── ampersend-sdk/        # Python SDK package
+│   └── examples/             # A2A buyer/seller examples
+└── typescript/
+    ├── packages/
+    │   └── ampersend-sdk/    # TypeScript SDK package
+    └── examples/             # MCP server examples
+```
+
+## 🔧 Prerequisites
+
+### Python
+
+- **uv** - Dependency management ([install](https://astral.sh/uv))
+- **Python 3.13+**
+
+### TypeScript
+
+- **Node.js 18+**
+- **pnpm** - Package manager
+
+### Development
+
+- **Google API Key** - Required for examples ([get key](https://aistudio.google.com/app/apikey))
+- **OpenAI API Key** - Required for examples ([get key](https://platform.openai.com/api-keys))
+- **Test USDC** - For payment testing ([Circle faucet](https://faucet.circle.com))
+- **Private Key** - Ethereum wallet for signing payments
+
+## 📄 License
+
+Apache 2.0 - See [LICENSE](./LICENSE)

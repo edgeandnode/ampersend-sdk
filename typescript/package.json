@@ -1,0 +1,38 @@
+{
+  "name": "@edgeandnode/ampersend-sdk-monorepo",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@10.17.1+sha512.17c560fca4867ae9473a3899ad84a88334914f379be46d455cbf92e5cf4b39d34985d452d2583baf19967fa76cb5c17bc9e245529d0b98745721aa7200ecaf7a",
+  "scripts": {
+    "build": "pnpm --recursive run build",
+    "lint": "pnpm --parallel --recursive run lint",
+    "lint:fix": "pnpm --parallel --recursive run lint:fix",
+    "format": "pnpm --parallel --recursive run format",
+    "format:fix": "pnpm --parallel --recursive run format:fix",
+    "test": "pnpm --parallel --recursive --recursive run test",
+    "fix:all": " pnpm format:fix && pnpm lint:fix"
+  },
+  "devDependencies": {
+    "@effect/eslint-plugin": "^0.3.2",
+    "@effect/language-service": "^0.40.1",
+    "@eslint/js": "^9.36.0",
+    "@ianvs/prettier-plugin-sort-imports": "^4.7.0",
+    "@types/node": "^24.5.2",
+    "eslint": "^9.36.0",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-import-resolver-typescript": "^4.4.4",
+    "eslint-plugin-import-x": "^4.16.1",
+    "eslint-plugin-sort-destructure-keys": "^2.0.0",
+    "prettier": "^3.6.2",
+    "prettier-plugin-tailwindcss": "^0.7.1",
+    "tsx": "^4.20.5",
+    "typescript": "^5.9.2",
+    "typescript-eslint": "^8.44.1",
+    "vitest": "^3.2.4"
+  },
+  "pnpm": {
+    "overrides": {
+      "@effect/rpc": "0.70.0"
+    }
+  }
+}

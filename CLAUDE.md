@@ -4,11 +4,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is a Python-based SDK that extends the A2A (Agent-to-Agent) protocol with x402 payment capabilities. The SDK enables agents to handle payments during A2A interactions, supporting both buyer (client) and seller (server) roles.
+Multi-language SDK for integrating x402 payment capabilities into agent and LLM applications. Includes Python implementation for A2A (Agent-to-Agent) protocol and TypeScript implementation for MCP (Model Context Protocol). Both support buyer (client) and seller (server) roles with flexible payment authorization patterns.
 
 ## Development Commands
 
-### Setup
+### Python Setup
 
 ```bash
 # Install Python 3.13
@@ -18,7 +18,18 @@ uv python install 3.13
 uv sync --frozen --group dev
 ```
 
-### Testing
+### TypeScript Setup
+
+```bash
+# Install dependencies
+cd typescript
+pnpm install
+
+# Build SDK
+pnpm --filter ampersend-sdk build
+```
+
+### Python Testing
 
 ```bash
 # Run all tests
@@ -31,7 +42,20 @@ uv run -- pytest python/ampersend-sdk/tests/unit/x402/treasurers/test_naive.py
 uv run -- pytest -m slow
 ```
 
-### Linting & Formatting
+### TypeScript Testing
+
+```bash
+# Run all tests
+pnpm --filter ampersend-sdk test
+
+# Run specific test
+pnpm --filter ampersend-sdk test middleware.test.ts
+
+# Watch mode
+pnpm --filter ampersend-sdk test --watch
+```
+
+### Python Linting & Formatting
 
 ```bash
 # Check linting (uses ruff for imports and unused imports)
@@ -45,6 +69,22 @@ uv run -- ruff format python
 
 # Type checking (strict mode enabled)
 uv run -- mypy python
+```
+
+### TypeScript Linting & Formatting
+
+```bash
+# Lint
+pnpm --filter ampersend-sdk lint
+
+# Format check
+pnpm --filter ampersend-sdk format
+
+# Format fix
+pnpm --filter ampersend-sdk format:fix
+
+# Type check
+pnpm --filter ampersend-sdk typecheck
 ```
 
 ### Lockfile
@@ -61,12 +101,17 @@ uv lock
 
 ### Workspace Structure
 
-This is a uv workspace with two main packages:
+This is a multi-language monorepo:
 
-- `python/ampersend-sdk/`: Core SDK implementation
-- `python/examples/`: Example buyer and seller agents
+**Python** (uv workspace):
+- `python/ampersend-sdk/`: Python SDK with A2A protocol integration
+- `python/examples/`: A2A buyer and seller agent examples
 
-### Core Components
+**TypeScript** (pnpm workspace):
+- `typescript/packages/ampersend-sdk/`: TypeScript SDK with MCP protocol integration
+- `typescript/examples/`: MCP server examples (FastMCP)
+
+### Core Components (Python)
 
 **X402Treasurer (Abstract Base Class)**
 
@@ -110,19 +155,65 @@ This is a uv workspace with two main packages:
 
 **Protocol-based Wallets**: X402Wallet is a Protocol (structural typing), allowing any object with `create_payment()` to be used without inheritance.
 
+### Core Components (TypeScript)
+
+**X402Treasurer (Interface)**
+
+- Similar to Python implementation but as TypeScript interface
+- `onPaymentRequired()` - Authorizes payments
+- `onStatus()` - Receives payment status updates
+- Implementation: `NaiveTreasurer` auto-approves all payments
+
+**Wallets**
+
+- `AccountWallet`: For EOA (Externally Owned Accounts)
+- `SmartAccountWallet`: For ERC-4337 smart contract wallets with ERC-1271 signatures
+
+**MCP Client**
+
+- `X402McpClient`: MCP client with automatic payment handling
+- Middleware intercepts 402 responses and retries with payment
+- Payment caching and status tracking
+
+**MCP Proxy**
+
+- HTTP proxy server that adds x402 to any MCP server
+- Session management and treasurer integration
+- CLI tool: `ampersand-proxy`
+
+**FastMCP Server**
+
+- `withX402Payment()`: Middleware wrapper for FastMCP tools
+- `onExecute`: Callback to determine payment requirements
+- `onPayment`: Callback to verify payments
+
 ## Environment Variables
 
-Examples require these variables (see `.env.example`):
+**Python Examples** (see `.env.example`):
 
 - `EXAMPLES_A2A_BUYER__PRIVATE_KEY`: Private key for buyer's EOA wallet
-- `EXAMPLES_A2A_BUYER__SELLER_AGENT_URL`: URL of seller agent (default: <http://localhost:8001>)
+- `EXAMPLES_A2A_BUYER__SELLER_AGENT_URL`: URL of seller agent (default: http://localhost:8001)
 - `GOOGLE_API_KEY`: Required for seller's google_search tool
 - `EXAMPLES_A2A_SELLER__PAY_TO_ADDRESS`: Ethereum address to receive payments
 
+**TypeScript Examples**:
+
+- `BUYER_PRIVATE_KEY`: Wallet private key (must start with 0x) for EOA mode
+- `BUYER_SMART_ACCOUNT_ADDRESS`: Smart account address (Smart Account mode)
+- `BUYER_SMART_ACCOUNT_KEY_PRIVATE_KEY`: Signer key (Smart Account mode)
+- `BUYER_SMART_ACCOUNT_VALIDATOR_ADDRESS`: Validator contract (Smart Account mode)
+
 ## Important Notes
 
+**Python:**
 - Python version: 3.13+ required
 - Type checking is strict mode (`mypy --strict`)
 - The x402-a2a dependency comes from a git repository with a specific revision
-- This SDK is marked as "unofficial" in the package description
 - Tests use async mode with function-scoped fixtures
+
+**TypeScript:**
+- Node.js 18+ required
+- Uses pnpm for package management
+- Type checking is strict mode enabled in tsconfig
+- MCP SDK dependency comes from a forked git repository
+- FastMCP dependency comes from a forked git repository (peer dependency)
