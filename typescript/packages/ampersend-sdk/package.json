@@ -13,6 +13,10 @@
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
     },
+    "./ampersend": {
+      "types": "./dist/ampersend/index.d.ts",
+      "default": "./dist/ampersend/index.js"
+    },
     "./x402": {
       "types": "./dist/x402/index.d.ts",
       "default": "./dist/x402/index.js"
@@ -55,7 +59,9 @@
     "@types/express": "^5.0.3",
     "async-mutex": "^0.5.0",
     "commander": "^12.1.0",
+    "effect": "^3.18.0",
     "express": "^5.1.0",
+    "siwe": "^3.0.0",
     "viem": "^2.37.9",
     "x402": "^0.6.6",
     "zod": "^3.24.2"
