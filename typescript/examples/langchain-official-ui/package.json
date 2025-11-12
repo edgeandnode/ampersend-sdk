@@ -7,7 +7,7 @@
   "scripts": {
     "dev": "concurrently \"npm run dev:server\" \"npm run dev:ui\"",
     "dev:server": "tsx watch src/server.ts",
-    "dev:ui": "cd ui && pnpm dev",
+    "dev:ui": "cd ui/apps/web && pnpm dev",
     "setup": "npx create-agent-chat-app --project-name ui && cd ui && pnpm install",
     "build": "npm run build:server",
     "build:server": "tsc -b tsconfig.json"
