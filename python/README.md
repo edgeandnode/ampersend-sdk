@@ -1,6 +1,8 @@
 # Python SDK - Ampersend
 
-Python SDK for integrating [x402](https://github.com/coinbase/x402) payment capabilities into A2A (Agent-to-Agent) protocol applications. Supports both buyer (client) and seller (server) roles with flexible payment authorization patterns.
+Python SDK for integrating [x402](https://github.com/coinbase/x402) payment capabilities into A2A (Agent-to-Agent)
+protocol applications. Supports both buyer (client) and seller (server) roles with flexible payment authorization
+patterns.
 
 ## Installation
 
@@ -62,7 +64,8 @@ a2a_app = to_a2a(agent, treasurer)
 
 ### X402Treasurer
 
-Handles payment authorization and status tracking. The `NaiveTreasurer` implementation auto-approves all payments (useful for testing and demos).
+Handles payment authorization and status tracking. The `NaiveTreasurer` implementation auto-approves all payments
+(useful for testing and demos).
 
 ### Wallets
 

@@ -1,6 +1,7 @@
 # Ampersend SDK
 
-Multi-language SDK for building applications with [x402](https://github.com/coinbase/x402) payment capabilities. Supports both buyer (client) and seller (server) roles with flexible payment verification and authorization patterns.
+Multi-language SDK for building applications with [x402](https://github.com/coinbase/x402) payment capabilities.
+Supports both buyer (client) and seller (server) roles with flexible payment verification and authorization patterns.
 
 ## 📦 Language Support
 
@@ -12,7 +13,7 @@ Multi-language SDK for building applications with [x402](https://github.com/coin
 
 ## 🚀 Quick Start
 
-### Python (A2A Protocol)
+### Python
 
 ```bash
 # Install Python 3.13
@@ -34,12 +35,12 @@ echo "your query" | uv --directory=python/examples run -- adk run src/examples/a
 
 **→ [Full Python documentation](./python/README.md)**
 
-### TypeScript (MCP Protocol)
+### TypeScript
 
 ```bash
 # Install dependencies
-cd typescript
 pnpm install
+pnpm build
 
 # Configure environment
 cp .env.example .env
@@ -58,7 +59,8 @@ pnpm --filter fastmcp-x402-server dev
 
 ### Core Concepts
 
-**x402 Protocol** - Transport-agnostic payment protocol for agent and LLM applications that enables pay-per-request patterns. See [x402 specification](https://github.com/coinbase/x402).
+**x402 Protocol** - Transport-agnostic payment protocol for agent and LLM applications that enables pay-per-request
+patterns. See [x402 specification](https://github.com/coinbase/x402).
 
 **Supported Transports:**
 

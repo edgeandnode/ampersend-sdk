@@ -4,7 +4,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Multi-language SDK for integrating x402 payment capabilities into agent and LLM applications. Includes Python implementation for A2A (Agent-to-Agent) protocol and TypeScript implementation for MCP (Model Context Protocol). Both support buyer (client) and seller (server) roles with flexible payment authorization patterns.
+Multi-language SDK for integrating x402 payment capabilities into agent and LLM applications. Includes Python
+implementation for A2A (Agent-to-Agent) protocol and TypeScript implementation for MCP (Model Context Protocol). Both
+support buyer (client) and seller (server) roles with flexible payment authorization patterns.
 
 ## Development Commands
 
@@ -22,11 +24,10 @@ uv sync --frozen --group dev
 
 ```bash
 # Install dependencies
-cd typescript
 pnpm install
 
 # Build SDK
-pnpm --filter ampersend-sdk build
+pnpm --filter ampersend-sdk... build
 ```
 
 ### Python Testing
@@ -87,29 +88,45 @@ pnpm --filter ampersend-sdk format:fix
 pnpm --filter ampersend-sdk typecheck
 ```
 
+### Markdown Formatting
+
+```bash
+# Check Markdown formatting
+pnpm md:format
+
+# Fix Markdown formatting
+pnpm md:format:fix
+```
+
 ### Lockfile
 
 ```bash
-# Verify lockfile is up to date
-uv lock --check
+# Python lockfile
+uv lock --check  # Verify
+uv lock          # Update
 
-# Update lockfile
-uv lock
+# TypeScript lockfile
+pnpm install --frozen-lockfile  # CI mode
+pnpm install                     # Update lockfile
 ```
 
 ## Architecture
 
 ### Workspace Structure
 
-This is a multi-language monorepo:
+This is a multi-language monorepo with both workspace at the repository root:
 
 **Python** (uv workspace):
+
 - `python/ampersend-sdk/`: Python SDK with A2A protocol integration
 - `python/examples/`: A2A buyer and seller agent examples
+- Configured via `pyproject.toml`
 
 **TypeScript** (pnpm workspace):
+
 - `typescript/packages/ampersend-sdk/`: TypeScript SDK with MCP protocol integration
 - `typescript/examples/`: MCP server examples (FastMCP)
+- Configured via `pnpm-workspace.yaml` and `package.json`
 
 ### Core Components (Python)
 
@@ -153,7 +170,8 @@ This is a multi-language monorepo:
 - Middle layer (X402ServerExecutor) verifies payments
 - Inner layer runs the actual agent
 
-**Protocol-based Wallets**: X402Wallet is a Protocol (structural typing), allowing any object with `create_payment()` to be used without inheritance.
+**Protocol-based Wallets**: X402Wallet is a Protocol (structural typing), allowing any object with `create_payment()` to
+be used without inheritance.
 
 ### Core Components (TypeScript)
 
@@ -206,12 +224,14 @@ This is a multi-language monorepo:
 ## Important Notes
 
 **Python:**
+
 - Python version: 3.13+ required
 - Type checking is strict mode (`mypy --strict`)
 - The x402-a2a dependency comes from a git repository with a specific revision
 - Tests use async mode with function-scoped fixtures
 
 **TypeScript:**
+
 - Node.js 18+ required
 - Uses pnpm for package management
 - Type checking is strict mode enabled in tsconfig

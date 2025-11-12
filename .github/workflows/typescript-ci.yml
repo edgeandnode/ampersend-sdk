@@ -13,9 +13,6 @@ jobs:
   build:
     name: "ts: build"
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: ./typescript
     env:
       NODE_OPTIONS: --max-old-space-size=6144 # Avoids [ERR_WORKER_OUT_OF_MEMORY]: Worker terminated due to reaching memory limit: JS heap out of memory
     steps:
@@ -28,14 +25,14 @@ jobs:
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
         with:
-          package_json_file: typescript/package.json
+          package_json_file: package.json
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: "pnpm"
-          cache-dependency-path: typescript/pnpm-lock.yaml
+          cache-dependency-path: pnpm-lock.yaml
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -55,9 +52,6 @@ jobs:
   lint-format-test:
     name: "ts: ${{ matrix.cmd }}"
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: ./typescript
     strategy:
       fail-fast: false
       matrix:
@@ -72,14 +66,14 @@ jobs:
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
         with:
-          package_json_file: typescript/package.json
+          package_json_file: package.json
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: "pnpm"
-          cache-dependency-path: typescript/pnpm-lock.yaml
+          cache-dependency-path: pnpm-lock.yaml
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile

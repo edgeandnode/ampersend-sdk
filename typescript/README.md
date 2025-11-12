@@ -5,11 +5,10 @@ TypeScript SDK for integrating [x402](https://github.com/coinbase/x402) payment 
 ## Installation
 
 ```bash
-cd typescript
 pnpm install
 
-# Build the SDK
-pnpm --filter ampersend-sdk build
+# Build all
+pnpm build
 ```
 
 ## Quick Start
@@ -18,14 +17,14 @@ pnpm --filter ampersend-sdk build
 
 ```typescript
 import { X402McpClient } from "@edgeandnode/ampersend-sdk/mcp/client"
-import { NaiveTreasurer, AccountWallet } from "@edgeandnode/ampersend-sdk/x402"
+import { AccountWallet, NaiveTreasurer } from "@edgeandnode/ampersend-sdk/x402"
 
 const wallet = new AccountWallet("0x...")
 const treasurer = new NaiveTreasurer(wallet)
 
 const client = new X402McpClient({
   serverUrl: "http://localhost:8000/mcp",
-  treasurer
+  treasurer,
 })
 
 await client.connect()
@@ -49,6 +48,7 @@ pnpm --filter ampersend-sdk proxy:dev
 
 ```typescript
 import { FastMCP } from "fastmcp"
+
 import { withX402Payment } from "@edgeandnode/ampersend-sdk/mcp/server/fastmcp"
 
 const mcp = new FastMCP("my-server")
@@ -63,10 +63,10 @@ mcp.addTool({
     },
     onPayment: async ({ payment, requirements }) => {
       return { success: true }
-    }
+    },
   })(async (args, context) => {
     return "result"
-  })
+  }),
 })
 ```
 

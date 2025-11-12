@@ -1,6 +1,7 @@
 # ampersend-sdk
 
-Python SDK for integrating [x402](https://github.com/coinbase/x402) payment capabilities into A2A (Agent-to-Agent) protocol applications.
+Python SDK for integrating [x402](https://github.com/coinbase/x402) payment capabilities into A2A (Agent-to-Agent)
+protocol applications.
 
 ## Quick Start
 
