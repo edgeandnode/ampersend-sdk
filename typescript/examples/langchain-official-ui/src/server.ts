@@ -277,6 +277,20 @@ app.get("/threads/:threadId", (req, res) => {
   })
 })
 
+app.get("/threads/:threadId/history", (req, res) => {
+  // Return empty history for now
+  res.json({
+    values: [],
+  })
+})
+
+app.post("/threads/:threadId/history", (req, res) => {
+  // Return checkpoint ID
+  res.json({
+    checkpoint_id: `checkpoint_${Date.now()}`,
+  })
+})
+
 // LangGraph-compatible runs endpoint (streaming)
 app.post("/threads/:threadId/runs/stream", async (req, res) => {
   // This is a simplified adapter - redirect to our chat endpoint
