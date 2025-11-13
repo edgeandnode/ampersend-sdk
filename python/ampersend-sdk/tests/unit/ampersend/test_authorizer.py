@@ -6,8 +6,12 @@ import pytest
 from ampersend_sdk.ampersend import AmpersendTreasurer, ApiClient
 from ampersend_sdk.ampersend.types import (
     ApiResponseAgentPaymentAuthorization,
+    AuthorizedRequirement,
+    AuthorizedResponse,
+    RejectedRequirement,
 )
 from ampersend_sdk.x402 import X402Authorization, X402Wallet
+from x402.types import PaymentRequirements
 from x402_a2a.types import PaymentStatus
 
 
@@ -19,8 +23,37 @@ class TestAmpersendTreasurer:
         """Test authorizing a payment with API checks."""
         # Mocks
         api_client = AsyncMock(spec=ApiClient)
+
+        # Create valid payment requirement
+        requirement = PaymentRequirements(
+            scheme="exact",
+            network="base-sepolia",
+            max_amount_required="1000000",
+            resource="test-resource",
+            description="Test payment",
+            mime_type="application/json",
+            pay_to="0x9876543210987654321098765432109876543210",
+            max_timeout_seconds=3600,
+            asset="0x036CbD53842c5426634e7929541eC2318f3dCF7e",
+            extra={"version": "2", "name": "USDC"},
+        )
+
         api_client.authorize_payment = AsyncMock(
-            return_value=ApiResponseAgentPaymentAuthorization(authorized=True)
+            return_value=ApiResponseAgentPaymentAuthorization(
+                authorized=AuthorizedResponse(
+                    recommended=0,
+                    requirements=[
+                        AuthorizedRequirement(
+                            requirement=requirement,
+                            limits={
+                                "dailyRemaining": "900000000",
+                                "monthlyRemaining": "9900000000",
+                            },
+                        )
+                    ],
+                ),
+                rejected=[],
+            )
         )
         api_client.report_payment_event = AsyncMock()
 
@@ -35,17 +68,7 @@ class TestAmpersendTreasurer:
 
         # Mock payment required response
         payment_required = MagicMock()
-        payment_required.accepts = [
-            MagicMock(
-                scheme="exact",
-                pay_to="0x9876543210987654321098765432109876543210",
-                asset="0x036CbD53842c5426634e7929541eC2318f3dCF7e",
-                max_amount_required="1000000",
-                max_timeout_seconds=3600,
-                network="base-sepolia",
-                extra={"version": "2", "name": "USDC"},
-            )
-        ]
+        payment_required.accepts = [requirement]
 
         # Authorize payment
         result = await authorizer.onPaymentRequired(payment_required)
@@ -58,9 +81,28 @@ class TestAmpersendTreasurer:
     async def test_authorize_payment_rejected(self) -> None:
         """Test when API rejects authorization."""
         api_client = AsyncMock(spec=ApiClient)
+
+        # Create valid requirement that will be rejected
+        requirement = PaymentRequirements(
+            scheme="exact",
+            network="base",
+            max_amount_required="1000000",
+            resource="test-resource",
+            description="Test payment",
+            mime_type="application/json",
+            pay_to="0x9876543210987654321098765432109876543210",
+            max_timeout_seconds=3600,
+            asset="0x036CbD53842c5426634e7929541eC2318f3dCF7e",
+        )
+
         api_client.authorize_payment = AsyncMock(
             return_value=ApiResponseAgentPaymentAuthorization(
-                authorized=False, reason="Insufficient funds"
+                authorized=AuthorizedResponse(recommended=None, requirements=[]),
+                rejected=[
+                    RejectedRequirement(
+                        requirement=requirement, reason="Insufficient funds"
+                    )
+                ],
             )
         )
 
@@ -73,7 +115,7 @@ class TestAmpersendTreasurer:
         )
 
         payment_required = MagicMock()
-        payment_required.accepts = [MagicMock(scheme="exact")]
+        payment_required.accepts = [requirement]
 
         result = await authorizer.onPaymentRequired(payment_required)
 

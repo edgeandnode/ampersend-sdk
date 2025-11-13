@@ -1,4 +1,5 @@
 import datetime
+import logging
 import uuid
 from typing import Any, Dict
 
@@ -11,6 +12,8 @@ from ampersend_sdk.x402 import X402Authorization, X402Treasurer, X402Wallet
 
 from .client import ApiClient
 from .types import PaymentEvent, PaymentEventType
+
+logger = logging.getLogger(__name__)
 
 
 class AmpersendTreasurer(X402Treasurer):
@@ -41,12 +44,37 @@ class AmpersendTreasurer(X402Treasurer):
             payment_required.accepts, context
         )
 
-        if not result.authorized:
+        # Check if any requirements were authorized
+        if not result.authorized.requirements:
+            # Log rejection reasons for debugging
+            reasons = ", ".join(
+                [f"{r.requirement.resource}: {r.reason}" for r in result.rejected]
+            )
+            logger.info(
+                "No requirements authorized. Reasons: %s",
+                reasons,
+            )
             return None
 
-        # TODO: actually pick based on result.selectedRequirement
+        # Use recommended requirement (or first if recommended is None)
+        recommended_index = (
+            result.authorized.recommended
+            if result.authorized.recommended is not None
+            else 0
+        )
+
+        # Validate recommended index is within bounds
+        if recommended_index >= len(result.authorized.requirements):
+            raise ValueError(
+                f"Invalid recommended index {recommended_index}, "
+                f"only {len(result.authorized.requirements)} requirements authorized"
+            )
+
+        authorized_req = result.authorized.requirements[recommended_index]
+
+        # Create payment with wallet using the authorized requirement
         payment = self._wallet.create_payment(
-            requirements=payment_required.accepts[0],
+            requirements=authorized_req.requirement,
         )
         authorization_id = uuid.uuid4().hex
 

@@ -61,19 +61,26 @@ export class AmpersendTreasurer implements X402Treasurer {
       // Authorize payment with API
       const response = await this.apiClient.authorizePayment(requirements as any, context)
 
-      if (!response.authorized) {
-        console.log(`[AmpersendTreasurer] Payment not authorized: ${response.reason || "No reason provided"}`)
+      // Check if any requirements were authorized
+      if (response.authorized.requirements.length === 0) {
+        // Log rejection reasons for debugging
+        const reasons = response.rejected.map((r) => `${r.requirement.resource}: ${r.reason}`).join(", ")
+        console.log(`[AmpersendTreasurer] No requirements authorized. Reasons: ${reasons || "None provided"}`)
         return null // Decline
       }
 
-      // Get first requirement
-      const firstRequirement = requirements[0]
-      if (!firstRequirement) {
-        throw new Error("No payment requirements provided")
+      // Use recommended requirement (or first if recommended is null)
+      const recommendedIndex = response.authorized.recommended ?? 0
+      const authorizedReq = response.authorized.requirements[recommendedIndex]
+
+      if (!authorizedReq) {
+        throw new Error("Recommended requirement index out of bounds")
       }
 
-      // Create payment with wallet
-      const payment = await this.wallet.createPayment(firstRequirement)
+      // Create payment with wallet using the authorized requirement
+      // Note: Type assertion needed because ampersend PaymentRequirements uses string for network,
+      // while x402 PaymentRequirements uses specific network literals. Runtime compatible.
+      const payment = await this.wallet.createPayment(authorizedReq.requirement as any)
 
       return {
         payment,

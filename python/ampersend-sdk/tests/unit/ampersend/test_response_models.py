@@ -3,7 +3,11 @@
 from ampersend_sdk.ampersend.types import (
     ApiResponseAgentPaymentAuthorization,
     ApiResponseAgentPaymentEvent,
+    AuthorizedRequirement,
+    AuthorizedResponse,
+    RejectedRequirement,
 )
+from x402.types import PaymentRequirements
 
 
 class TestApiResponseAgentPaymentAuth:
@@ -11,55 +15,177 @@ class TestApiResponseAgentPaymentAuth:
 
     def test_successful_authorization_with_limits(self) -> None:
         """Test successful authorization response with limits."""
-
-        response = ApiResponseAgentPaymentAuthorization(
-            authorized=True,
-            limits={
-                "dailyRemaining": "1000000000000000000",
-                "monthlyRemaining": "30000000000000000000",
-            },
+        # Create valid requirement
+        requirement = PaymentRequirements(
+            scheme="exact",
+            network="base",
+            max_amount_required="1000000",
+            resource="test-resource",
+            description="Test payment",
+            mime_type="application/json",
+            pay_to="0x9876543210987654321098765432109876543210",
+            max_timeout_seconds=300,
+            asset="0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
         )
 
-        assert response.authorized is True
-        assert response.reason is None
-        assert response.limits is not None
-        assert response.limits["dailyRemaining"] == "1000000000000000000"
-        assert response.limits["monthlyRemaining"] == "30000000000000000000"
+        response = ApiResponseAgentPaymentAuthorization(
+            authorized=AuthorizedResponse(
+                recommended=0,
+                requirements=[
+                    AuthorizedRequirement(
+                        requirement=requirement,
+                        limits={
+                            "dailyRemaining": "1000000000000000000",
+                            "monthlyRemaining": "30000000000000000000",
+                        },
+                    )
+                ],
+            ),
+            rejected=[],
+        )
+
+        assert len(response.authorized.requirements) == 1
+        assert response.authorized.recommended == 0
+        assert len(response.rejected) == 0
+        assert (
+            response.authorized.requirements[0].limits["dailyRemaining"]
+            == "1000000000000000000"
+        )
+        assert (
+            response.authorized.requirements[0].limits["monthlyRemaining"]
+            == "30000000000000000000"
+        )
 
     def test_denied_authorization_with_reason(self) -> None:
         """Test denied authorization response with reason."""
-        response = ApiResponseAgentPaymentAuthorization(
-            authorized=False, reason="Daily spend limit exceeded"
+        # Create valid requirement
+        requirement = PaymentRequirements(
+            scheme="exact",
+            network="base",
+            max_amount_required="1000000",
+            resource="test-resource",
+            description="Test payment",
+            mime_type="application/json",
+            pay_to="0x9876543210987654321098765432109876543210",
+            max_timeout_seconds=300,
+            asset="0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
         )
 
-        assert response.authorized is False
-        assert response.reason == "Daily spend limit exceeded"
-        assert response.limits is None
+        response = ApiResponseAgentPaymentAuthorization(
+            authorized=AuthorizedResponse(recommended=None, requirements=[]),
+            rejected=[
+                RejectedRequirement(
+                    requirement=requirement, reason="Daily spend limit exceeded"
+                )
+            ],
+        )
 
-    def test_successful_authorization_no_limits(self) -> None:
-        """Test successful authorization without limits."""
+        assert len(response.authorized.requirements) == 0
+        assert response.authorized.recommended is None
+        assert len(response.rejected) == 1
+        assert response.rejected[0].reason == "Daily spend limit exceeded"
 
-        response = ApiResponseAgentPaymentAuthorization(authorized=True)
+    def test_multiple_requirements_partial_auth(self) -> None:
+        """Test partial authorization with multiple requirements."""
+        # Create valid requirements
+        req1 = PaymentRequirements(
+            scheme="exact",
+            network="base",
+            max_amount_required="100000",
+            resource="resource1",
+            description="Test 1",
+            mime_type="application/json",
+            pay_to="0x1111111111111111111111111111111111111111",
+            max_timeout_seconds=300,
+            asset="0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+        )
+        req2 = PaymentRequirements(
+            scheme="exact",
+            network="base",
+            max_amount_required="200000",
+            resource="resource2",
+            description="Test 2",
+            mime_type="application/json",
+            pay_to="0x2222222222222222222222222222222222222222",
+            max_timeout_seconds=300,
+            asset="0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+        )
+        req3 = PaymentRequirements(
+            scheme="exact",
+            network="base",
+            max_amount_required="999999999",
+            resource="resource3",
+            description="Test 3",
+            mime_type="application/json",
+            pay_to="0x3333333333333333333333333333333333333333",
+            max_timeout_seconds=300,
+            asset="0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+        )
 
-        assert response.authorized is True
-        assert response.reason is None
-        assert response.limits is None
+        response = ApiResponseAgentPaymentAuthorization(
+            authorized=AuthorizedResponse(
+                recommended=0,  # Cheapest one (req1)
+                requirements=[
+                    AuthorizedRequirement(
+                        requirement=req1,
+                        limits={
+                            "dailyRemaining": "900000",
+                            "monthlyRemaining": "9900000",
+                        },
+                    ),
+                    AuthorizedRequirement(
+                        requirement=req2,
+                        limits={
+                            "dailyRemaining": "800000",
+                            "monthlyRemaining": "9800000",
+                        },
+                    ),
+                ],
+            ),
+            rejected=[RejectedRequirement(requirement=req3, reason="Amount too high")],
+        )
+
+        assert len(response.authorized.requirements) == 2
+        assert response.authorized.recommended == 0
+        assert len(response.rejected) == 1
+        assert response.rejected[0].reason == "Amount too high"
 
     def test_camel_case_parsing(self) -> None:
-        """Test parsing with camelCase field names."""
+        """Test parsing with camelCase field names from JSON."""
         data = {
-            "authorized": True,
-            "limits": {
-                "dailyRemaining": "500000000000000000",
-                "monthlyRemaining": "15000000000000000000",
+            "authorized": {
+                "recommended": 0,
+                "requirements": [
+                    {
+                        "requirement": {
+                            "scheme": "exact",
+                            "network": "base",
+                            "maxAmountRequired": "500000000000000000",
+                            "resource": "test",
+                            "description": "Test",
+                            "mimeType": "application/json",
+                            "payTo": "0x1234567890123456789012345678901234567890",
+                            "maxTimeoutSeconds": 300,
+                            "asset": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+                        },
+                        "limits": {
+                            "dailyRemaining": "500000000000000000",
+                            "monthlyRemaining": "15000000000000000000",
+                        },
+                    }
+                ],
             },
+            "rejected": [],
         }
 
         response = ApiResponseAgentPaymentAuthorization.model_validate(data)
 
-        assert response.authorized is True
-        assert response.limits is not None
-        assert response.limits["dailyRemaining"] == "500000000000000000"
+        assert len(response.authorized.requirements) == 1
+        assert response.authorized.recommended == 0
+        assert (
+            response.authorized.requirements[0].limits["dailyRemaining"]
+            == "500000000000000000"
+        )
 
 
 class TestApiResponseAgentPaymentEvent:

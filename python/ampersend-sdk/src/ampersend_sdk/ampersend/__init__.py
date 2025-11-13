@@ -18,8 +18,11 @@ from .types import (
     ApiResponseLogin,
     ApiResponseNonce,
     AuthenticationState,
+    AuthorizedRequirement,
+    AuthorizedResponse,
     PaymentEvent,
     PaymentEventType,
+    RejectedRequirement,
 )
 
 __version__ = "1.0.0"
@@ -36,6 +39,9 @@ __all__ = [
     "PaymentEventType",
     "ApiRequestAgentPaymentAuthorization",
     "ApiResponseAgentPaymentAuthorization",
+    "AuthorizedRequirement",
+    "AuthorizedResponse",
+    "RejectedRequirement",
     "ApiRequestAgentPaymentEvent",
     "ApiResponseAgentPaymentEvent",
     "ApiResponseNonce",
