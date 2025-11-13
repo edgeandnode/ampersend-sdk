@@ -122,19 +122,44 @@ export class AgentPaymentAuthRequest extends Schema.Class<AgentPaymentAuthReques
 }) {}
 
 export class AgentPaymentAuthResponse extends Schema.Class<AgentPaymentAuthResponse>("AgentPaymentAuthResponse")({
-  authorized: Schema.Boolean.annotations({
-    description: "Whether the payment is authorized",
+  authorized: Schema.Struct({
+    recommended: Schema.NullOr(Schema.NonNegativeInt).annotations({
+      description:
+        "Index of recommended payment requirement (cheapest option). Null if no requirements are authorized.",
+    }),
+    requirements: Schema.Array(
+      Schema.Struct({
+        requirement: PaymentRequirements.annotations({
+          description: "Authorized payment requirement",
+        }),
+        limits: Schema.Struct({
+          dailyRemaining: Schema.NonEmptyTrimmedString.annotations({
+            description: "Remaining daily budget after this requirement (in wei)",
+          }),
+          monthlyRemaining: Schema.NonEmptyTrimmedString.annotations({
+            description: "Remaining monthly budget after this requirement (in wei)",
+          }),
+        }).annotations({
+          description: "Remaining spend limits after this specific requirement is used",
+        }),
+      }),
+    ).annotations({
+      description: "List of authorized payment requirements. Empty if none authorized.",
+    }),
+  }).annotations({
+    description: "Authorized payment requirements with recommendation",
   }),
-  reason: Schema.optional(Schema.NonEmptyTrimmedString).annotations({
-    description: "Reason for denial if not authorized",
-  }),
-  limits: Schema.optional(
+  rejected: Schema.Array(
     Schema.Struct({
-      dailyRemaining: Schema.NonEmptyTrimmedString,
-      monthlyRemaining: Schema.NonEmptyTrimmedString,
+      requirement: PaymentRequirements.annotations({
+        description: "Rejected payment requirement",
+      }),
+      reason: Schema.NonEmptyTrimmedString.annotations({
+        description: "Reason why this requirement was rejected",
+      }),
     }),
   ).annotations({
-    description: "Remaining spend limits after this payment",
+    description: "List of rejected payment requirements with reasons",
   }),
 }) {}
 

@@ -49,16 +49,44 @@ class ApiRequestAgentPaymentAuthorization(BaseModel):
     context: Dict[str, Any] | None  # TODO: missing alias generation
 
 
+class AuthorizedRequirement(BaseModel):
+    """Single authorized payment requirement with remaining limits."""
+
+    requirement: PaymentRequirements = Field(
+        description="Authorized payment requirement"
+    )
+    limits: Dict[str, str] = Field(
+        description="Remaining spend limits after this requirement (dailyRemaining, monthlyRemaining)"
+    )
+
+
+class RejectedRequirement(BaseModel):
+    """Single rejected payment requirement with reason."""
+
+    requirement: PaymentRequirements = Field(description="Rejected payment requirement")
+    reason: str = Field(description="Why this requirement was rejected")
+
+
+class AuthorizedResponse(BaseModel):
+    """Authorized requirements with recommendation."""
+
+    recommended: Optional[int] = Field(
+        default=None,
+        description="Index of recommended requirement (cheapest option). None if no requirements authorized.",
+    )
+    requirements: List[AuthorizedRequirement] = Field(
+        description="List of authorized payment requirements. Empty if none authorized."
+    )
+
+
 class ApiResponseAgentPaymentAuthorization(BaseModel):
     """Agent payment authorization response."""
 
-    authorized: bool
-    reason: Optional[str] = Field(
-        default=None, description="Reason for denial if not authorized"
+    authorized: AuthorizedResponse = Field(
+        description="Authorized payment requirements with recommendation"
     )
-    limits: Optional[Dict[str, str]] = Field(
-        default=None,
-        description="Remaining spend limits with daily_remaining and monthly_remaining",
+    rejected: List[RejectedRequirement] = Field(
+        description="List of rejected payment requirements with reasons"
     )
 
 

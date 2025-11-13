@@ -41,12 +41,28 @@ class AmpersendTreasurer(X402Treasurer):
             payment_required.accepts, context
         )
 
-        if not result.authorized:
+        # Check if any requirements were authorized
+        if not result.authorized.requirements:
+            # Log rejection reasons for debugging
+            reasons = ", ".join(
+                [f"{r.requirement.resource}: {r.reason}" for r in result.rejected]
+            )
+            print(
+                f"[AmpersendTreasurer] No requirements authorized. Reasons: {reasons}"
+            )
             return None
 
-        # TODO: actually pick based on result.selectedRequirement
+        # Use recommended requirement (or first if recommended is None)
+        recommended_index = (
+            result.authorized.recommended
+            if result.authorized.recommended is not None
+            else 0
+        )
+        authorized_req = result.authorized.requirements[recommended_index]
+
+        # Create payment with wallet using the authorized requirement
         payment = self._wallet.create_payment(
-            requirements=payment_required.accepts[0],
+            requirements=authorized_req.requirement,
         )
         authorization_id = uuid.uuid4().hex
 
