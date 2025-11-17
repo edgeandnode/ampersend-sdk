@@ -1,21 +1,11 @@
 from datetime import datetime
-from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Annotated, Any, Dict, List, Literal, Optional, Union
 
 from pydantic import BaseModel, ConfigDict, Field
 from x402.types import (
     PaymentPayload,
     PaymentRequirements,
 )
-
-
-class PaymentEventType(str, Enum):
-    """Payment event types."""
-
-    SENDING = "sending"
-    ACCEPTED = "accepted"
-    REJECTED = "rejected"
-    ERROR = "error"
 
 
 class ApiClientOptions(BaseModel):
@@ -34,12 +24,41 @@ class AuthenticationState(BaseModel):
     expires_at: Optional[datetime] = None
 
 
-class PaymentEvent(BaseModel):
-    """Payment lifecycle event."""
+class PaymentEventSending(BaseModel):
+    """Payment is being sent."""
 
-    event_type: PaymentEventType = Field(serialization_alias="type")
-    timestamp: datetime
-    details: Optional[Dict[str, Any]] = None
+    type: Literal["sending"] = "sending"
+
+
+class PaymentEventAccepted(BaseModel):
+    """Payment was accepted."""
+
+    type: Literal["accepted"] = "accepted"
+
+
+class PaymentEventRejected(BaseModel):
+    """Payment was rejected."""
+
+    type: Literal["rejected"] = "rejected"
+    reason: str
+
+
+class PaymentEventError(BaseModel):
+    """Payment encountered an error."""
+
+    type: Literal["error"] = "error"
+    reason: str
+
+
+PaymentEvent = Annotated[
+    Union[
+        PaymentEventSending,
+        PaymentEventAccepted,
+        PaymentEventRejected,
+        PaymentEventError,
+    ],
+    Field(discriminator="type"),
+]
 
 
 class ApiRequestAgentPaymentAuthorization(BaseModel):

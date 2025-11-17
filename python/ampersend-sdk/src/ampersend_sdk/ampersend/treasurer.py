@@ -1,4 +1,3 @@
-import datetime
 import logging
 import uuid
 from typing import Any, Dict
@@ -11,7 +10,13 @@ from x402_a2a.types import (
 from ampersend_sdk.x402 import X402Authorization, X402Treasurer, X402Wallet
 
 from .client import ApiClient
-from .types import PaymentEvent, PaymentEventType
+from .types import (
+    PaymentEvent,
+    PaymentEventAccepted,
+    PaymentEventError,
+    PaymentEventRejected,
+    PaymentEventSending,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -81,11 +86,7 @@ class AmpersendTreasurer(X402Treasurer):
         await self._api_client.report_payment_event(
             event_id=authorization_id,
             payment=payment,
-            event=PaymentEvent(
-                event_type=PaymentEventType.SENDING,
-                timestamp=datetime.datetime.now(datetime.UTC),
-                details=context,
-            ),
+            event=PaymentEventSending(),
         )
 
         return X402Authorization(authorization_id=authorization_id, payment=payment)
@@ -96,23 +97,35 @@ class AmpersendTreasurer(X402Treasurer):
         authorization: X402Authorization,
         context: Dict[str, Any] | None = None,
     ) -> None:
-        statusToEventType = {
-            PaymentStatus.PAYMENT_SUBMITTED: PaymentEventType.SENDING,
-            PaymentStatus.PAYMENT_FAILED: PaymentEventType.ERROR,
-            PaymentStatus.PAYMENT_REJECTED: PaymentEventType.REJECTED,
-            PaymentStatus.PAYMENT_VERIFIED: PaymentEventType.ACCEPTED,
-            PaymentStatus.PAYMENT_COMPLETED: PaymentEventType.ACCEPTED,
-        }
-        # sending, accepted, rejected or error
-        if status not in statusToEventType:
+        # Map status to appropriate event type
+        event: PaymentEvent | None = None
+
+        if status == PaymentStatus.PAYMENT_SUBMITTED:
+            event = PaymentEventSending()
+        elif status == PaymentStatus.PAYMENT_FAILED:
+            # Extract reason from context if available, otherwise use default
+            reason = "Payment processing failed"
+            if context and isinstance(context, dict):
+                reason = context.get("reason", reason)
+            event = PaymentEventError(reason=reason)
+        elif status == PaymentStatus.PAYMENT_REJECTED:
+            # Extract reason from context if available, otherwise use default
+            reason = "Payment rejected by server"
+            if context and isinstance(context, dict):
+                reason = context.get("reason", reason)
+            event = PaymentEventRejected(reason=reason)
+        elif status in (
+            PaymentStatus.PAYMENT_VERIFIED,
+            PaymentStatus.PAYMENT_COMPLETED,
+        ):
+            event = PaymentEventAccepted()
+
+        # Only report events we care about
+        if event is None:
             return
 
         await self._api_client.report_payment_event(
             event_id=authorization.authorization_id,
             payment=authorization.payment,
-            event=PaymentEvent(
-                event_type=statusToEventType[status],
-                timestamp=datetime.datetime.now(datetime.UTC),
-                details=context,
-            ),
+            event=event,
         )

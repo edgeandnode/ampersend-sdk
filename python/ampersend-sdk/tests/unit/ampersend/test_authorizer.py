@@ -155,4 +155,4 @@ class TestAmpersendTreasurer:
         call_args = api_client.report_payment_event.call_args
         assert call_args[1]["event_id"] == auth_id
         assert call_args[1]["payment"] == payment
-        assert call_args[1]["event"].event_type == "accepted"
+        assert call_args[1]["event"].type == "accepted"

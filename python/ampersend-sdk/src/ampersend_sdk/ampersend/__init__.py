@@ -21,7 +21,10 @@ from .types import (
     AuthorizedRequirement,
     AuthorizedResponse,
     PaymentEvent,
-    PaymentEventType,
+    PaymentEventAccepted,
+    PaymentEventError,
+    PaymentEventRejected,
+    PaymentEventSending,
     RejectedRequirement,
 )
 
@@ -36,7 +39,10 @@ __all__ = [
     "PaymentRequirements",
     "PaymentPayload",
     "PaymentEvent",
-    "PaymentEventType",
+    "PaymentEventSending",
+    "PaymentEventAccepted",
+    "PaymentEventRejected",
+    "PaymentEventError",
     "ApiRequestAgentPaymentAuthorization",
     "ApiResponseAgentPaymentAuthorization",
     "AuthorizedRequirement",
