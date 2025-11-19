@@ -151,10 +151,14 @@ This is a multi-language monorepo with both workspace at the repository root:
 
 **Server Side (Seller)**
 
-- `X402A2aAgentExecutor`: Wraps ADK agents with payment verification
-- `make_x402_before_agent_callback()`: Creates callbacks that check payment before agent execution
-- `to_a2a()`: Converts ADK agent to A2A app with x402 support
-- Uses layered executor pattern: OuterA2aAgentExecutor → X402ServerExecutor → InnerA2aAgentExecutor
+- `X402A2aAgentExecutor`: Wraps ADK agents with payment verification using a configurable executor factory
+- `X402ServerExecutorFactory`: Protocol defining factory signature for creating `X402ServerExecutor` instances with
+  custom config
+- `x402_executor_factory`: Required parameter accepting a factory function that receives `delegate` and `config` to
+  create the payment verification executor
+- `make_x402_before_agent_callback()`: Creates callbacks that check payment requirements before agent execution
+- `to_a2a()`: Converts ADK agent to A2A app with x402 support (uses default `FacilitatorX402ServerExecutor` factory)
+- Uses layered executor pattern: OuterA2aAgentExecutor → X402ServerExecutor (via factory) → InnerA2aAgentExecutor
 
 ### Key Architectural Patterns
 

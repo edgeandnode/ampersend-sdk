@@ -20,6 +20,7 @@ from starlette.applications import Starlette
 from x402_a2a import get_extension_declaration
 
 from . import X402A2aAgentExecutor
+from .facilitator_x402_server_executor import create_facilitator_executor_factory
 
 
 def to_a2a(
@@ -72,6 +73,7 @@ def to_a2a(
 
     agent_executor = X402A2aAgentExecutor(
         runner=create_runner,
+        x402_executor_factory=create_facilitator_executor_factory(),
     )
 
     request_handler = DefaultRequestHandler(

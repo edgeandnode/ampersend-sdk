@@ -41,20 +41,25 @@ result = await agent.run("your query here")
 ### Server (Seller)
 
 ```python
-from adk.agents import Agent
-from ampersend_sdk.a2a.server import to_a2a
-from ampersend_sdk.x402.treasurers.naive import NaiveTreasurer
+from google.adk.agents import Agent
+from ampersend_sdk.a2a.server import to_a2a, make_x402_before_agent_callback
 
-# Create your ADK agent
-agent = Agent(name="MyAgent")
+# Create your ADK agent with payment requirements
+agent = Agent(
+    name="MyAgent",
+    before_agent_callback=make_x402_before_agent_callback(
+        price="$0.001",
+        network="base-sepolia",
+        pay_to_address="0x...",
+    ),
+)
 
 @agent.tool()
 async def my_tool(query: str) -> str:
     return "result"
 
-# Convert to A2A app with x402 support
-treasurer = NaiveTreasurer(wallet=None)  # Server doesn't need wallet
-a2a_app = to_a2a(agent, treasurer)
+# Convert to A2A app (x402 support configured via before_agent_callback)
+a2a_app = to_a2a(agent, host="localhost", port=8001)
 
 # Serve with uvicorn
 # uvicorn module:a2a_app --host 0.0.0.0 --port 8001

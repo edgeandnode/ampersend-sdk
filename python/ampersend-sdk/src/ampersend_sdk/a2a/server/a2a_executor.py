@@ -15,8 +15,7 @@ from x402_a2a.types import (
 )
 
 from .a2a_monkey import MonkeyA2aAgentExecutor
-from .facilitator_x402_server_executor import FacilitatorX402ServerExecutor
-from .x402_server_executor import X402ServerExecutor
+from .x402_server_executor import X402ServerExecutorFactory
 
 
 class X402A2aAgentExecutor(AgentExecutor):
@@ -25,11 +24,11 @@ class X402A2aAgentExecutor(AgentExecutor):
         *,
         runner: Runner | Callable[..., Runner | Awaitable[Runner]],
         config: Optional[A2aAgentExecutorConfig] = None,
-        x402_executor_class: type[X402ServerExecutor] = FacilitatorX402ServerExecutor,
+        x402_executor_factory: X402ServerExecutorFactory,
         **kwargs: Any,
     ):
         inner = InnerA2aAgentExecutor(runner=runner, config=config, **kwargs)
-        x402 = x402_executor_class(config=x402ExtensionConfig(), delegate=inner)
+        x402 = x402_executor_factory(delegate=inner, config=x402ExtensionConfig())
         # TODO: fix typing in x402-a2a
         self._executor = OuterA2aAgentExecutor(delegate=x402)  # type: ignore[arg-type]
 

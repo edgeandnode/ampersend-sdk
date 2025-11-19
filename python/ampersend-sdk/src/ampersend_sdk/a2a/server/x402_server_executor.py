@@ -1,16 +1,29 @@
-from typing import override
+from typing import Protocol, override
 
 from a2a.server.tasks import TaskUpdater
 from a2a.types import Part, TextPart
 from x402_a2a import (
     X402_EXTENSION_URI,
+    x402ExtensionConfig,
     x402PaymentRequiredException,
 )
 from x402_a2a.executors import x402ServerExecutor
 from x402_a2a.types import (
+    AgentExecutor,
     EventQueue,
     RequestContext,
 )
+
+
+class X402ServerExecutorFactory(Protocol):
+    """Factory protocol for creating X402ServerExecutor instances."""
+
+    def __call__(
+        self,
+        *,
+        delegate: AgentExecutor,
+        config: x402ExtensionConfig,
+    ) -> "X402ServerExecutor": ...
 
 
 class X402ServerExecutor(x402ServerExecutor):

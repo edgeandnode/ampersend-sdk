@@ -13,7 +13,7 @@ from x402_a2a.types import (
     VerifyResponse,
 )
 
-from .x402_server_executor import X402ServerExecutor
+from .x402_server_executor import X402ServerExecutor, X402ServerExecutorFactory
 
 
 class FacilitatorX402ServerExecutor(X402ServerExecutor):
@@ -39,3 +39,41 @@ class FacilitatorX402ServerExecutor(X402ServerExecutor):
     ) -> SettleResponse:
         """Settles the payment with the facilitator."""
         return await self._facilitator.settle(payload, requirements)
+
+
+def create_facilitator_executor_factory(
+    facilitator_config: FacilitatorConfig | None = None,
+    **kwargs: Any,
+) -> X402ServerExecutorFactory:
+    """Create a factory for FacilitatorX402ServerExecutor instances.
+
+    Args:
+        facilitator_config: Optional facilitator configuration
+        **kwargs: Additional kwargs to pass to FacilitatorX402ServerExecutor
+
+    Returns:
+        Factory function that creates FacilitatorX402ServerExecutor instances
+
+    Example:
+        >>> factory = create_facilitator_executor_factory(
+        ...     facilitator_config=FacilitatorConfig(url="https://facilitator.example.com")
+        ... )
+        >>> executor = X402A2aAgentExecutor(
+        ...     runner=runner,
+        ...     x402_executor_factory=factory,
+        ... )
+    """
+
+    def factory(
+        *,
+        delegate: AgentExecutor,
+        config: x402ExtensionConfig,
+    ) -> FacilitatorX402ServerExecutor:
+        return FacilitatorX402ServerExecutor(
+            delegate=delegate,
+            config=config,
+            facilitator_config=facilitator_config,
+            **kwargs,
+        )
+
+    return factory
