@@ -4,13 +4,15 @@ from eth_account import Account
 from eth_account.messages import encode_typed_data
 from eth_utils.conversions import to_bytes, to_hex
 
+from .constants import OWNABLE_VALIDATOR
+
 
 class SmartAccountConfig(NamedTuple):
     """Configuration for smart account operations."""
 
     session_key: str
     smart_account_address: str
-    validator_address: str
+    validator_address: str = OWNABLE_VALIDATOR
 
 
 def encode_1271_signature(

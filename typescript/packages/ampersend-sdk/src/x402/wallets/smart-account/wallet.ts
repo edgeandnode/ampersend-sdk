@@ -1,6 +1,7 @@
 import { type Address, type Hex } from "viem"
 import type { PaymentPayload, PaymentRequirements } from "x402/types"
 
+import { OWNABLE_VALIDATOR } from "../../../smart-account/constants.ts"
 import { WalletError, type X402Wallet } from "../../wallet.ts"
 import { createExactPayment } from "./exact.ts"
 
@@ -14,8 +15,8 @@ export interface SmartAccountConfig {
   sessionKeyPrivateKey: Hex
   /** Chain ID for the blockchain network */
   chainId: number
-  /** OwnableValidator address */
-  validatorAddress: Address
+  /** OwnableValidator address (defaults to standard OwnableValidator) */
+  validatorAddress?: Address
 }
 
 /**
@@ -31,14 +32,22 @@ export interface SmartAccountConfig {
  *   smartAccountAddress: "0x...",  // Smart account address
  *   sessionKeyPrivateKey: "0x...",  // Session key
  *   chainId: 84532,  // Base Sepolia
- *   validatorAddress: "0x..."  // OwnableValidator
+ *   validatorAddress: "0x..."  // OwnableValidator (optional, defaults to standard validator)
  * })
  *
  * const payment = await wallet.createPayment(requirements)
  * ```
  */
 export class SmartAccountWallet implements X402Wallet {
-  constructor(private config: SmartAccountConfig) {}
+  private readonly config: SmartAccountConfig & { validatorAddress: Address }
+
+  constructor(config: SmartAccountConfig) {
+    // Apply default validator address if not provided
+    this.config = {
+      ...config,
+      validatorAddress: config.validatorAddress ?? OWNABLE_VALIDATOR,
+    }
+  }
 
   /**
    * Creates a payment payload from requirements.
