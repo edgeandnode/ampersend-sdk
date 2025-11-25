@@ -7,7 +7,9 @@ export const Scheme = Schema.Literal("exact", "deferred")
 export type Scheme = typeof Scheme.Type
 
 export const Address = Schema.NonEmptyTrimmedString.pipe(
-  Schema.filter((val) => isAddress(val, { strict: false })),
+  Schema.filter(
+    (val) => isAddress(val, { strict: false }) || "Must be a valid Ethereum address (0x followed by 40 hex characters)",
+  ),
   Schema.annotations({
     jsonSchema: {
       type: "string",
@@ -18,7 +20,9 @@ export const Address = Schema.NonEmptyTrimmedString.pipe(
 )
 export type Address = typeof Address.Type
 
-export const TxHash = Schema.NonEmptyTrimmedString.pipe(Schema.filter((val) => isHex(val)))
+export const TxHash = Schema.NonEmptyTrimmedString.pipe(
+  Schema.filter((val) => isHex(val) || "Must be a valid transaction hash (0x followed by hex characters)"),
+)
 export type TxHash = typeof TxHash.Type
 
 type Caip2IDFormat = `eip155:${number}`
@@ -26,7 +30,9 @@ function isCaip2ID(val: string): val is Caip2IDFormat {
   return /^eip155:[0-9]{1,32}$/.test(val)
 }
 
-export const Caip2ID = Schema.NonEmptyTrimmedString.pipe(Schema.filter((val) => isCaip2ID(val)))
+export const Caip2ID = Schema.NonEmptyTrimmedString.pipe(
+  Schema.filter((val) => isCaip2ID(val) || "Must be a valid CAIP-2 chain ID (e.g., eip155:1)"),
+)
 export type Caip2ID = typeof Caip2ID.Type
 
 // ============ SIWE Authentication Schemas ============
