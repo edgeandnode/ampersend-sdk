@@ -1,0 +1,123 @@
+name: TypeScript Release (Test - GitHub Packages)
+
+on:
+  push:
+    branches:
+      - ma/release
+
+permissions:
+  contents: read
+  packages: write # Required for GitHub Packages
+
+env:
+  NODE_VERSION: "22.x"
+
+jobs:
+  validate:
+    name: "ts: validate"
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      NODE_OPTIONS: --max-old-space-size=6144
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          package_json_file: package.json
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "pnpm"
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build
+        run: pnpm --filter ampersend-sdk build
+
+      - name: Lint
+        run: pnpm --filter ampersend-sdk lint
+
+      - name: Format
+        run: pnpm --filter ampersend-sdk format
+
+      - name: Type check
+        run: pnpm --filter ampersend-sdk typecheck
+
+      - name: Test
+        run: pnpm --filter ampersend-sdk test
+
+  verify-version:
+    name: "ts: verify version"
+    runs-on: ubuntu-latest
+    needs: validate
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Read package.json version
+        id: package
+        run: |
+          VERSION=$(node -p "require('./typescript/packages/ampersend-sdk/package.json').version")
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "📦 Package version: $VERSION"
+
+  publish:
+    name: "ts: publish to GitHub Packages"
+    runs-on: ubuntu-latest
+    needs: [validate, verify-version]
+    environment:
+      name: github-packages
+      url: https://github.com/edgeandnode/ampersend-sdk/packages
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          package_json_file: package.json
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          registry-url: "https://npm.pkg.github.com"
+          scope: "@edgeandnode"
+          cache: "pnpm"
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build package
+        run: pnpm --filter ampersend-sdk build
+
+      - name: Determine publish tag
+        id: publish-tag
+        run: |
+          VERSION=$(node -p "require('./typescript/packages/ampersend-sdk/package.json').version")
+          if [[ "$VERSION" == *"-alpha."* ]]; then
+            echo "tag=alpha" >> $GITHUB_OUTPUT
+            echo "📌 Publishing with tag: alpha"
+          elif [[ "$VERSION" == *"-beta."* ]]; then
+            echo "tag=beta" >> $GITHUB_OUTPUT
+            echo "📌 Publishing with tag: beta"
+          else
+            echo "tag=latest" >> $GITHUB_OUTPUT
+            echo "📌 Publishing with tag: latest"
+          fi
+
+      - name: Publish to GitHub Packages
+        run: pnpm --filter ampersend-sdk publish --no-git-checks --access public --tag ${{ steps.publish-tag.outputs.tag }} --registry https://npm.pkg.github.com
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
