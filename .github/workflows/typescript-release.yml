@@ -66,7 +66,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          registry-url: "https://registry.npmjs.org"
           cache: "pnpm"
           cache-dependency-path: pnpm-lock.yaml
 
@@ -92,4 +91,5 @@ jobs:
           fi
 
       - name: Publish to npm
-        run: pnpm --filter ampersend-sdk publish --no-git-checks --access public --tag ${{ steps.publish-tag.outputs.tag }}
+        run: npm publish --access public --tag ${{ steps.publish-tag.outputs.tag }}
+        working-directory: typescript/packages/ampersend-sdk
