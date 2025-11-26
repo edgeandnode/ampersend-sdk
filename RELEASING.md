@@ -76,8 +76,8 @@ For additional security, configure required reviewers on the `npm` and `pypi` en
    ```
 
 4. **Monitor release**
-   - View workflow: https://github.com/edgeandnode/ampersend-sdk/actions/workflows/typescript-release.yml
-   - Check npm: https://www.npmjs.com/package/@ampersend_ai/ampersend-sdk
+   - View workflow: <https://github.com/edgeandnode/ampersend-sdk/actions/workflows/typescript-release.yml>
+   - Check npm: <https://www.npmjs.com/package/@ampersend_ai/ampersend-sdk>
 
 ### Python SDK
 
@@ -86,6 +86,7 @@ For additional security, configure required reviewers on the `npm` and `pypi` en
    ```bash
    # Edit version field
    vim python/ampersend-sdk/pyproject.toml
+   uv sync
    ```
 
 2. **Create PR and merge to main**
@@ -129,8 +130,8 @@ For additional security, configure required reviewers on the `npm` and `pypi` en
    ```
 
 4. **Monitor release**
-   - View workflow: https://github.com/edgeandnode/ampersend-sdk/actions/workflows/python-release.yml
-   - Check PyPI: https://pypi.org/project/ampersend-sdk/
+   - View workflow: <https://github.com/edgeandnode/ampersend-sdk/actions/workflows/python-release.yml>
+   - Check PyPI: <https://pypi.org/project/ampersend-sdk/>
 
 ## Version Guidelines
 
@@ -207,4 +208,4 @@ For issues with releases:
 
 - Check GitHub Actions logs for detailed error messages
 - Review this guide and ensure all prerequisites are met
-- Open an issue at https://github.com/edgeandnode/ampersend-sdk/issues
+- Open an issue at <https://github.com/edgeandnode/ampersend-sdk/issues>

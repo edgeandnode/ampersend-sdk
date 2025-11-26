@@ -1,6 +1,6 @@
 [project]
 name = "ampersend-sdk"
-version = "0.0.1a1"
+version = "0.0.1a2"
 description = "Python SDK for ampersend"
 readme = "README.md"
 dependencies = [

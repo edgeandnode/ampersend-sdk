@@ -114,7 +114,7 @@ wheels = [
 
 [[package]]
 name = "ampersend-sdk"
-version = "0.0.1a1"
+version = "0.0.1a2"
 source = { editable = "python/ampersend-sdk" }
 dependencies = [
     { name = "a2a-sdk" },
