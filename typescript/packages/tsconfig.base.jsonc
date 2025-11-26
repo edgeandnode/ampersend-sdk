@@ -31,8 +31,8 @@
     "types": [], // Disable automatic loading of `@types/*` packages.
     "plugins": [{ "name": "@effect/language-service" }],
     "paths": {
-      "@edgeandnode/ampersend-sdk": ["./ampersend-sdk/src/index.js"],
-      "@edgeandnode/ampersend-sdk/*": ["./ampersend-sdk/src/*.js"]
-    }
-  }
+      "@ampersend_ai/ampersend-sdk": ["./ampersend-sdk/src/index.js"],
+      "@ampersend_ai/ampersend-sdk/*": ["./ampersend-sdk/src/*.js"],
+    },
+  },
 }

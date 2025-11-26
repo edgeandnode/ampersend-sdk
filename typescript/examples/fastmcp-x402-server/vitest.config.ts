@@ -9,7 +9,7 @@ export default defineConfig({
   },
   resolve: {
     alias: {
-      "@edgeandnode/ampersend-sdk": path.resolve(__dirname, "../../packages/ampersend-sdk/src"),
+      "@ampersend_ai/ampersend-sdk": path.resolve(__dirname, "../../packages/ampersend-sdk/src"),
     },
   },
 })

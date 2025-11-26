@@ -16,8 +16,8 @@ pnpm build
 ### MCP Client
 
 ```typescript
-import { X402McpClient } from "@edgeandnode/ampersend-sdk/mcp/client"
-import { AccountWallet, NaiveTreasurer } from "@edgeandnode/ampersend-sdk/x402"
+import { X402McpClient } from "@ampersend_ai/ampersend-sdk/mcp/client"
+import { AccountWallet, NaiveTreasurer } from "@ampersend_ai/ampersend-sdk/x402"
 
 const wallet = new AccountWallet("0x...")
 const treasurer = new NaiveTreasurer(wallet)
@@ -47,9 +47,8 @@ pnpm --filter ampersend-sdk proxy:dev
 ### FastMCP Server
 
 ```typescript
+import { withX402Payment } from "@ampersend_ai/ampersend-sdk/mcp/server/fastmcp"
 import { FastMCP } from "fastmcp"
-
-import { withX402Payment } from "@edgeandnode/ampersend-sdk/mcp/server/fastmcp"
 
 const mcp = new FastMCP("my-server")
 
@@ -102,12 +101,12 @@ BUYER_SMART_ACCOUNT_VALIDATOR_ADDRESS=0x...
 ## Package Exports
 
 ```typescript
-import { ... } from "@edgeandnode/ampersend-sdk"                  // Main
-import { ... } from "@edgeandnode/ampersend-sdk/x402"             // Core x402
-import { ... } from "@edgeandnode/ampersend-sdk/mcp/client"       // Client
-import { ... } from "@edgeandnode/ampersend-sdk/mcp/proxy"        // Proxy
-import { ... } from "@edgeandnode/ampersend-sdk/smart-account"    // Smart accounts
-import { ... } from "@edgeandnode/ampersend-sdk/mcp/server/fastmcp" // FastMCP
+import { ... } from "@ampersend_ai/ampersend-sdk"                  // Main
+import { ... } from "@ampersend_ai/ampersend-sdk/x402"             // Core x402
+import { ... } from "@ampersend_ai/ampersend-sdk/mcp/client"       // Client
+import { ... } from "@ampersend_ai/ampersend-sdk/mcp/proxy"        // Proxy
+import { ... } from "@ampersend_ai/ampersend-sdk/smart-account"    // Smart accounts
+import { ... } from "@ampersend_ai/ampersend-sdk/mcp/server/fastmcp" // FastMCP
 ```
 
 ## Module Documentation

@@ -14,7 +14,7 @@
     "format:fix": "prettier . --write --list-different --ignore-path ../../.prettierignore"
   },
   "dependencies": {
-    "@edgeandnode/ampersend-sdk": "workspace:^",
+    "@ampersend_ai/ampersend-sdk": "workspace:^",
     "@modelcontextprotocol/sdk": "github:edgeandnode/mcp-typescript-sdk#2de06543904483073d8cc13db1d0e08e16601081",
     "@langchain/core": "^0.3.29",
     "@langchain/openai": "^1.0.0",

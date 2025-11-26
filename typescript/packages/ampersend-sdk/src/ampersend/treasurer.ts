@@ -1,4 +1,4 @@
-import type { PaymentEvent } from "@edgeandnode/ampersend-sdk/mcp/client"
+import type { PaymentEvent } from "@ampersend_ai/ampersend-sdk/mcp/client"
 import {
   createWalletFromConfig,
   type Authorization,
@@ -7,7 +7,7 @@ import {
   type WalletConfig,
   type X402Treasurer,
   type X402Wallet,
-} from "@edgeandnode/ampersend-sdk/x402"
+} from "@ampersend_ai/ampersend-sdk/x402"
 
 import { ApiClient } from "./client.ts"
 

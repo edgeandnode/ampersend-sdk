@@ -62,12 +62,12 @@ importers:
 
   typescript/examples/fastmcp-x402-server:
     dependencies:
+      '@ampersend_ai/ampersend-sdk':
+        specifier: workspace:^
+        version: link:../../packages/ampersend-sdk
       '@coinbase/x402':
         specifier: ^0.6.6
         version: 0.6.6(@solana/sysvars@3.0.3(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.3))(@tanstack/query-core@5.90.7)(@tanstack/react-query@5.90.7(react@18.3.1))(bufferutil@4.0.9)(fastestsmallesttextencoderdecoder@1.0.22)(react@18.3.1)(typescript@5.9.3)(utf-8-validate@5.0.10)(ws@8.18.3(bufferutil@4.0.9)(utf-8-validate@5.0.10))
-      '@edgeandnode/ampersend-sdk':
-        specifier: workspace:^
-        version: link:../../packages/ampersend-sdk
       fastmcp:
         specifier: github:edgeandnode/fastmcp#6446ea7b56eb291a6d4d7321e4a41ff0aacba1ef
         version: https://codeload.github.com/edgeandnode/fastmcp/tar.gz/6446ea7b56eb291a6d4d7321e4a41ff0aacba1ef(effect@3.19.3)
@@ -84,7 +84,7 @@ importers:
 
   typescript/examples/langchain-mcp:
     dependencies:
-      '@edgeandnode/ampersend-sdk':
+      '@ampersend_ai/ampersend-sdk':
         specifier: workspace:^
         version: link:../../packages/ampersend-sdk
       '@langchain/core':

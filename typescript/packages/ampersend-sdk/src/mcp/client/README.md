@@ -11,8 +11,8 @@ Extends the MCP Client to automatically handle HTTP 402 payment responses using 
 ## Quick Start
 
 ```typescript
-import { X402McpClient } from "@edgeandnode/ampersend-sdk/mcp/client"
-import { AccountWallet, NaiveTreasurer } from "@edgeandnode/ampersend-sdk/x402"
+import { X402McpClient } from "@ampersend_ai/ampersend-sdk/mcp/client"
+import { AccountWallet, NaiveTreasurer } from "@ampersend_ai/ampersend-sdk/x402"
 
 const wallet = new AccountWallet("0x...")
 const treasurer = new NaiveTreasurer(wallet)

@@ -1,10 +1,9 @@
+import { withX402Payment, type OnPayment } from "@ampersend_ai/ampersend-sdk/mcp/server/fastmcp"
 import { facilitator } from "@coinbase/x402"
 import { FastMCP } from "fastmcp"
 import type { FacilitatorConfig, PaymentRequirements } from "x402/types"
 import { useFacilitator } from "x402/verify"
 import { z } from "zod"
-
-import { withX402Payment, type OnPayment } from "@edgeandnode/ampersend-sdk/mcp/server/fastmcp"
 
 const PORT = process.env.PORT || 8080
 const PAY_TO_ADDRESS = process.env.TS__EXAMPLES__FASTMCP_X402_SERVER__PAY_TO_ADDRESS

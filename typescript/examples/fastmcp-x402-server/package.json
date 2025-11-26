@@ -31,7 +31,7 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@edgeandnode/ampersend-sdk": "workspace:^",
+    "@ampersend_ai/ampersend-sdk": "workspace:^",
     "fastmcp": "github:edgeandnode/fastmcp#6446ea7b56eb291a6d4d7321e4a41ff0aacba1ef",
     "@coinbase/x402": "^0.6.6",
     "x402": "^0.6.6",

@@ -1,10 +1,9 @@
+import { Client } from "@ampersend_ai/ampersend-sdk/mcp/client"
+import { AccountWallet, NaiveTreasurer } from "@ampersend_ai/ampersend-sdk/x402"
 import { createReactAgent } from "@langchain/langgraph/prebuilt"
 import { loadMcpTools } from "@langchain/mcp-adapters"
 import { ChatOpenAI } from "@langchain/openai"
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js"
-
-import { Client } from "@edgeandnode/ampersend-sdk/mcp/client"
-import { AccountWallet, NaiveTreasurer } from "@edgeandnode/ampersend-sdk/x402"
 
 const MCP_SERVER_URL = process.env.TS__EXAMPLES__LANGCHAIN_MCP__MCP_SERVER_URL
 const PRIVATE_KEY = process.env.TS__EXAMPLES__LANGCHAIN_MCP__PRIVATE_KEY
