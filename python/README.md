@@ -158,6 +158,7 @@ uv --directory=examples run -- adk run src/examples/a2a/buyer/adk
 ```
 
 **Standalone Alternative**:
+
 ```bash
 export EXAMPLES_A2A_BUYER__PRIVATE_KEY=0x...
 export EXAMPLES_A2A_BUYER__USE_NAIVE_AUTHORIZER=true
@@ -187,7 +188,8 @@ export EXAMPLE_BUYER__MCP__TARGET_SERVER_URL=https://subgraph-mcp.x402.staging.a
 uv --directory=examples run -- adk run src/examples/mcp/buyer/adk
 ```
 
-**How it works**: MCP proxy intercepts tool calls, detects x402 payment requirements (HTTP 402), automatically authorizes and submits payments, then retries the tool call.
+**How it works**: MCP proxy intercepts tool calls, detects x402 payment requirements (HTTP 402), automatically
+authorizes and submits payments, then retries the tool call.
 
 ### A2A Seller
 

@@ -1,6 +1,7 @@
 # Running the MCP x402 Proxy
 
-The MCP x402 proxy is a transparent HTTP proxy that adds x402 payment capabilities to any MCP server. It sits between MCP clients and servers, automatically handling payment requirements.
+The MCP x402 proxy is a transparent HTTP proxy that adds x402 payment capabilities to any MCP server. It sits between
+MCP clients and servers, automatically handling payment requirements.
 
 ## Overview
 
@@ -81,6 +82,7 @@ http://localhost:3000/mcp?target=https://subgraph-mcp.x402.staging.ampersend.ai
 ### Required (Choose One Mode)
 
 **Smart Account Mode (Recommended)**:
+
 ```bash
 BUYER_SMART_ACCOUNT_ADDRESS=0x...           # Your agent's smart account
 BUYER_SMART_ACCOUNT_KEY_PRIVATE_KEY=0x...  # Session key from dashboard
@@ -89,6 +91,7 @@ AMPERSEND_API_URL=https://api.staging.ampersend.ai  # Staging (testnet)
 ```
 
 **EOA Mode (Standalone)**:
+
 ```bash
 BUYER_PRIVATE_KEY=0x...  # Wallet private key
 ```
@@ -144,6 +147,7 @@ http://localhost:3000/mcp?target=https://subgraph-mcp.x402.thegraph.com
 **Issue**: Can't connect to proxy
 
 **Solutions**:
+
 - Check proxy is running: `curl http://localhost:3000/health`
 - Check port isn't in use: `lsof -i :3000`
 - Try different port: `PORT=8080 ampersend-proxy`
@@ -153,6 +157,7 @@ http://localhost:3000/mcp?target=https://subgraph-mcp.x402.thegraph.com
 **Issue**: Proxy returns payment errors
 
 **Solutions**:
+
 - **Smart Account**: Check balance in dashboard
 - **EOA**: Check USDC balance: `cast balance 0x... --rpc-url https://sepolia.base.org`
 - Check treasurer logs for authorization errors
@@ -162,6 +167,7 @@ http://localhost:3000/mcp?target=https://subgraph-mcp.x402.thegraph.com
 **Issue**: MCP server not responding
 
 **Solutions**:
+
 - Verify target URL is correct
 - Check server is running: `curl <target-url>/mcp`
 - Try staging server: `https://subgraph-mcp.x402.staging.ampersend.ai`
