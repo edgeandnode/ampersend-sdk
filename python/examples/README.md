@@ -1,6 +1,7 @@
 # Ampersend SDK - Python Examples
 
-Comprehensive examples demonstrating x402 payment integration with A2A (Agent-to-Agent) and MCP (Model Context Protocol) protocols.
+Comprehensive examples demonstrating x402 payment integration with A2A (Agent-to-Agent) and MCP (Model Context Protocol)
+protocols.
 
 ## Prerequisites
 
@@ -62,12 +63,12 @@ You just made your first x402 payment on testnet! The agent automatically handle
 
 ### 1. A2A Direct Connection
 
-**Path**: `src/examples/a2a/buyer/adk/`
-**Demonstrates**: Direct connection to remote A2A agent with x402 payments
+**Path**: `src/examples/a2a/buyer/adk/` **Demonstrates**: Direct connection to remote A2A agent with x402 payments
 
 Connect directly to a remote agent and let the SDK handle payments automatically.
 
 **Run**:
+
 ```bash
 # Testnet (staging)
 export EXAMPLES_A2A_BUYER__SMART_ACCOUNT_ADDRESS=0x...
@@ -78,18 +79,19 @@ uv --directory=python/examples run -- adk run src/examples/a2a/buyer/adk
 ```
 
 **Features**:
+
 - Smart Account + EOA auto-detection
 - AmpersendTreasurer with spend limits
 - Defaults to staging subgraph service
 
 ### 2. A2A Local Orchestrator
 
-**Path**: `src/examples/a2a/buyer/local_agent/`
-**Demonstrates**: Local agent orchestrating multiple remote agents
+**Path**: `src/examples/a2a/buyer/local_agent/` **Demonstrates**: Local agent orchestrating multiple remote agents
 
 Build a local agent that can discover and delegate to multiple specialized remote agents.
 
 **Run**:
+
 ```bash
 # Testnet (staging)
 export EXAMPLES_A2A_BUYER__SMART_ACCOUNT_ADDRESS=0x...
@@ -103,12 +105,14 @@ uv --directory=python/examples run -- adk run src/examples/a2a/buyer/local_agent
 ```
 
 **Features**:
+
 - Uses `X402RemoteAgentToolset` for remote agent tools
 - Automatic agent discovery
 - Per-agent conversation context management
 - Multi-agent orchestration
 
 **How it works**:
+
 1. Orchestrator lists available remote agents
 2. Delegates user request to appropriate agent
 3. Remote agent processes with automatic payment
@@ -116,14 +120,14 @@ uv --directory=python/examples run -- adk run src/examples/a2a/buyer/local_agent
 
 ### 3. MCP via Proxy
 
-**Path**: `src/examples/mcp/buyer/adk/`
-**Demonstrates**: MCP protocol with transparent payment proxy
+**Path**: `src/examples/mcp/buyer/adk/` **Demonstrates**: MCP protocol with transparent payment proxy
 
 Use MCP tools through a proxy that handles x402 payments transparently.
 
 **Prerequisites**: Start the MCP proxy first (see [Running MCP Proxy](./docs/running-mcp-proxy.md))
 
 **Run**:
+
 ```bash
 # 1. Start MCP proxy (separate terminal)
 export BUYER_SMART_ACCOUNT_ADDRESS=0x...
@@ -139,18 +143,19 @@ uv --directory=python/examples run -- adk run src/examples/mcp/buyer/adk
 ```
 
 **Features**:
+
 - Transparent payment handling via proxy
 - No payment code in client agent
 - Works with any MCP server
 
 ### 4. A2A Seller
 
-**Path**: `src/examples/a2a/seller/adk/`
-**Demonstrates**: Creating x402-enabled A2A services
+**Path**: `src/examples/a2a/seller/adk/` **Demonstrates**: Creating x402-enabled A2A services
 
 Create your own A2A service that requires payment.
 
 **Run**:
+
 ```bash
 export EXAMPLES_A2A_SELLER__PAY_TO_ADDRESS=0x...
 export GOOGLE_API_KEY=...
@@ -187,6 +192,7 @@ See [Environment Variables Reference](./docs/environment-variables.md) for compl
 ### Quick Reference
 
 **Smart Account Mode (Recommended)**:
+
 ```bash
 EXAMPLES_A2A_BUYER__SMART_ACCOUNT_ADDRESS=0x...
 EXAMPLES_A2A_BUYER__SMART_ACCOUNT_KEY_PRIVATE_KEY=0x...
@@ -194,12 +200,14 @@ EXAMPLES_A2A_BUYER__AMPERSEND_API_URL=https://api.staging.ampersend.ai
 ```
 
 **Standalone Mode**:
+
 ```bash
 EXAMPLES_A2A_BUYER__PRIVATE_KEY=0x...
 EXAMPLES_A2A_BUYER__USE_NAIVE_AUTHORIZER=true
 ```
 
 **Service URLs** (optional, defaults to staging):
+
 ```bash
 EXAMPLES_A2A_BUYER__SELLER_AGENT_URL=https://subgraph-a2a.x402.staging.thegraph.com
 EXAMPLES_A2A_BUYER__AGENT_URL_1=https://subgraph-a2a.x402.staging.thegraph.com
@@ -270,19 +278,22 @@ EXAMPLE_BUYER__MCP__TARGET_SERVER_URL=https://subgraph-mcp.x402.staging.ampersen
 ### "No module named 'ampersend_sdk'"
 
 **Solution**: Install dependencies
+
 ```bash
 uv sync
 ```
 
-### "EXAMPLES_A2A_BUYER__SMART_ACCOUNT_ADDRESS" not found
+### "EXAMPLES_A2A_BUYER\_\_SMART_ACCOUNT_ADDRESS" not found
 
 **Solutions**:
+
 - **Smart Account mode**: Set all required smart account variables
 - **Standalone mode**: Use `EXAMPLES_A2A_BUYER__PRIVATE_KEY` instead
 
 ### "Insufficient funds" or "Payment rejected"
 
 **Solutions**:
+
 - **Testnet**: Get USDC from https://faucet.circle.com/ (Base Sepolia)
 - **Production**: Check balance in https://app.ampersend.ai
 - **Standalone**: Check your wallet USDC balance
@@ -290,6 +301,7 @@ uv sync
 ### "Agent not found" (local_agent example)
 
 **Solution**: Check `EXAMPLES_A2A_BUYER__AGENT_URL_1` is set and accessible:
+
 ```bash
 curl https://subgraph-a2a.x402.staging.thegraph.com/.well-known/agent-card.json
 ```
@@ -297,6 +309,7 @@ curl https://subgraph-a2a.x402.staging.thegraph.com/.well-known/agent-card.json
 ### MCP Proxy Connection Refused
 
 **Solutions**:
+
 1. Check proxy is running: `curl http://localhost:3000/health`
 2. See [Running MCP Proxy Guide](./docs/running-mcp-proxy.md)
 3. Start proxy: `ampersend-proxy`

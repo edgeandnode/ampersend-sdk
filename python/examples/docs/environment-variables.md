@@ -5,6 +5,7 @@ Complete reference for all environment variables used in Ampersend SDK examples.
 ## Overview
 
 Examples support two modes:
+
 1. **Smart Account + Ampersend** (recommended) - With spend limits and monitoring
 2. **Standalone** - EOA + Naive mode for testing
 
@@ -12,17 +13,17 @@ Examples support two modes:
 
 ### Required Variables
 
-| Variable | Description | Example |
-|----------|-------------|---------|
-| `EXAMPLES_A2A_BUYER__SMART_ACCOUNT_ADDRESS` | Agent's smart account address | `0x1234...` |
+| Variable                                            | Description                          | Example     |
+| --------------------------------------------------- | ------------------------------------ | ----------- |
+| `EXAMPLES_A2A_BUYER__SMART_ACCOUNT_ADDRESS`         | Agent's smart account address        | `0x1234...` |
 | `EXAMPLES_A2A_BUYER__SMART_ACCOUNT_KEY_PRIVATE_KEY` | Session key (owner of smart account) | `0xabcd...` |
 
 ### Optional Variables
 
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `EXAMPLES_A2A_BUYER__AMPERSEND_API_URL` | Ampersend API endpoint | `https://api.staging.ampersend.ai` |
-| `EXAMPLES_A2A_BUYER__USE_NAIVE_AUTHORIZER` | Skip API checks | `false` |
+| Variable                                   | Description            | Default                            |
+| ------------------------------------------ | ---------------------- | ---------------------------------- |
+| `EXAMPLES_A2A_BUYER__AMPERSEND_API_URL`    | Ampersend API endpoint | `https://api.staging.ampersend.ai` |
+| `EXAMPLES_A2A_BUYER__USE_NAIVE_AUTHORIZER` | Skip API checks        | `false`                            |
 
 ### Setup
 
@@ -37,10 +38,10 @@ Examples support two modes:
 
 ### Required Variables
 
-| Variable | Description | Example |
-|----------|-------------|---------|
-| `EXAMPLES_A2A_BUYER__PRIVATE_KEY` | EOA wallet private key | `0xabcd...` |
-| `EXAMPLES_A2A_BUYER__USE_NAIVE_AUTHORIZER` | Enable naive mode | `true` |
+| Variable                                   | Description            | Example     |
+| ------------------------------------------ | ---------------------- | ----------- |
+| `EXAMPLES_A2A_BUYER__PRIVATE_KEY`          | EOA wallet private key | `0xabcd...` |
+| `EXAMPLES_A2A_BUYER__USE_NAIVE_AUTHORIZER` | Enable naive mode      | `true`      |
 
 ### Setup
 
@@ -57,33 +58,33 @@ All examples default to staging services (testnet, rate-limited).
 
 ### A2A Service URLs
 
-| Variable | Staging (Default) | Production |
-|----------|-------------------|------------|
+| Variable                               | Staging (Default)                                | Production                               |
+| -------------------------------------- | ------------------------------------------------ | ---------------------------------------- |
 | `EXAMPLES_A2A_BUYER__SELLER_AGENT_URL` | `https://subgraph-a2a.x402.staging.thegraph.com` | `https://subgraph-a2a.x402.thegraph.com` |
 
 ### Local Orchestrator URLs
 
-| Variable | Staging (Default) | Production |
-|----------|-------------------|------------|
+| Variable                          | Staging (Default)                                | Production                               |
+| --------------------------------- | ------------------------------------------------ | ---------------------------------------- |
 | `EXAMPLES_A2A_BUYER__AGENT_URL_1` | `https://subgraph-a2a.x402.staging.thegraph.com` | `https://subgraph-a2a.x402.thegraph.com` |
-| `EXAMPLES_A2A_BUYER__AGENT_URL_2` | _(optional)_ | _(optional)_ |
+| `EXAMPLES_A2A_BUYER__AGENT_URL_2` | _(optional)_                                     | _(optional)_                             |
 
 ### MCP Service URLs
 
-| Variable | Staging (Default) | Production |
-|----------|-------------------|------------|
-| `EXAMPLE_BUYER__MCP__PROXY_URL` | `http://localhost:3000/mcp` | `http://localhost:3000/mcp` |
+| Variable                                | Staging (Default)                                | Production                               |
+| --------------------------------------- | ------------------------------------------------ | ---------------------------------------- |
+| `EXAMPLE_BUYER__MCP__PROXY_URL`         | `http://localhost:3000/mcp`                      | `http://localhost:3000/mcp`              |
 | `EXAMPLE_BUYER__MCP__TARGET_SERVER_URL` | `https://subgraph-mcp.x402.staging.ampersend.ai` | `https://subgraph-mcp.x402.thegraph.com` |
 
 ### MCP Proxy Configuration
 
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `BUYER_SMART_ACCOUNT_ADDRESS` | Smart account for proxy | _(required)_ |
-| `BUYER_SMART_ACCOUNT_KEY_PRIVATE_KEY` | Session key for proxy | _(required)_ |
-| `BUYER_SMART_ACCOUNT_VALIDATOR_ADDRESS` | Validator contract | `0x000000000013FDB5234E4E3162A810F54D9F7E98` |
-| `AMPERSEND_API_URL` | Ampersend API for proxy | _(required)_ |
-| `BUYER_PRIVATE_KEY` | EOA private key (standalone) | _(alternative)_ |
+| Variable                                | Description                  | Default                                      |
+| --------------------------------------- | ---------------------------- | -------------------------------------------- |
+| `BUYER_SMART_ACCOUNT_ADDRESS`           | Smart account for proxy      | _(required)_                                 |
+| `BUYER_SMART_ACCOUNT_KEY_PRIVATE_KEY`   | Session key for proxy        | _(required)_                                 |
+| `BUYER_SMART_ACCOUNT_VALIDATOR_ADDRESS` | Validator contract           | `0x000000000013FDB5234E4E3162A810F54D9F7E98` |
+| `AMPERSEND_API_URL`                     | Ampersend API for proxy      | _(required)_                                 |
+| `BUYER_PRIVATE_KEY`                     | EOA private key (standalone) | _(alternative)_                              |
 
 ## Complete Configuration Examples
 
@@ -164,6 +165,7 @@ export BUYER_PRIVATE_KEY=0x...
 ## Smart Account Configuration
 
 The validator address for Smart Accounts:
+
 ```
 0x000000000013FDB5234E4E3162A810F54D9F7E98
 ```
@@ -175,18 +177,21 @@ This is the same across staging and production.
 ### How do I know which mode I'm in?
 
 Check your environment variables:
+
 - If `EXAMPLES_A2A_BUYER__SMART_ACCOUNT_ADDRESS` is set → **Smart Account mode**
 - If only `EXAMPLES_A2A_BUYER__PRIVATE_KEY` is set → **Standalone mode**
 
 ### Can I mix variables from different modes?
 
 No. Choose one mode:
+
 - **Smart Account**: Set `SMART_ACCOUNT_ADDRESS` + `SMART_ACCOUNT_KEY_PRIVATE_KEY` + `AMPERSEND_API_URL`
 - **Standalone**: Set `PRIVATE_KEY` + `USE_NAIVE_AUTHORIZER=true`
 
 ### What happens if I don't set service URLs?
 
 Examples default to staging services:
+
 - A2A: `https://subgraph-a2a.x402.staging.thegraph.com`
 - MCP: `https://subgraph-mcp.x402.staging.ampersend.ai`
 
@@ -195,6 +200,7 @@ This is perfect for getting started!
 ### How do I switch to production?
 
 Update three variables:
+
 1. `AMPERSEND_API_URL=https://api.ampersend.ai`
 2. Service URL to production endpoint
 3. Ensure using production account from https://app.ampersend.ai
