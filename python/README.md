@@ -14,29 +14,83 @@ uv python install 3.13
 uv sync --frozen --group dev
 ```
 
-## Quick Start
+## Getting Started
 
-### Client (Buyer)
+Create your first x402-enabled agent in minutes using Ampersend's staging environment (free testnet).
+
+### 1. Create Agent Account
+
+1. Visit https://app.staging.ampersend.ai
+2. Create an agent account
+3. Get your Smart Account address and session key
+4. Fund with testnet USDC: https://faucet.circle.com/ (select Base Sepolia)
+
+### 2. Install SDK
+
+```bash
+uv python install 3.13
+uv sync --frozen --group dev
+```
+
+### 3. Create Your Agent
+
+```python
+from ampersend_sdk.a2a.client import X402RemoteA2aAgent
+from ampersend_sdk.ampersend import AmpersendTreasurer, ApiClient, ApiClientOptions
+from ampersend_sdk.x402.wallets.smart_account import SmartAccountWallet
+from ampersend_sdk.smart_account import SmartAccountConfig
+
+# Configure smart account wallet
+wallet = SmartAccountWallet(
+    config=SmartAccountConfig(
+        session_key="0x...",  # From staging dashboard
+        smart_account_address="0x...",  # From staging dashboard
+        validator_address="0x000000000013FDB5234E4E3162A810F54D9F7E98"
+    )
+)
+
+# Create Ampersend treasurer (with spend limits & monitoring)
+treasurer = AmpersendTreasurer(
+    api_client=ApiClient(
+        options=ApiClientOptions(
+            base_url="https://api.staging.ampersend.ai",
+            session_key_private_key="0x..."
+        )
+    ),
+    wallet=wallet
+)
+
+# Create agent pointing to staging service (testnet, rate-limited)
+agent = X402RemoteA2aAgent(
+    treasurer=treasurer,
+    name="my_agent",
+    agent_card="https://subgraph-a2a.x402.staging.thegraph.com/.well-known/agent-card.json"
+)
+
+# Use the agent (payments handled automatically with spend limits)
+result = await agent.run("Query Uniswap V3 pools on Base Sepolia")
+```
+
+### Standalone Alternative
+
+For testing without Ampersend account:
 
 ```python
 from ampersend_sdk.a2a.client import X402RemoteA2aAgent
 from ampersend_sdk.x402.treasurers.naive import NaiveTreasurer
 from ampersend_sdk.x402.wallets.account import AccountWallet
 
-# Create wallet and treasurer
 wallet = AccountWallet(private_key="0x...")
-treasurer = NaiveTreasurer(wallet)
+treasurer = NaiveTreasurer(wallet=wallet)  # Auto-approves, no limits
 
-# Create agent with payment support
 agent = X402RemoteA2aAgent(
     treasurer=treasurer,
-    agent_url="http://localhost:8001",
-    agent_name="SellerAgent"
+    name="test_agent",
+    agent_card="https://subgraph-a2a.x402.staging.thegraph.com/.well-known/agent-card.json"
 )
-
-# Use the agent (payments handled automatically)
-result = await agent.run("your query here")
 ```
+
+**Note**: Standalone mode has no spend limits or monitoring. Recommended for testing only.
 
 ### Server (Seller)
 
@@ -83,30 +137,90 @@ Handles payment authorization and status tracking. The `NaiveTreasurer` implemen
 2. Treasurer authorizes payment → Payment injected into request
 3. Request retried with payment → Server verifies and processes
 
-## Environment Variables
+## Examples
 
-See [.env.example](../.env.example) for configuration:
+Complete examples demonstrating x402 integration with A2A and MCP protocols.
+
+### A2A Buyer (Direct Connection)
+
+**Location**: `examples/src/examples/a2a/buyer/adk/`
+
+Connects directly to remote A2A agents with automatic payment handling.
 
 ```bash
-# Buyer configuration
-EXAMPLES_A2A_BUYER__PRIVATE_KEY=0x...
-EXAMPLES_A2A_BUYER__SELLER_AGENT_URL=http://localhost:8001
+# Getting Started (Testnet)
+export EXAMPLES_A2A_BUYER__SMART_ACCOUNT_ADDRESS=0x...  # From app.staging.ampersend.ai
+export EXAMPLES_A2A_BUYER__SMART_ACCOUNT_KEY_PRIVATE_KEY=0x...
+export EXAMPLES_A2A_BUYER__AMPERSEND_API_URL=https://api.staging.ampersend.ai
 
-# Seller configuration
-EXAMPLES_A2A_SELLER__PAY_TO_ADDRESS=0x...
-GOOGLE_API_KEY=...
+# Run (connects to staging service by default)
+uv --directory=examples run -- adk run src/examples/a2a/buyer/adk
 ```
 
-## Running Examples
+**Standalone Alternative**:
+```bash
+export EXAMPLES_A2A_BUYER__PRIVATE_KEY=0x...
+export EXAMPLES_A2A_BUYER__USE_NAIVE_AUTHORIZER=true
+uv --directory=examples run -- adk run src/examples/a2a/buyer/adk
+```
+
+See example code for Smart Account + EOA auto-detection and AmpersendTreasurer integration.
+
+### MCP Buyer (via Proxy)
+
+**Location**: `examples/src/examples/mcp/buyer/adk/`
+
+Uses MCP protocol with transparent payment proxy.
+
+**Prerequisites**: Start the MCP proxy (see [Running MCP Proxy Guide](./examples/docs/running-mcp-proxy.md))
 
 ```bash
+# 1. Start proxy (separate terminal)
+export BUYER_SMART_ACCOUNT_ADDRESS=0x...
+export BUYER_SMART_ACCOUNT_KEY_PRIVATE_KEY=0x...
+export AMPERSEND_API_URL=https://api.staging.ampersend.ai
+ampersend-proxy  # Runs on http://localhost:3000
+
+# 2. Run buyer (connects to staging MCP service)
+export EXAMPLE_BUYER__MCP__PROXY_URL=http://localhost:3000/mcp
+export EXAMPLE_BUYER__MCP__TARGET_SERVER_URL=https://subgraph-mcp.x402.staging.ampersend.ai
+uv --directory=examples run -- adk run src/examples/mcp/buyer/adk
+```
+
+**How it works**: MCP proxy intercepts tool calls, detects x402 payment requirements (HTTP 402), automatically authorizes and submits payments, then retries the tool call.
+
+### A2A Seller
+
+**Location**: `examples/src/examples/a2a/seller/adk/`
+
+Create x402-enabled A2A services.
+
+```bash
+# Set configuration
+export EXAMPLES_A2A_SELLER__PAY_TO_ADDRESS=0x...
+export GOOGLE_API_KEY=...
+
 # Start seller
 uv --directory=examples run -- \
   uvicorn examples.a2a.seller.adk.agent:a2a_app --host localhost --port 8001
-
-# Run buyer
-echo "your query" | uv --directory=examples run -- adk run src/examples/a2a/buyer/adk
 ```
+
+### Production
+
+Ready to use production endpoints? Update your environment:
+
+```bash
+# Ampersend
+export AMPERSEND_API_URL=https://api.ampersend.ai
+
+# A2A Service
+export EXAMPLES_A2A_BUYER__SELLER_AGENT_URL=https://subgraph-a2a.x402.thegraph.com
+
+# MCP Service
+export EXAMPLE_BUYER__MCP__TARGET_SERVER_URL=https://subgraph-mcp.x402.thegraph.com
+```
+
+**Note**: Production uses Base mainnet with real USDC. Staging services are rate-limited and for testing only.
 
 ## Development
 
