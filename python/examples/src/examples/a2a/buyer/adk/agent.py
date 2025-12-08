@@ -70,7 +70,6 @@ if smart_account_address:
         config=SmartAccountConfig(
             session_key=_session_key,
             smart_account_address=smart_account_address,
-            validator_address="0x000000000013FDB5234E4E3162A810F54D9F7E98",
         )
     )
 else:
