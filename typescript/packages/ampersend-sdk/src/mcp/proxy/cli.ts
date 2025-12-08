@@ -51,7 +51,7 @@ export function createWalletConfig(envConfig: ProxyEnvConfig): WalletConfig {
       smartAccountAddress: envConfig.BUYER_SMART_ACCOUNT_ADDRESS as `0x${string}`,
       sessionKeyPrivateKey: envConfig.BUYER_SMART_ACCOUNT_KEY_PRIVATE_KEY! as `0x${string}`,
       chainId: envConfig.BUYER_SMART_ACCOUNT_CHAIN_ID ?? 84532,
-      validatorAddress: envConfig.BUYER_SMART_ACCOUNT_VALIDATOR_ADDRESS! as Address,
+      validatorAddress: envConfig.BUYER_SMART_ACCOUNT_VALIDATOR_ADDRESS as Address,
     }
     return smartAccountWalletConfig
   }
