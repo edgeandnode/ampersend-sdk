@@ -39,7 +39,7 @@ pnpm build
 
 ### 2. Configure Wallet
 
-**Recommended: Smart Account** (from app.staging.ampersend.ai)
+**Recommended: Smart Account** (from app.staging.ampersend.ai for testnet, app.ampersend.ai for production)
 
 ```bash
 export BUYER_SMART_ACCOUNT_ADDRESS=0x...           # From staging dashboard
