@@ -40,11 +40,15 @@ export EXAMPLES_A2A_BUYER__AMPERSEND_API_URL=https://api.staging.ampersend.ai
 ### 4. Run an Example
 
 ```bash
-# Try the A2A buyer example (connects to staging service)
+# Try the A2A buyer example (connects to staging subgraph service)
 uv --directory=python/examples run -- adk run src/examples/a2a/buyer/adk
 ```
 
-You just made your first x402 payment on testnet! The agent automatically handled the payment flow.
+The agent connects to The Graph's subgraph service, which provides blockchain data with x402 payment.
+
+**Try asking**: "What were the last 2 ENS registrations?"
+
+The agent automatically handles the payment flow to query the data. You just made your first x402 payment on testnet!
 
 ### Ready for Production?
 
@@ -61,11 +65,13 @@ You just made your first x402 payment on testnet! The agent automatically handle
 
 ## Examples Overview
 
+All buyer examples connect to The Graph's subgraph services, which provide blockchain data from various networks using x402 for payments. The services support queries for ENS, Uniswap, and other protocols.
+
 ### 1. A2A Direct Connection
 
 **Path**: `src/examples/a2a/buyer/adk/` **Demonstrates**: Direct connection to remote A2A agent with x402 payments
 
-Connect directly to a remote agent and let the SDK handle payments automatically.
+Connect directly to The Graph's subgraph A2A service and let the SDK handle payments automatically.
 
 **Run**:
 
