@@ -65,7 +65,8 @@ The agent automatically handles the payment flow to query the data. You just mad
 
 ## Examples Overview
 
-All buyer examples connect to The Graph's subgraph services, which provide blockchain data from various networks using x402 for payments. The services support queries for ENS, Uniswap, and other protocols.
+All buyer examples connect to The Graph's subgraph services, which provide blockchain data from various networks using
+x402 for payments. The services support queries for ENS, Uniswap, and other protocols.
 
 ### 1. A2A Direct Connection
 
