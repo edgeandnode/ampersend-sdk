@@ -213,16 +213,19 @@ uv --directory=examples run -- \
 Ready to use production endpoints?
 
 1. Create account at **https://app.ampersend.ai**
-2. Update your environment:
+2. Create an agent account and fund it with USDC on Base mainnet
+3. Update your environment with production credentials and endpoints:
 
 ```bash
-# Ampersend
-export AMPERSEND_API_URL=https://api.ampersend.ai
+# Update Smart Account credentials from production dashboard
+export EXAMPLES_A2A_BUYER__SMART_ACCOUNT_ADDRESS=0x...  # From app.ampersend.ai
+export EXAMPLES_A2A_BUYER__SMART_ACCOUNT_KEY_PRIVATE_KEY=0x...  # From app.ampersend.ai
 
-# A2A Service
+# Ampersend API
+export EXAMPLES_A2A_BUYER__AMPERSEND_API_URL=https://api.ampersend.ai
+
+# Service endpoints
 export EXAMPLES_A2A_BUYER__SELLER_AGENT_URL=https://subgraph-a2a.x402.thegraph.com
-
-# MCP Service
 export EXAMPLE_BUYER__MCP__TARGET_SERVER_URL=https://subgraph-mcp.x402.thegraph.com
 ```
 
