@@ -28,6 +28,10 @@ explicit_package_bases = true
 module = ["x402_a2a.*"]
 follow_untyped_imports = true
 
+[[tool.mypy.overrides]]
+module = ["tests.*"]
+disable_error_code = ["no-untyped-def", "arg-type", "index", "type-arg"]
+
 [tool.pytest.ini_options]
 testpaths = [
     "python/ampersend-sdk/tests",
