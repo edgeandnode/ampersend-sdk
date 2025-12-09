@@ -82,13 +82,20 @@ pnpm --filter ampersend-sdk proxy:dev
 
 ## Environment Variables
 
-```bash
-# EOA Mode
-BUYER_PRIVATE_KEY=0x...                      # Required
+**Note**: Environment variables may require a prefix depending on how the proxy is started (e.g., `TS__MCP_PROXY__` for `pnpm proxy:dev`). Use `--env-prefix ""` to disable the prefix.
 
-# Smart Account Mode
-BUYER_SMART_ACCOUNT_ADDRESS=0x...
-BUYER_SMART_ACCOUNT_KEY_PRIVATE_KEY=0x...
+### Recommended: Smart Account + Ampersend
+
+```bash
+BUYER_SMART_ACCOUNT_ADDRESS=0x...         # Smart account address
+BUYER_SMART_ACCOUNT_KEY_PRIVATE_KEY=0x... # Session key
+AMPERSEND_API_URL=https://api.staging.ampersend.ai  # For spend limits
+```
+
+### Standalone Alternative: EOA
+
+```bash
+BUYER_PRIVATE_KEY=0x...  # EOA private key (no AMPERSEND_API_URL = naive mode)
 ```
 
 ## Features

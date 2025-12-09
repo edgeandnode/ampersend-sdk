@@ -17,10 +17,11 @@ Environment Variables:
 
 Example:
     # Start proxy (in separate terminal)
-    export BUYER_SMART_ACCOUNT_ADDRESS=0x...
-    export BUYER_SMART_ACCOUNT_KEY_PRIVATE_KEY=0x...
-    export AMPERSEND_API_URL=https://api.staging.ampersend.ai
-    ampersend-proxy
+    # Note: pnpm proxy:dev uses TS__MCP_PROXY__ prefix, or use --env-prefix ""
+    export TS__MCP_PROXY__BUYER_SMART_ACCOUNT_ADDRESS=0x...
+    export TS__MCP_PROXY__BUYER_SMART_ACCOUNT_KEY_PRIVATE_KEY=0x...
+    export TS__MCP_PROXY__AMPERSEND_API_URL=https://api.staging.ampersend.ai
+    cd typescript/packages/ampersend-sdk && pnpm proxy:dev
 
     # Run this buyer agent
     export EXAMPLE_BUYER__MCP__PROXY_URL=http://localhost:3000/mcp
