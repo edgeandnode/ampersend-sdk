@@ -120,8 +120,10 @@ class X402RemoteAgentToolset(BaseToolset):
         self._artifact_chunks: dict[str, list[Artifact]] = {}
 
         # Create client factory for creating X402 clients
+        # Pass our httpx_client so A2A clients use the same timeout
         self._client_factory = X402ClientFactory(
-            treasurer=self.treasurer, config=ClientConfig()
+            treasurer=self.treasurer,
+            config=ClientConfig(httpx_client=self.httpx_client),
         )
 
     def get_before_agent_callback(
