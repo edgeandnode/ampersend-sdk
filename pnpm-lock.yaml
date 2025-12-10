@@ -147,8 +147,8 @@ importers:
         version: 3.25.76
     devDependencies:
       fastmcp:
-        specifier: github:edgeandnode/fastmcp#6446ea7b56eb291a6d4d7321e4a41ff0aacba1ef
-        version: https://codeload.github.com/edgeandnode/fastmcp/tar.gz/6446ea7b56eb291a6d4d7321e4a41ff0aacba1ef(effect@3.19.3)
+        specifier: github:edgeandnode/fastmcp#598d18f
+        version: https://codeload.github.com/edgeandnode/fastmcp/tar.gz/598d18f(effect@3.19.3)
       tsx:
         specifier: ^4.20.5
         version: 4.20.6
@@ -2539,6 +2539,11 @@ packages:
 
   fastestsmallesttextencoderdecoder@1.0.22:
     resolution: {integrity: sha512-Pb8d48e+oIuY4MaM64Cd7OW1gt4nxCHs7/ddPPZ/Ic3sg8yVGM7O9wDvZ7us6ScaUupzM+pfBolwtYhN1IxBIw==}
+
+  fastmcp@https://codeload.github.com/edgeandnode/fastmcp/tar.gz/598d18f:
+    resolution: {tarball: https://codeload.github.com/edgeandnode/fastmcp/tar.gz/598d18f}
+    version: 1.0.0-edgeandnode.1
+    hasBin: true
 
   fastmcp@https://codeload.github.com/edgeandnode/fastmcp/tar.gz/6446ea7b56eb291a6d4d7321e4a41ff0aacba1ef:
     resolution: {tarball: https://codeload.github.com/edgeandnode/fastmcp/tar.gz/6446ea7b56eb291a6d4d7321e4a41ff0aacba1ef}
@@ -8003,6 +8008,28 @@ snapshots:
   fast-uri@3.1.0: {}
 
   fastestsmallesttextencoderdecoder@1.0.22: {}
+
+  fastmcp@https://codeload.github.com/edgeandnode/fastmcp/tar.gz/598d18f(effect@3.19.3):
+    dependencies:
+      '@modelcontextprotocol/sdk': https://codeload.github.com/edgeandnode/mcp-typescript-sdk/tar.gz/2de06543904483073d8cc13db1d0e08e16601081
+      '@standard-schema/spec': 1.0.0
+      execa: 9.6.0
+      file-type: 21.0.0
+      fuse.js: 7.1.0
+      mcp-proxy: 5.10.0
+      strict-event-emitter-types: 2.0.0
+      undici: 7.16.0
+      uri-templates: 0.2.0
+      xsschema: 0.4.0-beta.5(effect@3.19.3)(zod-to-json-schema@3.24.6(zod@3.25.76))(zod@3.25.76)
+      yargs: 18.0.0
+      zod: 3.25.76
+      zod-to-json-schema: 3.24.6(zod@3.25.76)
+    transitivePeerDependencies:
+      - '@valibot/to-json-schema'
+      - arktype
+      - effect
+      - supports-color
+      - sury
 
   fastmcp@https://codeload.github.com/edgeandnode/fastmcp/tar.gz/6446ea7b56eb291a6d4d7321e4a41ff0aacba1ef(effect@3.19.3):
     dependencies:

@@ -5,7 +5,6 @@ import type { AuthInfo } from "@modelcontextprotocol/sdk/server/auth/types.js"
 import type { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js"
 import type { Transport, TransportSendOptions } from "@modelcontextprotocol/sdk/shared/transport.js"
 import {
-  isJSONRPCError,
   isJSONRPCRequest,
   isJSONRPCResponse,
   type JSONRPCMessage,
@@ -74,11 +73,7 @@ export class X402BridgeTransport implements Transport {
         response = { ...response, id: originalId }
       }
 
-      if (!isJSONRPCError(response)) {
-        this._leftTransport.send(response)
-        return
-      }
-
+      // Process ALL responses through middleware to detect payment responses
       x402Middleware
         .onMessage(request, response)
         .then((retryWithPayment) => {
@@ -89,17 +84,24 @@ export class X402BridgeTransport implements Transport {
             this._requestById.set(request.id, request)
             this._rightTransport.send(request)
           } else {
+            // Middleware processed (e.g., payment status update) or just forwarding
             this._leftTransport.send(response)
           }
         })
-        .catch((err) => this.onerror?.(new Error(`Failed onmessage from right: ${err}`)))
+        .catch((err) => {
+          console.error("[MCP-PROXY] x402 middleware error:", err)
+          // Forward response even on middleware error
+          this._leftTransport.send(response)
+        })
     }
 
     // Forward errors from both sides
     this._leftTransport.onerror = (error) => {
+      console.error("[MCP-PROXY] Left transport error:", error.message)
       this.onerror?.(error)
     }
     this._rightTransport.onerror = (error) => {
+      console.error("[MCP-PROXY] Right transport error:", error.message)
       this.onerror?.(error)
     }
 

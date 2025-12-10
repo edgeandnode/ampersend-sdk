@@ -2,6 +2,7 @@
 import { Command } from "commander"
 import type { Address } from "viem"
 
+import { createAmpersendTreasurer } from "../../ampersend/index.ts"
 import { createNaiveTreasurer } from "../../x402/index.ts"
 import { parseEnvConfig, type ProxyEnvConfig } from "./env.ts"
 import { initializeProxyServer } from "./server/index.ts"
@@ -51,7 +52,7 @@ export function createWalletConfig(envConfig: ProxyEnvConfig): WalletConfig {
       smartAccountAddress: envConfig.BUYER_SMART_ACCOUNT_ADDRESS as `0x${string}`,
       sessionKeyPrivateKey: envConfig.BUYER_SMART_ACCOUNT_KEY_PRIVATE_KEY! as `0x${string}`,
       chainId: envConfig.BUYER_SMART_ACCOUNT_CHAIN_ID ?? 84532,
-      validatorAddress: envConfig.BUYER_SMART_ACCOUNT_VALIDATOR_ADDRESS! as Address,
+      validatorAddress: envConfig.BUYER_SMART_ACCOUNT_VALIDATOR_ADDRESS as Address,
     }
     return smartAccountWalletConfig
   }
@@ -71,7 +72,7 @@ function parseOptions(args: Array<string>, envPrefix = ""): ProxyServerOptions {
   // Parse CLI arguments first to check for env-prefix flag
   const program = new Command()
     .name("ampersend-proxy")
-    .description("MCP x402 proxy server with naive treasurer")
+    .description("MCP x402 proxy server")
     .version("0.1.0")
     .option("-p, --port <number>", "Port number (overrides env)", (value) => parseInt(value, 10))
     .option("-e, --env-prefix <value>", "Environment variable prefix (empty string for no prefix)")
@@ -88,7 +89,16 @@ function parseOptions(args: Array<string>, envPrefix = ""): ProxyServerOptions {
   // Build configuration (CLI args override env vars)
   const transport = createTransportConfig(opts.port, envConfig)
   const walletConfig = createWalletConfig(envConfig)
-  const treasurer = createNaiveTreasurer(walletConfig)
+
+  // Create treasurer based on configuration
+  // Default: AmpersendTreasurer (with spend limits and monitoring)
+  // Fallback: NaiveTreasurer (for testing, no API)
+  const treasurer = envConfig.AMPERSEND_API_URL
+    ? createAmpersendTreasurer({
+        apiUrl: envConfig.AMPERSEND_API_URL,
+        walletConfig,
+      })
+    : createNaiveTreasurer(walletConfig)
 
   return {
     transport,
@@ -102,7 +112,8 @@ function parseOptions(args: Array<string>, envPrefix = ""): ProxyServerOptions {
 async function main(): Promise<void> {
   const options = parseOptions(process.argv.slice(2))
 
-  console.log("[MCP-PROXY] Starting naive treasurer proxy...")
+  const treasurerType = options.treasurer.constructor.name
+  console.log(`[MCP-PROXY] Starting MCP proxy (${treasurerType})...`)
   console.log(`[MCP-PROXY] Port: ${options.transport.port}`)
 
   const { server } = await initializeProxyServer(options)
