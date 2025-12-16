@@ -23,6 +23,6 @@
     "langchain": "^0.3.9"
   },
   "devDependencies": {
-    "tsx": "^4.20.5"
+    "tsx": "^4.21.0"
   }
 }
