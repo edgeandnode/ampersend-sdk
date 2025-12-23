@@ -115,7 +115,6 @@ Detailed implementation guides:
 
 - **[MCP Client](./packages/ampersend-sdk/src/mcp/client/README.md)** - Client implementation and payment retry logic
 - **[MCP Proxy](./packages/ampersend-sdk/src/mcp/proxy/README.md)** - HTTP proxy server architecture
-- **[FastMCP Server](./examples/fastmcp-x402-server/README.md)** - Server middleware implementation
 - **[SDK Package](./packages/ampersend-sdk/README.md)** - Package overview
 
 ## Development

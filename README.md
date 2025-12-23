@@ -3,6 +3,8 @@
 Multi-language SDK for building applications with [x402](https://github.com/coinbase/x402) payment capabilities.
 Supports both buyer (client) and seller (server) roles with flexible payment verification and authorization patterns.
 
+> **Looking for examples?** See the [ampersend-examples](https://github.com/edgeandnode/ampersend-examples) repository.
+
 ## 📦 Language Support
 
 - **Python** - A2A protocol integration with wallet implementations and payment middleware
@@ -21,16 +23,6 @@ uv python install 3.13
 
 # Install dependencies
 uv sync --frozen --group dev
-
-# Configure environment
-cp .env.example .env
-# Edit .env with your credentials
-
-# Run example seller
-uv --directory=python/examples run -- uvicorn examples.a2a.seller.adk.agent:a2a_app --host localhost --port 8001
-
-# Run example buyer (in another terminal)
-echo "your query" | uv --directory=python/examples run -- adk run src/examples/a2a/buyer/adk
 ```
 
 **→ [Full Python documentation](./python/README.md)**
@@ -79,12 +71,10 @@ patterns. See [x402 specification](https://github.com/coinbase/x402).
 ```
 ampersend-sdk/
 ├── python/
-│   ├── ampersend-sdk/        # Python SDK package
-│   └── examples/             # A2A buyer/seller examples
+│   └── ampersend-sdk/        # Python SDK package
 └── typescript/
-    ├── packages/
-    │   └── ampersend-sdk/    # TypeScript SDK package
-    └── examples/             # MCP server examples
+    └── packages/
+        └── ampersend-sdk/    # TypeScript SDK package
 ```
 
 ## 🔧 Prerequisites
@@ -101,8 +91,6 @@ ampersend-sdk/
 
 ### Development
 
-- **Google API Key** - Required for examples ([get key](https://aistudio.google.com/app/apikey))
-- **OpenAI API Key** - Required for examples ([get key](https://platform.openai.com/api-keys))
 - **Test USDC** - For payment testing ([Circle faucet](https://faucet.circle.com))
 - **Private Key** - Ethereum wallet for signing payments
 

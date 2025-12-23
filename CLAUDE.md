@@ -119,13 +119,11 @@ This is a multi-language monorepo with both workspace at the repository root:
 **Python** (uv workspace):
 
 - `python/ampersend-sdk/`: Python SDK with A2A protocol integration
-- `python/examples/`: A2A buyer and seller agent examples
 - Configured via `pyproject.toml`
 
 **TypeScript** (pnpm workspace):
 
 - `typescript/packages/ampersend-sdk/`: TypeScript SDK with MCP protocol integration
-- `typescript/examples/`: MCP server examples (FastMCP)
 - Configured via `pnpm-workspace.yaml` and `package.json`
 
 ### Core Components (Python)
@@ -208,22 +206,6 @@ be used without inheritance.
 - `withX402Payment()`: Middleware wrapper for FastMCP tools
 - `onExecute`: Callback to determine payment requirements
 - `onPayment`: Callback to verify payments
-
-## Environment Variables
-
-**Python Examples** (see `.env.example`):
-
-- `EXAMPLES_A2A_BUYER__PRIVATE_KEY`: Private key for buyer's EOA wallet
-- `EXAMPLES_A2A_BUYER__SELLER_AGENT_URL`: URL of seller agent (default: <http://localhost:8001>)
-- `GOOGLE_API_KEY`: Required for seller's google_search tool
-- `EXAMPLES_A2A_SELLER__PAY_TO_ADDRESS`: Ethereum address to receive payments
-
-**TypeScript Examples**:
-
-- `BUYER_PRIVATE_KEY`: Wallet private key (must start with 0x) for EOA mode
-- `BUYER_SMART_ACCOUNT_ADDRESS`: Smart account address (Smart Account mode)
-- `BUYER_SMART_ACCOUNT_KEY_PRIVATE_KEY`: Signer key (Smart Account mode)
-- `BUYER_SMART_ACCOUNT_VALIDATOR_ADDRESS`: Validator contract (Smart Account mode)
 
 ## Important Notes
 

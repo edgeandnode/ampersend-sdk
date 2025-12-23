@@ -1,8 +1,0 @@
-{
-  "extends": "../../packages/tsconfig.base.jsonc",
-  "include": ["src/**/*"],
-  "compilerOptions": {
-    "outDir": "./dist",
-    "rootDir": "./src"
-  }
-}

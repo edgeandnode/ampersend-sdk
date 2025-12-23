@@ -1,8 +1,0 @@
-{
-  "extends": "./tsconfig.src.json",
-  "references": [{ "path": "../../packages/ampersend-sdk/tsconfig.build.json" }],
-  "compilerOptions": {
-    "outDir": "./dist",
-    "stripInternal": true
-  }
-}
