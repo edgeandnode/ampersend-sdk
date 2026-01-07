@@ -1,0 +1,66 @@
+{
+  "name": "@rhinestone/modulekit",
+  "version": "0.5.9",
+  "description": "A development kit for building and testing smart account modules.",
+  "license": "GPL-3.0",
+  "author": {
+    "name": "Rhinestone",
+    "url": "https://rhinestone.wtf"
+  },
+  "scripts": {
+    "build": "forge build",
+    "fmt": "forge fmt",
+    "fmt:check": "forge fmt --check",
+    "build:optimized": "FOUNDRY_PROFILE=optimized forge build",
+    "build:smt": "FOUNDRY_PROFILE=smt forge build",
+    "clean": "rm -rf artifacts broadcast cache docs out out-optimized out-svg",
+    "gas:report": "forge test --gas-report --mp \"./test/integration/**/*.sol\" --nmt \"test(Fuzz)?_RevertWhen_\\w{1,}?\"",
+    "gas:snapshot": "forge snapshot --mp \"./test/integration/**/*.sol\" --nmt \"test(Fuzz)?_RevertWhen_\\w{1,}?\"",
+    "gas:snapshot:optimized": "pnpm run build:optimized && FOUNDRY_PROFILE=test-optimized forge snapshot --mp \"./test/integration/**/*.sol\" --nmt \"test(Fork)?(Fuzz)?_RevertWhen_\\w{1,}?\"",
+    "lint:sol": "forge fmt --check && pnpm solhint \"{script,src,test}/**/*.sol\"",
+    "test": "forge test",
+    "test:lite": "FOUNDRY_PROFILE=lite forge test",
+    "test:via-ir": "forge test --via-ir",
+    "test:optimized": "pnpm run build:optimized && FOUNDRY_PROFILE=test-optimized forge test",
+    "test:accounts": "forge test && ACCOUNT_TYPE=SAFE forge test && ACCOUNT_TYPE=KERNEL forge test && ACCOUNT_TYPE=NEXUS forge test",
+    "changeset": "changeset",
+    "changeset:release": "pnpm build && changeset publish",
+    "changeset:version": "changeset version && pnpm install --lockfile-only"
+  },
+  "dependencies": {
+    "@ERC4337/account-abstraction": "github:kopy-kat/account-abstraction#develop",
+    "@ERC4337/account-abstraction-v0.6": "github:eth-infinitism/account-abstraction#v0.6.0",
+    "@prb/math": "^4.1.0",
+    "@rhinestone/erc4337-validation": "^0.0.5",
+    "@rhinestone/sentinellist": "github:rhinestonewtf/sentinellist",
+    "ds-test": "github:dapphub/ds-test",
+    "excessively-safe-call": "github:nomad-xyz/ExcessivelySafeCall",
+    "forge-std": "github:foundry-rs/forge-std",
+    "solady": "github:vectorized/solady",
+    "solarray": "github:sablier-labs/solarray",
+    "solhint": "^5.0.5"
+  },
+  "devDependencies": {
+    "@changesets/cli": "^2.27.12"
+  },
+  "files": [
+    "src",
+    "foundry.toml",
+    "remappings.txt"
+  ],
+  "homepage": "https://docs.rhinestone.wtf/modulekit",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/rhinestonewtf/modulekit.git"
+  },
+  "bugs": {
+    "url": "https://github.com/rhinestonewtf/modulekit/issues"
+  },
+  "keywords": [
+    "account abstraction",
+    "smart account modules"
+  ],
+  "publishConfig": {
+    "access": "public"
+  }
+}

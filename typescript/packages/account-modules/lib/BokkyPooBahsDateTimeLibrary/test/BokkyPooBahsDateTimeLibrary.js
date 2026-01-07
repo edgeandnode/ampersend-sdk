@@ -1,0 +1,11 @@
+var dateTimeLibOutput={
+  "contracts":
+  {
+    "BokkyPooBahsDateTimeLibrary.sol:BokkyPooBahsDateTimeLibrary":
+    {
+      "abi": "[]",
+      "bin": "60566023600b82828239805160001a607314601657fe5b30600052607381538281f3fe73000000000000000000000000000000000000000030146080604052600080fdfea264697066735822122075d49f0ac9a443fac8bb202f0adb9e02ed12cbbf6d4d258fcb57548a1e88719064736f6c63430006000033"
+    }
+  },
+  "version": "0.6.0+commit.26b70077.Darwin.appleclang"
+};
