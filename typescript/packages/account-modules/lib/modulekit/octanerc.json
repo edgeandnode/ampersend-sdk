@@ -1,3 +1,0 @@
-{
-  "pathsToAnalyze": ["**/src/integrations/.*", "**/src/module-bases/.*"]
-}
