@@ -2,16 +2,19 @@
 
 ## Deploy.s.sol
 
-Deploys the AutoTopUpExecutor and AutoCollectExecutor modules using Safe's Singleton Factory for deterministic addresses across all chains.
+Deploys the AutoTopUpExecutor and AutoCollectExecutor modules using Safe's Singleton Factory for deterministic addresses
+across all chains.
 
 ### Usage
 
 #### Predict Addresses (without deploying)
+
 ```bash
 forge script script/Deploy.s.sol:Deploy --sig "predict()"
 ```
 
 #### Deploy to a Network
+
 ```bash
 # Set required environment variables
 export PRIVATE_KEY=<your-private-key>
@@ -32,6 +35,7 @@ forge script script/Deploy.s.sol:Deploy \
 ### Deployed Addresses
 
 The modules will be deployed to the same addresses on all chains:
+
 - **AutoTopUpExecutor**: `0x92Be8FA04bF1d9Ee311F4B2754Ca22252ccA18D4`
 - **AutoCollectExecutor**: `0x6647fA97ff1f04614A0A960dcF499545c4DcC431`
 

@@ -2,7 +2,9 @@
 
 ## Overview
 
-AutoCollectExecutor is an ERC-7579 executor module that automatically collects funds from service accounts to a main seller account. It mirrors the AutoTopUpExecutor pattern but reverses the transfer direction - collecting funds FROM the account where the module is installed TO a configured target account.
+AutoCollectExecutor is an ERC-7579 executor module that automatically collects funds from service accounts to a main
+seller account. It mirrors the AutoTopUpExecutor pattern but reverses the transfer direction - collecting funds FROM the
+account where the module is installed TO a configured target account.
 
 ## Key Design Principles
 
@@ -43,22 +45,26 @@ configId = keccak256(abi.encode("CollectConfig", serviceAccount, asset))
 ### Core Functions
 
 #### Module Lifecycle
+
 - `onInstall(bytes calldata data)` - Install with optional initial configurations
 - `onUninstall(bytes calldata)` - Clean up all configurations and state
 - `isModuleType(uint256 typeID)` - Returns MODULE_TYPE_EXECUTOR constant
 - `isInitialized(address account)` - Check if module is initialized for account
 
 #### Configuration Management
+
 - `configureCollection(address asset, CollectConfig config)` - Create/update config for msg.sender
 - `enableCollection(bytes32 configId)` - Enable collection for a config
 - `disableCollection(bytes32 configId)` - Disable collection for a config
 
 #### Collection Execution
+
 - `triggerCollection(address account, address asset)` - Trigger collection for specific asset on account
 - `triggerAllCollections(address account)` - Trigger all enabled collections for specific account
 - `canExecuteCollection(address account, address asset)` - Check if collection can execute
 
 #### View Functions
+
 - `getCollectionConfig(address account, address asset)` - Get specific config
 - `getCollectionConfigs(address account)` - Get all configs for an account
 - `getCollectionState(address account, address asset)` - Get collection state
@@ -66,6 +72,7 @@ configId = keccak256(abi.encode("CollectConfig", serviceAccount, asset))
 ## Execution Flow
 
 ### Collection Trigger Flow
+
 ```
 1. External caller → triggerCollection(account, asset)
 2. Module validates:
@@ -85,6 +92,7 @@ configId = keccak256(abi.encode("CollectConfig", serviceAccount, asset))
 ```
 
 ### Calendar Day Tracking
+
 - Uses BokkyPooBah's DateTime Library (same as AutoTopUpExecutor)
 - Dates encoded as YYYYMMDD (e.g., 20240829)
 - All timestamps are UTC-based
@@ -103,7 +111,7 @@ configId = keccak256(abi.encode("CollectConfig", serviceAccount, asset))
    - ReentrancyGuard on execution functions
 
 3. **Token Safety**
-   - Execute transfers via Safe's _execute() (like AutoTopUpExecutor)
+   - Execute transfers via Safe's \_execute() (like AutoTopUpExecutor)
    - Handle non-standard token returns by checking returndata length
    - Decode and validate return value if present
    - Zero-value transfer protection
@@ -160,12 +168,12 @@ event CollectionDisabled(address indexed account, address indexed asset);
    - Asset must be valid ERC-20 contract
    - Threshold and minimumRemaining can both be 0
 
-3. **Date Boundaries**
+4. **Date Boundaries**
    - Month transitions handled correctly
    - Year transitions handled correctly
    - Leap years considered
 
-4. **Token Edge Cases**
+5. **Token Edge Cases**
    - Non-standard return values (USDT)
    - Tokens with transfer fees
    - Balance changes between check and transfer (handled gracefully by skipping collection)
@@ -184,18 +192,19 @@ event CollectionDisabled(address indexed account, address indexed asset);
 
 ## Differences from AutoTopUpExecutor
 
-| Aspect | AutoTopUpExecutor | AutoCollectExecutor |
-|--------|-------------------|---------------------|
-| Installation | On main account | On service accounts |
-| Transfer Direction | Main → Agent accounts | Service account → Main |
-| Config Storage | Per (agent, asset) | Per (asset) on each account |
-| Limits | Daily/Monthly amounts | Once per calendar day |
-| Threshold | Top-up when below | Collect when above |
-| Target | Multiple agents | Single main account |
+| Aspect             | AutoTopUpExecutor     | AutoCollectExecutor         |
+| ------------------ | --------------------- | --------------------------- |
+| Installation       | On main account       | On service accounts         |
+| Transfer Direction | Main → Agent accounts | Service account → Main      |
+| Config Storage     | Per (agent, asset)    | Per (asset) on each account |
+| Limits             | Daily/Monthly amounts | Once per calendar day       |
+| Threshold          | Top-up when below     | Collect when above          |
+| Target             | Multiple agents       | Single main account         |
 
 ## Integration with Safe Accounts
 
 Service accounts will have AutoCollectExecutor installed as an ERC-7579 module:
+
 ```solidity
 Safe Service Account
 ├── Owner: User's Privy Wallet
@@ -229,21 +238,23 @@ Safe Service Account
 ## Implementation Notes
 
 ### Upgradeability
+
 - Use UUPS proxy pattern (same as AutoTopUpExecutor)
 - OwnableUpgradeable for upgrade admin control
 - ERC-7201 namespaced storage for upgrade safety
 
 ### Dependencies
+
 - BokkyPooBah's DateTime Library (already in lib/)
 - OpenZeppelin contracts upgradeable (including EnumerableSet)
 - ModuleKit for ERC-7579 compliance
-- ERC7579ExecutorBase for _execute() functionality
+- ERC7579ExecutorBase for \_execute() functionality
 
 ## Implementation Checklist
 
 - [ ] Core contract implementation (UUPS upgradeable)
 - [ ] Interface extraction (IAutoCollectExecutor)
-- [ ] Token transfer via _execute() with returndata validation
+- [ ] Token transfer via \_execute() with returndata validation
 - [ ] Calendar-based date tracking with DateTime library
 - [ ] Event and error definitions
 - [ ] Unit tests following AutoTopUpExecutor.t.sol patterns
