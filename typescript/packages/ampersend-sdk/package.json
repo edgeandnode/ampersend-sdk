@@ -71,9 +71,16 @@
     "zod": "^3.24.2"
   },
   "peerDependencies": {
+    "@x402/core": "^2.1.0",
     "fastmcp": "^3.17.0"
   },
+  "peerDependenciesMeta": {
+    "@x402/core": {
+      "optional": true
+    }
+  },
   "devDependencies": {
+    "@x402/core": "^2.1.0",
     "fastmcp": "github:edgeandnode/fastmcp#598d18f",
     "tsx": "^4.21.0"
   }
