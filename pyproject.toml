@@ -48,4 +48,5 @@ markers = [
 dev = [
     "ruff>=0.13.2",
     "mypy>=1.8.0",
+    "marimo>=0.11.31",
 ]

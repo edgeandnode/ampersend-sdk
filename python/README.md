@@ -118,6 +118,18 @@ a2a_app = to_a2a(agent, host="localhost", port=8001)
 # uvicorn module:a2a_app --host 0.0.0.0 --port 8001
 ```
 
+## Using Marimo notebooks 
+Marimo notebooks provide an interactive python development environment that lets you create and share interactive
+notebooks with your team. It's a great place to experiment with the x402-enabled agent using the Python SDK. 
+
+Start up a marimo workspace editor
+```bash
+uv run marimo edit
+```
+
+The Marimo app will open a new browser tab where you can create a new notebook, view helpful resources, and
+browse existing notebooks in the workspace.
+
 ## Core Concepts
 
 ### X402Treasurer
