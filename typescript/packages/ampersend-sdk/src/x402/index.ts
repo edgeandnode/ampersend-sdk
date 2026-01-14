@@ -9,3 +9,6 @@ export { NaiveTreasurer, createNaiveTreasurer } from "./treasurers/index.ts"
 // X402Wallet implementations
 export { AccountWallet, SmartAccountWallet, createWalletFromConfig } from "./wallets/index.ts"
 export type { SmartAccountConfig, WalletConfig, EOAWalletConfig, SmartAccountWalletConfig } from "./wallets/index.ts"
+
+// HTTP adapter for x402 v2 SDK
+export { wrapWithAmpersend } from "./http/index.ts"
