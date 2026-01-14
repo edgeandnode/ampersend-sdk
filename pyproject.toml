@@ -35,6 +35,7 @@ disable_error_code = ["no-untyped-def", "arg-type", "index", "type-arg"]
 [tool.pytest.ini_options]
 testpaths = [
     "python/ampersend-sdk/tests",
+    "python/langchain-ampersend/tests",
 ]
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
@@ -48,4 +49,9 @@ markers = [
 dev = [
     "ruff>=0.13.2",
     "mypy>=1.8.0",
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.24.0",
+    "pydantic-settings>=2.0.0",
+    "python-dotenv>=1.0.0",
+    "langchain-tests==1.1.2",
 ]

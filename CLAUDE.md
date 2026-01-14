@@ -17,7 +17,7 @@ support buyer (client) and seller (server) roles with flexible payment authoriza
 uv python install 3.13
 
 # Install dependencies including dev tools
-uv sync --frozen --group dev
+uv sync --frozen --all-packages --group dev
 ```
 
 ### TypeScript Setup
@@ -119,6 +119,7 @@ This is a multi-language monorepo with both workspace at the repository root:
 **Python** (uv workspace):
 
 - `python/ampersend-sdk/`: Python SDK with A2A protocol integration
+- `python/langchain-ampersend/`: LangChain integration for A2A with x402 payments
 - Configured via `pyproject.toml`
 
 **TypeScript** (pnpm workspace):

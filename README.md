@@ -8,7 +8,8 @@ Supports both buyer (client) and seller (server) roles with flexible payment ver
 ## 📦 Language Support
 
 - **Python** - A2A protocol integration with wallet implementations and payment middleware
-  - [Python SDK Documentation](./python/README.md)
+  - [Python SDK Documentation](./python/ampersend-sdk/README.md)
+  - [LangChain Integration](./python/langchain-ampersend/README.md)
 
 - **TypeScript** - MCP protocol integration with client, proxy, and server implementations
   - [TypeScript SDK Documentation](./typescript/README.md)
@@ -22,7 +23,7 @@ Supports both buyer (client) and seller (server) roles with flexible payment ver
 uv python install 3.13
 
 # Install dependencies
-uv sync --frozen --group dev
+uv sync --frozen --all-packages --group dev
 ```
 
 **→ [Full Python documentation](./python/README.md)**
@@ -71,10 +72,11 @@ patterns. See [x402 specification](https://github.com/coinbase/x402).
 ```
 ampersend-sdk/
 ├── python/
-│   └── ampersend-sdk/        # Python SDK package
+│   ├── ampersend-sdk/           # Python SDK package
+│   └── langchain-ampersend/     # LangChain integration
 └── typescript/
     └── packages/
-        └── ampersend-sdk/    # TypeScript SDK package
+        └── ampersend-sdk/       # TypeScript SDK package
 ```
 
 ## 🔧 Prerequisites
