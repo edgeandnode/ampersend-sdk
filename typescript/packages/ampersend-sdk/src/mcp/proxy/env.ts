@@ -23,25 +23,25 @@ export function createEnvSchema(envPrefix = "") {
       BUYER_PRIVATE_KEY: z
         .string()
         .refine((val) => val.startsWith("0x"), {
-          message: "Must start with 0x",
+          message: `${envPrefix}BUYER_PRIVATE_KEY must start with 0x`,
         })
         .optional(),
       BUYER_SMART_ACCOUNT_ADDRESS: z
         .string()
         .refine((val) => val.startsWith("0x"), {
-          message: "Must start with 0x",
+          message: `${envPrefix}BUYER_SMART_ACCOUNT_ADDRESS must start with 0x`,
         })
         .optional(),
       BUYER_SMART_ACCOUNT_KEY_PRIVATE_KEY: z
         .string()
         .refine((val) => val.startsWith("0x"), {
-          message: "Must start with 0x",
+          message: `${envPrefix}BUYER_SMART_ACCOUNT_KEY_PRIVATE_KEY must start with 0x`,
         })
         .optional(),
       BUYER_SMART_ACCOUNT_VALIDATOR_ADDRESS: z
         .string()
         .refine((val) => val.startsWith("0x"), {
-          message: "Must start with 0x",
+          message: `${envPrefix}BUYER_SMART_ACCOUNT_VALIDATOR_ADDRESS must start with 0x`,
         })
         .optional()
         .default(OWNABLE_VALIDATOR),
