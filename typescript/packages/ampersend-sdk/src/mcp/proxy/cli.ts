@@ -110,7 +110,10 @@ function parseOptions(args: Array<string>, envPrefix = "TS__MCP_PROXY__"): Proxy
  * Main entry point for the MCP x402 proxy CLI
  */
 async function main(): Promise<void> {
-  const options = parseOptions(process.argv.slice(2))
+  // Strip leading '--' that pnpm passes through when using `pnpm script -- args`
+  const args = process.argv.slice(2)
+  const cleanedArgs = args[0] === "--" ? args.slice(1) : args
+  const options = parseOptions(cleanedArgs)
 
   const treasurerType = options.treasurer.constructor.name
   console.log(`[MCP-PROXY] Starting MCP proxy (${treasurerType})...`)
