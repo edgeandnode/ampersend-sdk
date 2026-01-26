@@ -1,7 +1,7 @@
 {
   "name": "@ampersend_ai/ampersend-sdk",
   "description": "Tooling for building applications with x402 payment capabilities. Supports buyer and seller roles.",
-  "version": "0.0.4",
+  "version": "0.0.5",
   "repository": {
     "type": "git",
     "url": "https://github.com/edgeandnode/ampersend-sdk.git"
@@ -63,10 +63,10 @@
     "@types/express": "^5.0.6",
     "async-mutex": "^0.5.0",
     "commander": "^12.1.0",
-    "effect": "^3.19.13",
+    "effect": "^3.19.15",
     "express": "^5.2.1",
     "siwe": "^3.0.0",
-    "viem": "^2.43.3",
+    "viem": "^2.45.0",
     "x402": "^0.6.6",
     "zod": "^3.24.2"
   },
