@@ -1,22 +1,23 @@
 import { Mutex } from "async-mutex"
+import { DateTime, Schema } from "effect"
 import { SiweMessage } from "siwe"
 import { privateKeyToAccount } from "viem/accounts"
 
 import {
+  AgentPaymentAuthResponse,
+  AgentPaymentEventResponse,
   ApiError,
+  SIWELoginResponse,
+  SIWENonceResponse,
   type Address,
   type AgentPaymentAuthRequest,
-  type AgentPaymentAuthResponse,
   type AgentPaymentEventReport,
-  type AgentPaymentEventResponse,
   type ApiClientOptions,
   type AuthenticationState,
   type PaymentEvent,
   type PaymentPayload,
   type PaymentRequirements,
   type SIWELoginRequest,
-  type SIWELoginResponse,
-  type SIWENonceResponse,
 } from "./types.js"
 
 export * from "./types.js"
@@ -57,9 +58,7 @@ export class ApiClient {
       const sessionKeyAddress = account.address
 
       // Step 1: Get nonce
-      const nonceResponse = await this.fetch<SIWENonceResponse>("/api/v1/agents/auth/nonce", {
-        method: "GET",
-      })
+      const nonceResponse = await this.fetch("/api/v1/agents/auth/nonce", { method: "GET" }, SIWENonceResponse)
       const nonce = nonceResponse.nonce
       const sessionId = nonceResponse.sessionId
 
@@ -87,19 +86,21 @@ export class ApiClient {
         sessionId,
       }
 
-      const loginResponse = await this.fetch<SIWELoginResponse>("/api/v1/agents/auth/login", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
+      const loginResponse = await this.fetch(
+        "/api/v1/agents/auth/login",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(loginRequest),
         },
-        body: JSON.stringify(loginRequest),
-      })
+        SIWELoginResponse,
+      )
 
       // Store authentication state
       this.auth = {
         token: loginResponse.token,
         agentAddress: loginResponse.agentAddress,
-        expiresAt: new Date(loginResponse.expiresAt as unknown as string), // Hack because the API is sending "expiresAt": "2026-09-04T19:24:27.358Z"
+        expiresAt: DateTime.toDateUtc(loginResponse.expiresAt),
       }
     } catch (error) {
       if (error instanceof ApiError) {
@@ -123,14 +124,18 @@ export class ApiClient {
       context,
     }
 
-    return this.fetch<AgentPaymentAuthResponse>(`/api/v1/agents/${this.auth.agentAddress}/payment/authorize`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${this.auth.token}`,
+    return this.fetch(
+      `/api/v1/agents/${this.auth.agentAddress}/payment/authorize`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${this.auth.token}`,
+        },
+        body: JSON.stringify(request),
       },
-      body: JSON.stringify(request),
-    })
+      AgentPaymentAuthResponse,
+    )
   }
 
   /**
@@ -149,14 +154,18 @@ export class ApiClient {
       event,
     }
 
-    return this.fetch<AgentPaymentEventResponse>(`/api/v1/agents/${this.auth.agentAddress}/payment/events`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${this.auth.token}`,
+    return this.fetch(
+      `/api/v1/agents/${this.auth.agentAddress}/payment/events`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${this.auth.token}`,
+        },
+        body: JSON.stringify(report),
       },
-      body: JSON.stringify(report),
-    })
+      AgentPaymentEventResponse,
+    )
   }
 
   /**
@@ -196,9 +205,9 @@ export class ApiClient {
   }
 
   /**
-   * Internal fetch wrapper with error handling
+   * Internal fetch wrapper with error handling and schema decoding
    */
-  private async fetch<T>(path: string, init: RequestInit): Promise<T> {
+  private async fetch<A, I>(path: string, init: RequestInit, schema: Schema.Schema<A, I>): Promise<A> {
     const url = `${this.baseUrl}${path}`
 
     try {
@@ -221,7 +230,7 @@ export class ApiClient {
       }
 
       const data = await response.json()
-      return data as T
+      return Schema.decodeUnknownSync(schema)(data)
     } catch (error) {
       if (error instanceof ApiError) {
         throw error
