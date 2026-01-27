@@ -3,7 +3,7 @@ import { Command } from "commander"
 import type { Address } from "viem"
 
 import { createAmpersendTreasurer } from "../../ampersend/index.ts"
-import { createNaiveTreasurer } from "../../x402/index.ts"
+import { createNaiveTreasurer } from "../../x402/treasurers/index.ts"
 import { parseEnvConfig, type ProxyEnvConfig } from "./env.ts"
 import { initializeProxyServer } from "./server/index.ts"
 import {

@@ -1,20 +1,53 @@
 import type { PaymentEvent } from "@ampersend_ai/ampersend-sdk/mcp/client"
+import { OWNABLE_VALIDATOR } from "@ampersend_ai/ampersend-sdk/smart-account"
 import {
   createWalletFromConfig,
   type Authorization,
   type PaymentContext,
   type PaymentStatus,
+  type SmartAccountWalletConfig,
   type WalletConfig,
   type X402Treasurer,
   type X402Wallet,
 } from "@ampersend_ai/ampersend-sdk/x402"
+import type { Address, Hex } from "viem"
 
 import { ApiClient } from "./client.ts"
 
+/** Default Ampersend API URL */
+const DEFAULT_API_URL = "https://api.ampersend.ai"
+
+/** Default chain ID (Base Sepolia) */
+const DEFAULT_CHAIN_ID = 84532
+
 /**
- * Configuration for the Ampersend treasurer
+ * Simplified configuration for quick setup with smart accounts.
+ * This is the recommended way to configure the treasurer for most use cases.
+ *
+ * @example
+ * ```typescript
+ * const treasurer = createAmpersendTreasurer({
+ *   smartAccountAddress: "0x...",
+ *   sessionKeyPrivateKey: "0x...",
+ * })
+ * ```
  */
-export interface AmpersendTreasurerConfig {
+export interface SimpleAmpersendTreasurerConfig {
+  /** Smart account address */
+  smartAccountAddress: Address
+  /** Session key private key for signing */
+  sessionKeyPrivateKey: Hex
+  /** Ampersend API URL (defaults to production) */
+  apiUrl?: string
+  /** Chain ID (defaults to Base Sepolia 84532) */
+  chainId?: number
+}
+
+/**
+ * Full configuration for advanced use cases with complete wallet control.
+ * Use this when you need EOA wallets or custom authentication settings.
+ */
+export interface FullAmpersendTreasurerConfig {
   /** Base URL of the Ampersend API server */
   apiUrl: string
   /** Wallet configuration (EOA or Smart Account) */
@@ -26,6 +59,19 @@ export interface AmpersendTreasurerConfig {
     /** SIWE statement for authentication */
     statement?: string
   }
+}
+
+/**
+ * Configuration for the Ampersend treasurer.
+ * Can be either simplified (recommended) or full configuration.
+ */
+export type AmpersendTreasurerConfig = SimpleAmpersendTreasurerConfig | FullAmpersendTreasurerConfig
+
+/**
+ * Type guard to check if config is the simplified format
+ */
+function isSimpleConfig(config: AmpersendTreasurerConfig): config is SimpleAmpersendTreasurerConfig {
+  return "smartAccountAddress" in config && "sessionKeyPrivateKey" in config && !("walletConfig" in config)
 }
 
 /**
@@ -135,10 +181,47 @@ export class AmpersendTreasurer implements X402Treasurer {
  * 3. Creates payments only when authorized
  * 4. Reports payment lifecycle events back to the API
  *
+ * @example Simple setup (recommended):
+ * ```typescript
+ * const treasurer = createAmpersendTreasurer({
+ *   smartAccountAddress: "0x...",
+ *   sessionKeyPrivateKey: "0x...",
+ * })
+ * ```
+ *
+ * @example Full control:
+ * ```typescript
+ * const treasurer = createAmpersendTreasurer({
+ *   apiUrl: "https://api.ampersend.ai",
+ *   walletConfig: { type: "eoa", privateKey: "0x..." }
+ * })
+ * ```
+ *
  * @param config - Configuration for the Ampersend treasurer
  * @returns An X402Treasurer implementation
  */
 export function createAmpersendTreasurer(config: AmpersendTreasurerConfig): X402Treasurer {
+  if (isSimpleConfig(config)) {
+    // Simple config - build wallet config automatically
+    const walletConfig: SmartAccountWalletConfig = {
+      type: "smart-account",
+      smartAccountAddress: config.smartAccountAddress,
+      sessionKeyPrivateKey: config.sessionKeyPrivateKey,
+      chainId: config.chainId ?? DEFAULT_CHAIN_ID,
+      validatorAddress: OWNABLE_VALIDATOR,
+    }
+
+    const apiClient = new ApiClient({
+      baseUrl: config.apiUrl ?? DEFAULT_API_URL,
+      sessionKeyPrivateKey: config.sessionKeyPrivateKey,
+      timeout: 30000,
+    })
+
+    const wallet = createWalletFromConfig(walletConfig)
+    return new AmpersendTreasurer(apiClient, wallet)
+  }
+
+  // Full config - existing behavior
   const { apiUrl, authConfig, walletConfig } = config
 
   // Determine which private key to use for API authentication

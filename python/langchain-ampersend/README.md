@@ -11,30 +11,16 @@ pip install langchain-ampersend
 ## Usage
 
 ```python
-from langchain_ampersend import (
-    A2AToolkit,
-    AmpersendTreasurer,
-    ApiClient,
-    ApiClientOptions,
-    SmartAccountWallet,
-)
+from ampersend_sdk import create_ampersend_treasurer
+from langchain_ampersend import A2AToolkit
 from langchain.agents import create_agent
 from langchain_openai import ChatOpenAI
 
-# Setup Ampersend API client
-api_client = ApiClient(ApiClientOptions(
-    base_url="https://api.ampersend.ai",
-    session_key_private_key="0x...",  # Your session key
-))
-
-# Setup wallet (smart account)
-wallet = SmartAccountWallet(
-    owner_private_key="0x...",
+# Create treasurer (one-liner setup)
+treasurer = create_ampersend_treasurer(
     smart_account_address="0x...",
+    session_key_private_key="0x...",
 )
-
-# Create treasurer
-treasurer = AmpersendTreasurer(api_client=api_client, wallet=wallet)
 
 # Create toolkit for a remote agent
 toolkit = A2AToolkit(

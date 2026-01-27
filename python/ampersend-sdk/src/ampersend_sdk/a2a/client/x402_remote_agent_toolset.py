@@ -48,18 +48,19 @@ class X402RemoteAgentToolset(BaseToolset):
 
     Example:
         ```python
+        from ampersend_sdk import create_ampersend_treasurer
         from ampersend_sdk.a2a.client import X402RemoteAgentToolset
-        from ampersend_sdk.x402.treasurers import NaiveTreasurer
-        from ampersend_sdk.x402.wallets.account import AccountWallet
         from google.adk import Agent
 
-        # Setup
-        wallet = AccountWallet(private_key="0x...")
-        treasurer = NaiveTreasurer(wallet=wallet)
+        # Create treasurer (one-liner setup)
+        treasurer = create_ampersend_treasurer(
+            smart_account_address="0x...",
+            session_key_private_key="0x...",
+        )
 
         toolset = X402RemoteAgentToolset(
-            remote_agent_urls=["https://subgraph-a2a.x402.staging.thegraph.com"],
-            treasurer=treasurer
+            remote_agent_urls=["https://agent.example.com"],
+            treasurer=treasurer,
         )
 
         # Create orchestrator agent
@@ -67,7 +68,7 @@ class X402RemoteAgentToolset(BaseToolset):
             name="orchestrator",
             model="gemini-2.0-flash",
             tools=[toolset],
-            before_agent_callback=toolset.get_before_agent_callback()
+            before_agent_callback=toolset.get_before_agent_callback(),
         )
         ```
 

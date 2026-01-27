@@ -11,15 +11,13 @@ Extends the MCP Client to automatically handle HTTP 402 payment responses using 
 ## Quick Start
 
 ```typescript
-import { X402McpClient } from "@ampersend_ai/ampersend-sdk/mcp/client"
-import { AccountWallet, NaiveTreasurer } from "@ampersend_ai/ampersend-sdk/x402"
+import { createAmpersendMcpClient } from "@ampersend_ai/ampersend-sdk"
 
-const wallet = new AccountWallet("0x...")
-const treasurer = new NaiveTreasurer(wallet)
-
-const client = new X402McpClient({
+// Create client (one-liner setup)
+const client = await createAmpersendMcpClient({
+  smartAccountAddress: "0x...",
+  sessionKeyPrivateKey: "0x...",
   serverUrl: "http://localhost:8000/mcp",
-  treasurer,
 })
 
 const result = await client.callTool("my_tool", { arg: "value" })
