@@ -11,9 +11,9 @@ import {
   type ReadResourceRequest,
   type ReadResourceResult,
 } from "@modelcontextprotocol/sdk/types.js"
+import type { PaymentRequirements } from "x402/types"
 
 import type { Authorization, X402Treasurer } from "../../x402/treasurer.ts"
-import type { PaymentRequirements } from "./index.ts"
 import { asX402Response } from "./protocol.ts"
 import type { ClientOptions, X402Response } from "./types.ts"
 

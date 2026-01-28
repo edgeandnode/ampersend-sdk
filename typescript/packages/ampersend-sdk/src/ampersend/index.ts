@@ -1,10 +1,9 @@
-// Re-export all types and client
-export * from "./types.js"
-export { ApiClient } from "./client.js"
+export * from "./types.ts"
+export { ApiClient } from "./client.ts"
 export {
   AmpersendTreasurer,
   createAmpersendTreasurer,
   type AmpersendTreasurerConfig,
   type SimpleAmpersendTreasurerConfig,
   type FullAmpersendTreasurerConfig,
-} from "./treasurer.js"
+} from "./treasurer.ts"

@@ -29,8 +29,6 @@ from .types import (
     RejectedRequirement,
 )
 
-__version__ = "1.0.0"
-
 __all__ = [
     # Client and API types
     "ApiClient",

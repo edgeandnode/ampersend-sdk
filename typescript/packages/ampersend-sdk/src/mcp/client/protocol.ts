@@ -4,10 +4,9 @@ import {
   type JSONRPCMessage,
   type JSONRPCRequest,
 } from "@modelcontextprotocol/sdk/types.js"
-import { SettleResponseSchema, x402ResponseSchema, type PaymentRequirements } from "x402/types"
+import { SettleResponseSchema, x402ResponseSchema, type PaymentPayload, type PaymentRequirements } from "x402/types"
 import { z } from "zod"
 
-import type { PaymentPayload } from "./index.ts"
 import type { X402Response } from "./types.ts"
 
 export const McpX402PaymentResponseSchema = z.object({
