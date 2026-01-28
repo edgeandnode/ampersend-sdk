@@ -6,6 +6,7 @@ from x402.types import (
 from .client import ApiClient
 from .treasurer import (
     AmpersendTreasurer,
+    create_ampersend_treasurer,
 )
 from .types import (
     ApiClientOptions,
@@ -55,4 +56,5 @@ __all__ = [
     "ApiResponseLogin",
     # Treasurer
     "AmpersendTreasurer",
+    "create_ampersend_treasurer",
 ]

@@ -13,13 +13,7 @@ export { signERC3009Authorization, signSmartAccountTypedData } from "../../smart
 export type { ERC3009AuthorizationData } from "../../smart-account/index.ts"
 
 // Core abstractions (re-exported from x402 for convenience)
-export {
-  AccountWallet,
-  SmartAccountWallet,
-  NaiveTreasurer,
-  createNaiveTreasurer,
-  WalletError,
-} from "../../x402/index.ts"
+export { AccountWallet, SmartAccountWallet, WalletError } from "../../x402/index.ts"
 export type {
   Authorization,
   PaymentContext,
@@ -28,6 +22,9 @@ export type {
   X402Wallet,
   SmartAccountConfig,
 } from "../../x402/index.ts"
+
+// NOTE: NaiveTreasurer is NOT exported here - use deep import:
+// import { NaiveTreasurer } from "@ampersend_ai/ampersend-sdk/x402/treasurers"
 
 // Proxy-specific types
 export type {

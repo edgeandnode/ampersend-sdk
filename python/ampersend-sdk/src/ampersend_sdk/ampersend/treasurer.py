@@ -129,3 +129,53 @@ class AmpersendTreasurer(X402Treasurer):
             payment=authorization.payment,
             event=event,
         )
+
+
+DEFAULT_API_URL = "https://api.ampersend.ai"
+
+
+def create_ampersend_treasurer(
+    *,
+    smart_account_address: str,
+    session_key_private_key: str,
+    api_url: str = DEFAULT_API_URL,
+) -> AmpersendTreasurer:
+    """
+    Create an AmpersendTreasurer with minimal configuration.
+
+    This is the recommended way to create a treasurer for most use cases.
+
+    Args:
+        smart_account_address: The smart account address (0x...)
+        session_key_private_key: The session key private key (0x...)
+        api_url: Ampersend API URL (defaults to production)
+
+    Returns:
+        Configured AmpersendTreasurer ready for use
+
+    Example:
+        treasurer = create_ampersend_treasurer(
+            smart_account_address="0x1234...",
+            session_key_private_key="0xabcd...",
+        )
+    """
+    from ampersend_sdk.smart_account import SmartAccountConfig
+    from ampersend_sdk.x402.wallets.smart_account import SmartAccountWallet
+
+    from .types import ApiClientOptions
+
+    wallet = SmartAccountWallet(
+        config=SmartAccountConfig(
+            session_key=session_key_private_key,
+            smart_account_address=smart_account_address,
+        )
+    )
+
+    api_client = ApiClient(
+        options=ApiClientOptions(
+            base_url=api_url,
+            session_key_private_key=session_key_private_key,
+        )
+    )
+
+    return AmpersendTreasurer(api_client=api_client, wallet=wallet)

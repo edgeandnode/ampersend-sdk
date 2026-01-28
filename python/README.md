@@ -35,28 +35,14 @@ uv sync --frozen --group dev
 ### 3. Create Your Agent
 
 ```python
+from ampersend_sdk import create_ampersend_treasurer
 from ampersend_sdk.a2a.client import X402RemoteA2aAgent
-from ampersend_sdk.ampersend import AmpersendTreasurer, ApiClient, ApiClientOptions
-from ampersend_sdk.x402.wallets.smart_account import SmartAccountWallet
-from ampersend_sdk.smart_account import SmartAccountConfig
 
-# Configure smart account wallet
-wallet = SmartAccountWallet(
-    config=SmartAccountConfig(
-        session_key="0x...",  # From staging dashboard
-        smart_account_address="0x...",  # From staging dashboard
-    )
-)
-
-# Create Ampersend treasurer (with spend limits & monitoring)
-treasurer = AmpersendTreasurer(
-    api_client=ApiClient(
-        options=ApiClientOptions(
-            base_url="https://api.staging.ampersend.ai",
-            session_key_private_key="0x..."
-        )
-    ),
-    wallet=wallet
+# Create treasurer (one-liner setup)
+treasurer = create_ampersend_treasurer(
+    smart_account_address="0x...",  # From staging dashboard
+    session_key_private_key="0x...",  # From staging dashboard
+    api_url="https://api.staging.ampersend.ai",
 )
 
 # Create agent pointing to staging service (testnet, rate-limited)
@@ -70,26 +56,17 @@ agent = X402RemoteA2aAgent(
 result = await agent.run("Query Uniswap V3 pools on Base Sepolia")
 ```
 
-### Standalone Alternative
+### Testing Without Ampersend Account
 
-For testing without Ampersend account:
+For local testing only (no spend limits or monitoring):
 
 ```python
-from ampersend_sdk.a2a.client import X402RemoteA2aAgent
-from ampersend_sdk.x402.treasurers.naive import NaiveTreasurer
+from ampersend_sdk.x402.treasurers import NaiveTreasurer
 from ampersend_sdk.x402.wallets.account import AccountWallet
 
 wallet = AccountWallet(private_key="0x...")
-treasurer = NaiveTreasurer(wallet=wallet)  # Auto-approves, no limits
-
-agent = X402RemoteA2aAgent(
-    treasurer=treasurer,
-    name="test_agent",
-    agent_card="https://subgraph-a2a.x402.staging.thegraph.com/.well-known/agent-card.json"
-)
+treasurer = NaiveTreasurer(wallet=wallet)  # Auto-approves all payments
 ```
-
-**Note**: Standalone mode has no spend limits or monitoring. Recommended for testing only.
 
 ### Server (Seller)
 

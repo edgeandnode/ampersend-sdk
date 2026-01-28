@@ -16,18 +16,15 @@ pnpm build
 ### MCP Client
 
 ```typescript
-import { X402McpClient } from "@ampersend_ai/ampersend-sdk/mcp/client"
-import { AccountWallet, NaiveTreasurer } from "@ampersend_ai/ampersend-sdk/x402"
+import { createAmpersendMcpClient } from "@ampersend_ai/ampersend-sdk"
 
-const wallet = new AccountWallet("0x...")
-const treasurer = new NaiveTreasurer(wallet)
-
-const client = new X402McpClient({
+// Create client (one-liner setup)
+const client = await createAmpersendMcpClient({
+  smartAccountAddress: "0x...",
+  sessionKeyPrivateKey: "0x...",
   serverUrl: "http://localhost:8000/mcp",
-  treasurer,
 })
 
-await client.connect()
 const result = await client.callTool("my_tool", { arg: "value" })
 await client.close()
 ```
@@ -73,7 +70,7 @@ mcp.addTool({
 
 ### X402Treasurer
 
-Handles payment authorization decisions and status tracking. The `NaiveTreasurer` implementation auto-approves all payments (useful for testing and demos).
+Handles payment authorization decisions and status tracking. Use `createAmpersendTreasurer()` for production with spend limits and monitoring.
 
 ### Wallets
 
@@ -130,6 +127,20 @@ pnpm --filter ampersend-sdk test
 pnpm --filter ampersend-sdk lint
 pnpm --filter ampersend-sdk format:fix
 ```
+
+## Testing
+
+For local testing without Ampersend API:
+
+```typescript
+import { AccountWallet } from "@ampersend_ai/ampersend-sdk"
+import { NaiveTreasurer } from "@ampersend_ai/ampersend-sdk/x402/treasurers"
+
+const wallet = new AccountWallet("0x...")
+const treasurer = new NaiveTreasurer(wallet) // Auto-approves all payments
+```
+
+**Note:** NaiveTreasurer has no spend limits. Use for testing only.
 
 ## Learn More
 
