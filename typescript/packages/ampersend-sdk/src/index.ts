@@ -41,8 +41,3 @@ export { Client } from "./mcp/client/index.ts"
 
 // Advanced HTTP
 export { wrapWithAmpersend } from "./x402/http/index.ts"
-
-// =============================================================================
-// NOTE: NaiveTreasurer is NOT exported here - use deep import for testing:
-// import { NaiveTreasurer } from "@ampersend_ai/ampersend-sdk/x402/treasurers"
-// =============================================================================

@@ -23,9 +23,6 @@ export type {
   SmartAccountConfig,
 } from "../../x402/index.ts"
 
-// NOTE: NaiveTreasurer is NOT exported here - use deep import:
-// import { NaiveTreasurer } from "@ampersend_ai/ampersend-sdk/x402/treasurers"
-
 // Proxy-specific types
 export type {
   EOAWalletConfig,

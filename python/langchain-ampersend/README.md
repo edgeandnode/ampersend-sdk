@@ -11,8 +11,7 @@ pip install langchain-ampersend
 ## Usage
 
 ```python
-from ampersend_sdk import create_ampersend_treasurer
-from langchain_ampersend import A2AToolkit
+from langchain_ampersend import A2AToolkit, create_ampersend_treasurer
 from langchain.agents import create_agent
 from langchain_openai import ChatOpenAI
 

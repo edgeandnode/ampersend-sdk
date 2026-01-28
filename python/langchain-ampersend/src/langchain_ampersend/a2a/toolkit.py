@@ -28,8 +28,7 @@ class A2AToolkit:
 
     Example:
         ```python
-        from ampersend_sdk import create_ampersend_treasurer
-        from langchain_ampersend import A2AToolkit
+        from langchain_ampersend import A2AToolkit, create_ampersend_treasurer
         from langchain.agents import create_agent
 
         # Create treasurer (one-liner setup)

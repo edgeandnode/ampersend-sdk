@@ -9,6 +9,3 @@ export type { SmartAccountConfig, WalletConfig, EOAWalletConfig, SmartAccountWal
 
 // HTTP adapter for x402 v2 SDK
 export { wrapWithAmpersend } from "./http/index.ts"
-
-// NOTE: NaiveTreasurer is NOT exported here - use deep import:
-// import { NaiveTreasurer } from "@ampersend_ai/ampersend-sdk/x402/treasurers"
