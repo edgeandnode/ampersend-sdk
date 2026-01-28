@@ -1,6 +1,6 @@
 # TypeScript SDK - Ampersend
 
-TypeScript SDK for integrating [x402](https://github.com/coinbase/x402) payment capabilities into MCP (Model Context Protocol) applications. Supports client, proxy, and server implementations with EOA and Smart Account wallets.
+TypeScript SDK for integrating [x402](https://github.com/coinbase/x402) payment capabilities into MCP (Model Context Protocol) and HTTP applications. Supports client, proxy, and server implementations with EOA and Smart Account wallets.
 
 ## Installation
 
@@ -66,6 +66,23 @@ mcp.addTool({
 })
 ```
 
+### HTTP Client
+
+```typescript
+import { createAmpersendHttpClient } from "@ampersend_ai/ampersend-sdk"
+import { x402Client } from "@x402/core/client"
+import { wrapFetchWithPayment } from "@x402/fetch"
+
+const client = createAmpersendHttpClient({
+  client: new x402Client(),
+  smartAccountAddress: "0x...",
+  sessionKeyPrivateKey: "0x...",
+})
+
+const fetchWithPay = wrapFetchWithPayment(fetch, client)
+const response = await fetchWithPay("https://paid-api.example.com/resource")
+```
+
 ## Core Concepts
 
 ### X402Treasurer
@@ -100,7 +117,8 @@ BUYER_SMART_ACCOUNT_VALIDATOR_ADDRESS=0x...
 ```typescript
 import { ... } from "@ampersend_ai/ampersend-sdk"                  // Main
 import { ... } from "@ampersend_ai/ampersend-sdk/x402"             // Core x402
-import { ... } from "@ampersend_ai/ampersend-sdk/mcp/client"       // Client
+import { ... } from "@ampersend_ai/ampersend-sdk/x402/http"        // HTTP client
+import { ... } from "@ampersend_ai/ampersend-sdk/mcp/client"       // MCP client
 import { ... } from "@ampersend_ai/ampersend-sdk/mcp/proxy"        // Proxy
 import { ... } from "@ampersend_ai/ampersend-sdk/smart-account"    // Smart accounts
 import { ... } from "@ampersend_ai/ampersend-sdk/mcp/server/fastmcp" // FastMCP
@@ -110,8 +128,9 @@ import { ... } from "@ampersend_ai/ampersend-sdk/mcp/server/fastmcp" // FastMCP
 
 Detailed implementation guides:
 
-- **[MCP Client](./packages/ampersend-sdk/src/mcp/client/README.md)** - Client implementation and payment retry logic
-- **[MCP Proxy](./packages/ampersend-sdk/src/mcp/proxy/README.md)** - HTTP proxy server architecture
+- **[HTTP Client](./packages/ampersend-sdk/src/x402/http/README.md)** - HTTP x402 client adapter
+- **[MCP Client](./packages/ampersend-sdk/src/mcp/client/README.md)** - MCP client with payment retry logic
+- **[MCP Proxy](./packages/ampersend-sdk/src/mcp/proxy/README.md)** - MCP proxy server architecture
 - **[SDK Package](./packages/ampersend-sdk/README.md)** - Package overview
 
 ## Development
