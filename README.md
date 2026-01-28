@@ -59,6 +59,7 @@ patterns. See [x402 specification](https://github.com/coinbase/x402).
 
 - **A2A** (Agent-to-Agent) - Transport protocol for agent communication with payment capabilities
 - **MCP** (Model Context Protocol) - Transport protocol for LLM-tool integration with payment capabilities
+- **HTTP** - Standard HTTP client with x402 payment capabilities (TypeScript)
 
 **Key Components:**
 

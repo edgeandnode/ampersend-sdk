@@ -89,7 +89,7 @@ pnpm --filter ampersend-sdk proxy:dev
 ```bash
 BUYER_SMART_ACCOUNT_ADDRESS=0x...         # Smart account address
 BUYER_SMART_ACCOUNT_KEY_PRIVATE_KEY=0x... # Session key
-AMPERSEND_API_URL=https://api.staging.ampersend.ai  # For spend limits
+AMPERSEND_API_URL=https://api.ampersend.ai  # For spend limits
 ```
 
 ### Standalone Alternative: EOA
