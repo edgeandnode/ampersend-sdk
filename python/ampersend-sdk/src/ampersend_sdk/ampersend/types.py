@@ -13,6 +13,7 @@ class ApiClientOptions(BaseModel):
 
     base_url: str
     session_key_private_key: Optional[str] = None
+    agent_address: str
     timeout: int = 30000
 
 
@@ -20,7 +21,6 @@ class AuthenticationState(BaseModel):
     """Current authentication state."""
 
     token: Optional[str] = None
-    agent_address: Optional[str] = None
     expires_at: Optional[datetime] = None
 
 
@@ -149,6 +149,7 @@ class ApiRequestLogin(BaseModel):
     message: str
     signature: str
     session_id: str = Field(serialization_alias="sessionId")
+    agent_address: str = Field(serialization_alias="agentAddress")
 
 
 class ApiResponseLogin(BaseModel):

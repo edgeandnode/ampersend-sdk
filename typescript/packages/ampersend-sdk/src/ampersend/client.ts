@@ -31,17 +31,18 @@ export * from "./types.js"
 export class ApiClient {
   private baseUrl: string
   private sessionKeyPrivateKey: `0x${string}` | undefined
+  private agentAddress: Address
   private timeout: number
   private authMutex = new Mutex()
   private auth: AuthenticationState = {
     token: null,
-    agentAddress: null,
     expiresAt: null,
   }
 
   constructor(options: ApiClientOptions) {
     this.baseUrl = options.baseUrl.replace(/\/$/, "") // Remove trailing slash
     this.sessionKeyPrivateKey = options.sessionKeyPrivateKey
+    this.agentAddress = options.agentAddress
     this.timeout = options.timeout ?? 30000
   }
 
@@ -84,6 +85,7 @@ export class ApiClient {
         message,
         signature,
         sessionId,
+        agentAddress: this.agentAddress,
       }
 
       const loginResponse = await this.fetch(
@@ -96,10 +98,14 @@ export class ApiClient {
         SIWELoginResponse,
       )
 
-      // Store authentication state
+      // Verify returned agentAddress matches what we configured
+      if (loginResponse.agentAddress.toLowerCase() !== this.agentAddress.toLowerCase()) {
+        throw new ApiError(`Agent address mismatch: requested ${this.agentAddress}, got ${loginResponse.agentAddress}`)
+      }
+
+      // Store authentication state (agentAddress comes from config, not server)
       this.auth = {
         token: loginResponse.token,
-        agentAddress: loginResponse.agentAddress,
         expiresAt: DateTime.toDateUtc(loginResponse.expiresAt),
       }
     } catch (error) {
@@ -125,7 +131,7 @@ export class ApiClient {
     }
 
     return this.fetch(
-      `/api/v1/agents/${this.auth.agentAddress}/payment/authorize`,
+      `/api/v1/agents/${this.agentAddress}/payment/authorize`,
       {
         method: "POST",
         headers: {
@@ -155,7 +161,7 @@ export class ApiClient {
     }
 
     return this.fetch(
-      `/api/v1/agents/${this.auth.agentAddress}/payment/events`,
+      `/api/v1/agents/${this.agentAddress}/payment/events`,
       {
         method: "POST",
         headers: {
@@ -174,16 +180,15 @@ export class ApiClient {
   clearAuth(): void {
     this.auth = {
       token: null,
-      agentAddress: null,
       expiresAt: null,
     }
   }
 
   /**
-   * Get the current agent address (if authenticated)
+   * Get the configured agent address
    */
-  getAgentAddress(): Address | null {
-    return this.auth.agentAddress
+  getAgentAddress(): Address {
+    return this.agentAddress
   }
 
   /**

@@ -42,6 +42,7 @@ class ApiClient:
     def __init__(self, options: ApiClientOptions):
         self.base_url = options.base_url.rstrip("/")  # Remove trailing slash
         self.session_key_private_key = options.session_key_private_key
+        self.agent_address = options.agent_address
         self.timeout = options.timeout / 1000.0  # Convert to seconds for httpx
         self._auth_lock = asyncio.Lock()
         self._auth = AuthenticationState()
@@ -106,21 +107,29 @@ class ApiClient:
             ).signature
 
             # Step 4: Login with signature
+            login_request = ApiRequestLogin(
+                message=message_to_sign,
+                signature="0x" + signature.hex(),
+                session_id=nonce_response.session_id,
+                agent_address=self.agent_address,
+            )
             login_response = await self._fetch(
                 "/api/v1/agents/auth/login",
                 method="POST",
-                json_data=ApiRequestLogin(
-                    message=message_to_sign,
-                    signature="0x" + signature.hex(),
-                    session_id=nonce_response.session_id,
-                ).model_dump(mode="json", by_alias=True),
+                json_data=login_request.model_dump(mode="json", by_alias=True),
             )
             login_data = ApiResponseLogin(**login_response)
 
-            # Store authentication state
+            # Verify returned agent_address matches what we configured
+            if login_data.agent_address.lower() != self.agent_address.lower():
+                raise ApiError(
+                    f"Agent address mismatch: requested {self.agent_address}, "
+                    f"got {login_data.agent_address}"
+                )
+
+            # Store authentication state (agent_address comes from config, not server)
             self._auth = AuthenticationState(
                 token=login_data.token,
-                agent_address=login_data.agent_address,
                 expires_at=datetime.fromisoformat(
                     login_data.expires_at.replace("Z", "+00:00")
                 ),
@@ -147,7 +156,7 @@ class ApiClient:
         exclude_fields = {"context": True} if request.context is None else {}
 
         response = await self._fetch(
-            f"/api/v1/agents/{self._auth.agent_address}/payment/authorize",
+            f"/api/v1/agents/{self.agent_address}/payment/authorize",
             method="POST",
             json_data=request.model_dump(
                 mode="json", by_alias=True, exclude=exclude_fields
@@ -173,7 +182,7 @@ class ApiClient:
         )
 
         response = await self._fetch(
-            f"/api/v1/agents/{self._auth.agent_address}/payment/events",
+            f"/api/v1/agents/{self.agent_address}/payment/events",
             method="POST",
             json_data=report.model_dump(mode="json", by_alias=True),
             headers={"Authorization": f"Bearer {self._auth.token}"},
@@ -185,9 +194,9 @@ class ApiClient:
         """Clear the current authentication state."""
         self._auth = AuthenticationState()
 
-    def get_agent_address(self) -> Optional[str]:
-        """Get the current agent address (if authenticated)."""
-        return self._auth.agent_address
+    def get_agent_address(self) -> str:
+        """Get the configured agent address."""
+        return self.agent_address
 
     def is_authenticated(self) -> bool:
         """Check if currently authenticated and token is valid."""
