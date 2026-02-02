@@ -4,6 +4,7 @@ from x402.types import (
 )
 
 from .client import ApiClient
+from .management import AmpersendManagementClient, SpendConfig
 from .treasurer import (
     AmpersendTreasurer,
     create_ampersend_treasurer,
@@ -30,6 +31,9 @@ from .types import (
 )
 
 __all__ = [
+    # Management client
+    "AmpersendManagementClient",
+    "SpendConfig",
     # Client and API types
     "ApiClient",
     "ApiError",

@@ -8,9 +8,13 @@ from ampersend_sdk.ampersend import (
     AmpersendTreasurer,
     create_ampersend_treasurer,
 )
+from ampersend_sdk.ampersend.management import AmpersendManagementClient, SpendConfig
 from ampersend_sdk.x402.http import create_ampersend_http_client
 
 __all__ = [
+    # Agent management
+    "AmpersendManagementClient",
+    "SpendConfig",
     # Simplified factories (recommended)
     "create_ampersend_treasurer",
     "create_ampersend_toolset",
