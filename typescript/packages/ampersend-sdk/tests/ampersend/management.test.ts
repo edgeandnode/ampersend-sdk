@@ -106,8 +106,8 @@ describe("AmpersendManagementClient", () => {
       name: "test-agent",
       privateKey: TEST_PRIVATE_KEY,
       spendConfig: {
-        dailyLimit: 1000000,
-        perTransactionLimit: 50000,
+        dailyLimit: 1000000n,
+        perTransactionLimit: 50000n,
       },
       authorizedSellers: ["0x3333333333333333333333333333333333333333"],
     })

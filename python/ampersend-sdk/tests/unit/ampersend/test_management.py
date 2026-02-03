@@ -94,8 +94,8 @@ class TestAmpersendManagementClient:
                 private_key=TEST_PRIVATE_KEY,
             )
 
-        assert result["address"] == MOCK_AGENT_RESPONSE["address"]
-        assert result["name"] == "test-agent"
+        assert result.address == MOCK_AGENT_RESPONSE["address"]
+        assert result.name == "test-agent"
         assert call_count == 2
 
     async def test_create_agent_with_spend_config(self) -> None:
@@ -162,8 +162,8 @@ class TestAmpersendManagementClient:
             result = await client.list_agents()
 
         assert len(result) == 2
-        assert result[0]["name"] == "test-agent"
-        assert result[1]["name"] == "agent-2"
+        assert result[0].name == "test-agent"
+        assert result[1].name == "agent-2"
 
     async def test_context_manager(self) -> None:
         """Async context manager opens and closes the HTTP client."""

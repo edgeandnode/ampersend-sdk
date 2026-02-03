@@ -1,12 +1,12 @@
 """Agent management client using API key authentication."""
 
 from types import TracebackType
-from typing import Any, Dict, List, Optional, Self, cast
+from typing import Any, Dict, List, Optional, Self
 
 import httpx
 from eth_account import Account
 from eth_account.messages import encode_defunct
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict, Field
 
 from .types import ApiError
 
@@ -20,6 +20,51 @@ class SpendConfig(BaseModel):
     daily_limit: Optional[int] = None
     monthly_limit: Optional[int] = None
     per_transaction_limit: Optional[int] = None
+
+    def to_api_dict(self) -> Dict[str, Any]:
+        """Serialize for API (converts limits to strings)."""
+        return {
+            "auto_topup_allowed": self.auto_topup_allowed,
+            "daily_limit": (
+                str(self.daily_limit) if self.daily_limit is not None else None
+            ),
+            "monthly_limit": (
+                str(self.monthly_limit) if self.monthly_limit is not None else None
+            ),
+            "per_transaction_limit": (
+                str(self.per_transaction_limit)
+                if self.per_transaction_limit is not None
+                else None
+            ),
+        }
+
+
+class AgentInitData(BaseModel):
+    """Agent initialization data returned from the API."""
+
+    address: Optional[str] = None
+    factory: Optional[str] = None
+    factory_data: Optional[str] = Field(default=None, validation_alias="factoryData")
+    intent_executor_installed: Optional[bool] = Field(
+        default=None, validation_alias="intentExecutorInstalled"
+    )
+
+    model_config = ConfigDict(validate_by_name=True)
+
+
+class AgentResponse(BaseModel):
+    """Agent record returned from the API."""
+
+    address: str
+    name: str
+    user_id: str = Field(validation_alias="userId")
+    balance: str
+    init_data: AgentInitData = Field(validation_alias="initData")
+    nonce: str
+    created_at: int = Field(validation_alias="createdAt")
+    updated_at: int = Field(validation_alias="updatedAt")
+
+    model_config = ConfigDict(validate_by_name=True)
 
 
 class AmpersendManagementClient:
@@ -70,7 +115,7 @@ class AmpersendManagementClient:
         private_key: str,
         spend_config: Optional[SpendConfig] = None,
         authorized_sellers: Optional[List[str]] = None,
-    ) -> Dict[str, Any]:
+    ) -> AgentResponse:
         """Create and deploy a new agent on-chain.
 
         Handles the full prepare -> sign -> submit flow. The private key is used
@@ -84,7 +129,7 @@ class AmpersendManagementClient:
             authorized_sellers: Optional list of allowed seller addresses.
 
         Returns:
-            Agent record dict from the API.
+            Agent record from the API.
         """
         account = Account.from_key(private_key)
         agent_key_address = account.address
@@ -103,46 +148,23 @@ class AmpersendManagementClient:
         signature = "0x" + signed.signature.hex()
 
         # 3. Build create payload
-        sc = None
-        if spend_config is not None:
-            sc = {
-                "auto_topup_allowed": spend_config.auto_topup_allowed,
-                "daily_limit": (
-                    str(spend_config.daily_limit)
-                    if spend_config.daily_limit is not None
-                    else None
-                ),
-                "monthly_limit": (
-                    str(spend_config.monthly_limit)
-                    if spend_config.monthly_limit is not None
-                    else None
-                ),
-                "per_transaction_limit": (
-                    str(spend_config.per_transaction_limit)
-                    if spend_config.per_transaction_limit is not None
-                    else None
-                ),
-            }
-
         payload = {
             "signature": signature,
             "prepare_response": prepare_response,
             "name": name,
             "keys": [{"address": agent_key_address, "permission_id": None}],
-            "spend_config": sc,
+            "spend_config": spend_config.to_api_dict() if spend_config else None,
             "authorized_sellers": authorized_sellers,
         }
 
         # 4. Submit signed deployment
-        return cast(
-            Dict[str, Any],
-            await self._fetch("POST", "/api/v1/sdk/agents", json_data=payload),
-        )
+        response = await self._fetch("POST", "/api/v1/sdk/agents", json_data=payload)
+        return AgentResponse(**response)
 
-    async def list_agents(self) -> List[Dict[str, Any]]:
+    async def list_agents(self) -> List[AgentResponse]:
         """List all agents belonging to the authenticated user."""
         result = await self._fetch("GET", "/api/v1/sdk/agents")
-        return cast(List[Dict[str, Any]], result)
+        return [AgentResponse(**agent) for agent in result]
 
     async def close(self) -> None:
         """Close the underlying HTTP client."""
