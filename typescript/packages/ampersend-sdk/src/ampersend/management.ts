@@ -1,10 +1,24 @@
 import { Schema } from "effect"
 import type { Address, Hex } from "viem"
+import { entryPoint07Address, getUserOperationHash } from "viem/account-abstraction"
 import { privateKeyToAccount } from "viem/accounts"
 
 import { Address as AddressSchema, ApiError } from "./types.js"
 
 const DEFAULT_API_URL = "https://api.ampersend.ai"
+const DEFAULT_CHAIN_ID = 84532 // Base Sepolia
+
+// ERC-4337 v0.7 bigint fields that need conversion from hex strings
+const USER_OP_BIGINT_FIELDS = new Set([
+  "nonce",
+  "callGasLimit",
+  "verificationGasLimit",
+  "preVerificationGas",
+  "maxFeePerGas",
+  "maxPriorityFeePerGas",
+  "paymasterVerificationGasLimit",
+  "paymasterPostOpGasLimit",
+])
 
 // ============ Response Schemas ============
 
@@ -28,15 +42,16 @@ export class AgentResponse extends Schema.Class<AgentResponse>("AgentResponse")(
 
 /** Response from the prepare endpoint, used to create a signed agent deployment. */
 export class PrepareAgentResponse extends Schema.Class<PrepareAgentResponse>("PrepareAgentResponse")({
+  /** Opaque token to pass back to the submit endpoint */
+  token: Schema.NonEmptyTrimmedString,
   agent_address: AddressSchema,
   init_data: AgentInitData,
   nonce: Schema.String,
   recovery_address: AddressSchema,
   owners: Schema.Array(AddressSchema),
-  unsigned_user_op: Schema.Unknown,
+  unsigned_user_op: Schema.Record({ key: Schema.String, value: Schema.Unknown }),
   user_op_hash: Schema.String,
   expires_at: Schema.Number,
-  server_signature: Schema.String,
 }) {}
 
 // ============ Request Types ============
@@ -86,47 +101,109 @@ export class AmpersendManagementClient {
   private apiKey: string
   private baseUrl: string
   private timeout: number
+  private chainId: number
 
-  constructor(options: { apiKey: string; apiUrl?: string; timeout?: number }) {
+  constructor(options: { apiKey: string; apiUrl?: string; timeout?: number; chainId?: number }) {
     this.apiKey = options.apiKey
     this.baseUrl = (options.apiUrl ?? DEFAULT_API_URL).replace(/\/$/, "")
     this.timeout = options.timeout ?? 30000
+    this.chainId = options.chainId ?? DEFAULT_CHAIN_ID
   }
 
   /**
    * Create and deploy a new agent on-chain.
    *
    * Handles the full prepare → sign → submit flow.
+   * Verifies the server response before signing to prevent malicious operations.
    */
   async createAgent(options: CreateAgentOptions): Promise<AgentResponse> {
     const account = privateKeyToAccount(options.privateKey)
     const agentKeyAddress = account.address
 
-    // 1. Prepare unsigned UserOp
-    const params = new URLSearchParams({ agent_key_address: agentKeyAddress })
+    // 1. Prepare unsigned UserOp (POST with JSON body)
     const prepareResponse = await this.fetch(
-      "GET",
-      `/api/v1/sdk/agents/prepare?${params.toString()}`,
-      undefined,
+      "POST",
+      "/api/v1/sdk/agents/prepare",
+      { agent_key_address: agentKeyAddress },
       PrepareAgentResponse,
     )
 
-    // 2. Sign the UserOp hash (personal_sign of the raw hash bytes)
+    // 2. Verify the response before signing (Layer 1: basic sanity checks)
+    this.verifyPrepareResponse(prepareResponse, agentKeyAddress)
+
+    // 3. Sign the UserOp hash (personal_sign of the raw hash bytes)
     const userOpHash = prepareResponse.user_op_hash
     const signature = await account.signMessage({ message: { raw: userOpHash as Hex } })
 
-    // 3. Build create payload
+    // 4. Build create payload (token-based, not full prepare_response)
     const payload = {
+      token: prepareResponse.token,
       signature,
-      prepare_response: prepareResponse,
       name: options.name,
-      keys: [{ address: agentKeyAddress, permission_id: null }],
       spend_config: options.spendConfig ? serializeSpendConfig(options.spendConfig) : null,
       authorized_sellers: options.authorizedSellers ?? null,
     }
 
-    // 4. Submit signed deployment
+    // 5. Submit signed deployment
     return this.fetch("POST", "/api/v1/sdk/agents", payload, AgentResponse)
+  }
+
+  /**
+   * Verify the prepare response before signing.
+   * Layer 1: Basic sanity checks to prevent signing malicious operations.
+   * Layer 2: Hash verification to ensure we sign what we expect.
+   */
+  private verifyPrepareResponse(response: PrepareAgentResponse, agentKeyAddress: Address): void {
+    const userOp = response.unsigned_user_op
+
+    // Layer 1, Check 1: This is a deployment (factory must be set)
+    if (userOp.factory == null) {
+      throw new ApiError("Invalid prepare response: not a deployment operation (factory is null)")
+    }
+
+    // Layer 1, Check 2: Deploying the expected address
+    const sender = userOp.sender as string | undefined
+    if (!sender || sender.toLowerCase() !== response.agent_address.toLowerCase()) {
+      throw new ApiError(
+        `Invalid prepare response: sender mismatch (expected ${response.agent_address}, got ${sender})`,
+      )
+    }
+
+    // Layer 1, Check 3: Our key is in the owners list
+    const ownerAddresses = response.owners.map((o) => o.toLowerCase())
+    if (!ownerAddresses.includes(agentKeyAddress.toLowerCase())) {
+      throw new ApiError(`Invalid prepare response: agent key ${agentKeyAddress} not in owners list`)
+    }
+
+    // Layer 2: Verify hash matches the UserOp we're signing
+    const deserializedUserOp = this.deserializeUserOperation(userOp)
+    const computedHash = getUserOperationHash({
+      userOperation: deserializedUserOp as Parameters<typeof getUserOperationHash>[0]["userOperation"],
+      entryPointAddress: entryPoint07Address,
+      entryPointVersion: "0.7",
+      chainId: this.chainId,
+    })
+
+    if (computedHash.toLowerCase() !== response.user_op_hash.toLowerCase()) {
+      throw new ApiError(
+        `Invalid prepare response: hash mismatch (computed ${computedHash}, server provided ${response.user_op_hash})`,
+      )
+    }
+  }
+
+  /**
+   * Deserialize a UserOperation from API format (hex strings → bigints).
+   */
+  private deserializeUserOperation(serialized: Record<string, unknown>): Record<string, unknown> {
+    const result: Record<string, unknown> = {}
+    for (const [key, value] of Object.entries(serialized)) {
+      if (USER_OP_BIGINT_FIELDS.has(key) && typeof value === "string") {
+        result[key] = BigInt(value)
+      } else {
+        result[key] = value
+      }
+    }
+    return result
   }
 
   /**
