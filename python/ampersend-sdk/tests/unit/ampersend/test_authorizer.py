@@ -146,7 +146,11 @@ class TestAmpersendTreasurer:
         # Test payment verified status
         await authorizer.onStatus(
             status=PaymentStatus.PAYMENT_VERIFIED,
-            authorization=X402Authorization(authorization_id=auth_id, payment=payment),
+            authorization=X402Authorization(
+                authorization_id=auth_id,
+                payment=payment,
+                selected_requirement=MagicMock(),
+            ),
             context={"test": "data"},
         )
 

@@ -20,12 +20,12 @@ class NaiveTreasurer(X402Treasurer):
         payment_required: x402PaymentRequiredResponse,
         context: Dict[str, Any] | None = None,
     ) -> X402Authorization | None:
-        payment = self._wallet.create_payment(
-            requirements=payment_required.accepts[0],
-        )
+        requirement = payment_required.accepts[0]
+        payment = self._wallet.create_payment(requirements=requirement)
         return X402Authorization(
             payment=payment,
             authorization_id=uuid.uuid4().hex,
+            selected_requirement=requirement,
         )
 
     async def onStatus(
