@@ -89,7 +89,11 @@ class AmpersendTreasurer(X402Treasurer):
             event=PaymentEventSending(),
         )
 
-        return X402Authorization(authorization_id=authorization_id, payment=payment)
+        return X402Authorization(
+            authorization_id=authorization_id,
+            payment=payment,
+            selected_requirement=authorized_req.requirement,
+        )
 
     async def onStatus(
         self,

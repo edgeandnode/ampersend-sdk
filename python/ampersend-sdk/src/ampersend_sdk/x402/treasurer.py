@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import Any, Dict, NamedTuple
 
+from x402.types import PaymentRequirements
 from x402_a2a import (
     PaymentPayload,
     PaymentStatus,
@@ -14,6 +15,7 @@ class X402Authorization(NamedTuple):
 
     payment: PaymentPayload
     authorization_id: str
+    selected_requirement: PaymentRequirements
 
 
 class X402Treasurer(ABC):
