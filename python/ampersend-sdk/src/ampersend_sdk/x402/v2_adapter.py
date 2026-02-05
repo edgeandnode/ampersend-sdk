@@ -11,14 +11,17 @@ transport (HTTP, A2A, MCP, etc.).
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, cast
+from typing import Any, cast
 
 from x402.chains import NETWORK_TO_ID, get_token_name, get_token_version
 from x402.networks import SupportedNetworks
 from x402.types import PaymentPayload, PaymentRequirements, x402PaymentRequiredResponse
 
 # Inverse lookup: chain-id string → v1 network name.
-_CHAIN_ID_TO_NETWORK: Dict[str, str] = {v: k for k, v in NETWORK_TO_ID.items()}
+_CHAIN_ID_TO_NETWORK: dict[str, str] = {v: k for k, v in NETWORK_TO_ID.items()}
+assert len(_CHAIN_ID_TO_NETWORK) == len(NETWORK_TO_ID), (
+    "duplicate chain IDs in NETWORK_TO_ID"
+)
 
 _DEFAULT_MAX_TIMEOUT_SECONDS = 300
 
@@ -52,14 +55,14 @@ def _chain_id_to_v1_network(chain_id: str) -> str:
 class V2PaymentContext:
     """Original v2 data preserved for building the outbound payment."""
 
-    resource: Dict[str, Any] = field(default_factory=dict)
+    resource: dict[str, Any] = field(default_factory=dict)
 
 
 # -- inbound: v2 dict → v1 types --------------------------------------------
 
 
 def v2_to_v1_payment_required(
-    decoded: Dict[str, Any],
+    decoded: dict[str, Any],
 ) -> tuple[x402PaymentRequiredResponse, V2PaymentContext]:
     """Convert a decoded v2 payment-required payload into v1 types.
 
@@ -71,16 +74,16 @@ def v2_to_v1_payment_required(
     must be kept around so :func:`v1_to_v2_payment_payload` can embed
     the original v2 fields in the outbound payment.
     """
-    resource: Dict[str, Any] = decoded.get("resource", {})
-    v2_accepts: List[Dict[str, Any]] = decoded.get("accepts", [])
+    resource: dict[str, Any] = decoded.get("resource", {})
+    v2_accepts: list[dict[str, Any]] = decoded.get("accepts", [])
 
-    v1_requirements: List[PaymentRequirements] = []
+    v1_requirements: list[PaymentRequirements] = []
     for req in v2_accepts:
         chain_id = _parse_caip2_chain_id(req["network"])
         network_name = _chain_id_to_v1_network(chain_id)
         asset: str = req["asset"]
 
-        extra: Dict[str, str] = {
+        extra: dict[str, str] = {
             "name": get_token_name(chain_id, asset),
             "version": get_token_version(chain_id, asset),
         }
@@ -114,7 +117,7 @@ def v2_to_v1_payment_required(
 # -- outbound: v1 payment → v2 dict -----------------------------------------
 
 
-def _v1_requirement_to_v2_accepted(req: PaymentRequirements) -> Dict[str, Any]:
+def _v1_requirement_to_v2_accepted(req: PaymentRequirements) -> dict[str, Any]:
     """Reconstruct a v2 ``accepted`` dict from a v1 PaymentRequirements."""
     chain_id = NETWORK_TO_ID[req.network]
     return {
@@ -131,7 +134,7 @@ def v1_to_v2_payment_payload(
     payment: PaymentPayload,
     v2_context: V2PaymentContext,
     selected_requirement: PaymentRequirements,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Build a v2 payment envelope dict from a v1 payment payload.
 
     The ``accepted`` field is reconstructed from *selected_requirement*.

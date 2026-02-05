@@ -1,6 +1,6 @@
 import logging
 import uuid
-from typing import Any, Dict
+from typing import Any
 
 from x402_a2a.types import (
     PaymentStatus,
@@ -43,7 +43,7 @@ class AmpersendTreasurer(X402Treasurer):
     async def onPaymentRequired(
         self,
         payment_required: x402PaymentRequiredResponse,
-        context: Dict[str, Any] | None = None,
+        context: dict[str, Any] | None = None,
     ) -> X402Authorization | None:
         result = await self._api_client.authorize_payment(
             payment_required.accepts, context
@@ -99,7 +99,7 @@ class AmpersendTreasurer(X402Treasurer):
         self,
         status: PaymentStatus,
         authorization: X402Authorization,
-        context: Dict[str, Any] | None = None,
+        context: dict[str, Any] | None = None,
     ) -> None:
         # Map status to appropriate event type
         event: PaymentEvent | None = None
