@@ -261,10 +261,58 @@ class TestX402HttpTransport:
         assert response.status_code == 402
         assert len(inner.requests) == 2
 
-        # Verify onStatus was called with PAYMENT_FAILED
+        # Verify onStatus was called with PAYMENT_REJECTED
         assert len(treasurer.status_calls) == 1
         status, _, _ = treasurer.status_calls[0]
+        assert status == PaymentStatus.PAYMENT_REJECTED
+
+    async def test_non_200_with_payment_response_header_reports_completed(self) -> None:
+        """Server error but payment-response header present → payment was accepted."""
+        body_402 = PAYMENT_REQUIRED_BODY.model_dump_json(by_alias=True).encode()
+        authorization = _make_authorization()
+        inner = FakeTransport(
+            [
+                httpx.Response(402, content=body_402),
+                httpx.Response(
+                    500,
+                    content=b"internal error",
+                    headers={"payment-response": "receipt-data"},
+                ),
+            ]
+        )
+        treasurer = FakeTreasurer(authorization=authorization)
+        transport = X402HttpTransport(wrapped=inner, treasurer=treasurer)
+
+        request = httpx.Request("GET", "https://api.example.com/resource")
+        response = await transport.handle_async_request(request)
+
+        assert response.status_code == 500
+        assert len(treasurer.status_calls) == 1
+        status, auth, _ = treasurer.status_calls[0]
+        assert status == PaymentStatus.PAYMENT_COMPLETED
+        assert auth is authorization
+
+    async def test_non_200_without_payment_response_header_reports_failed(self) -> None:
+        """Server error without payment-response header → ambiguous, report failed."""
+        body_402 = PAYMENT_REQUIRED_BODY.model_dump_json(by_alias=True).encode()
+        authorization = _make_authorization()
+        inner = FakeTransport(
+            [
+                httpx.Response(402, content=body_402),
+                httpx.Response(500, content=b"internal error"),
+            ]
+        )
+        treasurer = FakeTreasurer(authorization=authorization)
+        transport = X402HttpTransport(wrapped=inner, treasurer=treasurer)
+
+        request = httpx.Request("GET", "https://api.example.com/resource")
+        response = await transport.handle_async_request(request)
+
+        assert response.status_code == 500
+        assert len(treasurer.status_calls) == 1
+        status, auth, _ = treasurer.status_calls[0]
         assert status == PaymentStatus.PAYMENT_FAILED
+        assert auth is authorization
 
     async def test_aclose_delegates(self) -> None:
         inner = AsyncMock(spec=httpx.AsyncBaseTransport)
