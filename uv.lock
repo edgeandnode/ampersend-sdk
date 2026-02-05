@@ -118,7 +118,7 @@ wheels = [
 
 [[package]]
 name = "ampersend-sdk"
-version = "0.0.6"
+version = "0.0.7"
 source = { editable = "python/ampersend-sdk" }
 dependencies = [
     { name = "a2a-sdk" },
@@ -163,7 +163,7 @@ test = [
 
 [[package]]
 name = "ampersend-sdk-python"
-version = "0.0.6"
+version = "0.0.7"
 source = { virtual = "." }
 dependencies = [
     { name = "ampersend-sdk" },
@@ -1453,7 +1453,7 @@ wheels = [
 
 [[package]]
 name = "langchain-ampersend"
-version = "0.0.6"
+version = "0.0.7"
 source = { editable = "python/langchain-ampersend" }
 dependencies = [
     { name = "ampersend-sdk" },
