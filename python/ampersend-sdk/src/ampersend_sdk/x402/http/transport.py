@@ -31,6 +31,14 @@ def _get_v2_header(response: httpx.Response) -> str | None:
     return value
 
 
+def _has_payment_response(response: httpx.Response) -> bool:
+    """Check whether the response carries an x402 payment-response header."""
+    return (
+        response.headers.get("payment-response") is not None
+        or response.headers.get("x-payment-response") is not None
+    )
+
+
 class X402HttpTransport(httpx.AsyncBaseTransport):
     """httpx transport that intercepts 402 responses and handles x402 payments.
 
@@ -165,11 +173,12 @@ class X402HttpTransport(httpx.AsyncBaseTransport):
         authorization: X402Authorization,
         request: httpx.Request,
     ) -> None:
-        status = (
-            PaymentStatus.PAYMENT_FAILED
-            if response.status_code == 402
-            else PaymentStatus.PAYMENT_COMPLETED
-        )
+        if response.status_code == 402:
+            status = PaymentStatus.PAYMENT_REJECTED
+        elif response.status_code == 200 or _has_payment_response(response):
+            status = PaymentStatus.PAYMENT_COMPLETED
+        else:
+            status = PaymentStatus.PAYMENT_FAILED
         context: dict[str, Any] = {
             "method": "http",
             "params": {"resource": str(request.url)},
