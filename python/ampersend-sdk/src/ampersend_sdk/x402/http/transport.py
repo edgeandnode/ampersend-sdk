@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 import logging
-from typing import Any, Dict
+from typing import Any
 
 import httpx
 from x402.encoding import safe_base64_encode
@@ -153,7 +153,7 @@ class X402HttpTransport(httpx.AsyncBaseTransport):
         payment_required: x402PaymentRequiredResponse,
         request: httpx.Request,
     ) -> X402Authorization | None:
-        context: Dict[str, Any] = {
+        context: dict[str, Any] = {
             "method": "http",
             "params": {"resource": str(request.url)},
         }
@@ -170,7 +170,7 @@ class X402HttpTransport(httpx.AsyncBaseTransport):
             if response.status_code == 402
             else PaymentStatus.PAYMENT_COMPLETED
         )
-        context: Dict[str, Any] = {
+        context: dict[str, Any] = {
             "method": "http",
             "params": {"resource": str(request.url)},
         }
@@ -185,10 +185,12 @@ class X402HttpTransport(httpx.AsyncBaseTransport):
         header_name: str,
         header_value: str,
     ) -> httpx.Response:
+        headers = httpx.Headers(original.headers)
+        headers[header_name] = header_value
         retry_request = httpx.Request(
             method=original.method,
             url=original.url,
-            headers={**dict(original.headers), header_name: header_value},
+            headers=headers,
             content=original.content,
             extensions={**dict(original.extensions), self._RETRY_KEY: True},
         )

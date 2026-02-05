@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Any, Dict, NamedTuple
+from typing import Any, NamedTuple
 
 from x402.types import PaymentRequirements
 from x402_a2a import (
@@ -23,7 +23,7 @@ class X402Treasurer(ABC):
     async def onPaymentRequired(
         self,
         payment_required: x402PaymentRequiredResponse,
-        context: Dict[str, Any] | None = None,
+        context: dict[str, Any] | None = None,
     ) -> X402Authorization | None:
         """Authorize or reject a payment."""
 
@@ -32,6 +32,6 @@ class X402Treasurer(ABC):
         self,
         status: PaymentStatus,
         authorization: X402Authorization,
-        context: Dict[str, Any] | None = None,
+        context: dict[str, Any] | None = None,
     ) -> None:
         """Handle payment status updates."""
