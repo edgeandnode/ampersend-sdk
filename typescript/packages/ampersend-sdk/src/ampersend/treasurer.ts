@@ -17,8 +17,8 @@ import { ApiClient } from "./client.ts"
 /** Default Ampersend API URL */
 const DEFAULT_API_URL = "https://api.ampersend.ai"
 
-/** Default chain ID (Base Sepolia) */
-const DEFAULT_CHAIN_ID = 84532
+/** Default chain ID (Base mainnet) */
+const DEFAULT_CHAIN_ID = 8453
 
 /**
  * Simplified configuration for quick setup with smart accounts.
@@ -39,7 +39,7 @@ export interface SimpleAmpersendTreasurerConfig {
   sessionKeyPrivateKey: Hex
   /** Ampersend API URL (defaults to production) */
   apiUrl?: string
-  /** Chain ID (defaults to Base Sepolia 84532) */
+  /** Chain ID (defaults to Base mainnet 8453) */
   chainId?: number
 }
 
