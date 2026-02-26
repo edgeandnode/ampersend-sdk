@@ -56,6 +56,8 @@ export async function signSmartAccountTypedData<
  * @param tokenAddress - USDC token contract address
  * @param chainId - Chain ID for the typed data domain
  * @param validatorAddress - Address of the OwnableValidator module
+ * @param domainName - EIP-712 domain name (from requirements.extra.name)
+ * @param domainVersion - EIP-712 domain version (from requirements.extra.version)
  * @returns ERC-1271 compatible signature
  */
 export async function signERC3009Authorization(
@@ -65,6 +67,8 @@ export async function signERC3009Authorization(
   tokenAddress: Address,
   chainId: number,
   validatorAddress: Address,
+  domainName: string,
+  domainVersion: string,
 ): Promise<Hex> {
   // Use the generic signing function with ERC-3009 typed data
   return await signSmartAccountTypedData(
@@ -72,8 +76,8 @@ export async function signERC3009Authorization(
     smartAccountAddress,
     {
       domain: {
-        name: "USDC",
-        version: "2",
+        name: domainName,
+        version: domainVersion,
         chainId,
         verifyingContract: tokenAddress,
       },
