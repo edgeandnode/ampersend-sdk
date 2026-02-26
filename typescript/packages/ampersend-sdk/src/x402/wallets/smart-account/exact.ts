@@ -61,6 +61,14 @@ export async function createExactPayment(
     nonce,
   }
 
+  // Get domain params from requirements.extra (provided by server)
+  const domainName = requirements.extra?.name as string | undefined
+  const domainVersion = requirements.extra?.version as string | undefined
+
+  if (!domainName || !domainVersion) {
+    throw new Error("requirements.extra must contain 'name' and 'version' for EIP-712 domain")
+  }
+
   // Sign using ERC-1271 with OwnableValidator
   const signature = await signERC3009Authorization(
     config.sessionKeyPrivateKey,
@@ -69,6 +77,8 @@ export async function createExactPayment(
     requirements.asset as Address,
     config.chainId,
     config.validatorAddress,
+    domainName,
+    domainVersion,
   )
 
   // Construct payment payload matching x402 exact scheme format
