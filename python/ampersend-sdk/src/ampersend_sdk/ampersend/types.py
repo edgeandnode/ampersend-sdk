@@ -1,7 +1,8 @@
 from datetime import datetime
 from typing import Annotated, Any, Dict, List, Literal, Optional, Union
 
-from pydantic import BaseModel, ConfigDict, Field
+from eth_utils.address import is_address
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 from x402.types import (
     PaymentPayload,
     PaymentRequirements,
@@ -13,14 +14,21 @@ class ApiClientOptions(BaseModel):
 
     base_url: str
     session_key_private_key: Optional[str] = None
+    agent_address: str
     timeout: int = 30000
+
+    @field_validator("agent_address")
+    @classmethod
+    def validate_agent_address(cls, v: str) -> str:
+        if not is_address(v):
+            raise ValueError(f"Invalid Ethereum address: {v}")
+        return v
 
 
 class AuthenticationState(BaseModel):
     """Current authentication state."""
 
     token: Optional[str] = None
-    agent_address: Optional[str] = None
     expires_at: Optional[datetime] = None
 
 
@@ -149,6 +157,7 @@ class ApiRequestLogin(BaseModel):
     message: str
     signature: str
     session_id: str = Field(serialization_alias="sessionId")
+    agent_address: str = Field(serialization_alias="agentAddress")
 
 
 class ApiResponseLogin(BaseModel):

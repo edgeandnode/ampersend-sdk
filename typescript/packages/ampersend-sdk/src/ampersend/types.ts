@@ -56,6 +56,9 @@ export class SIWELoginRequest extends Schema.Class<SIWELoginRequest>("SIWELoginR
   sessionId: Schema.NonEmptyTrimmedString.annotations({
     description: "Session identifier from nonce response",
   }),
+  agentAddress: Address.annotations({
+    description: "Agent smart account address",
+  }),
 }) {}
 
 export class SIWELoginResponse extends Schema.Class<SIWELoginResponse>("SIWELoginResponse")({
@@ -268,12 +271,12 @@ export class AgentPaymentEventResponse extends Schema.Class<AgentPaymentEventRes
 export interface ApiClientOptions {
   baseUrl: string
   sessionKeyPrivateKey?: `0x${string}`
+  agentAddress: Address
   timeout?: number
 }
 
 export interface AuthenticationState {
   token: string | null
-  agentAddress: Address | null
   expiresAt: Date | null
 }
 
