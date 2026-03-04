@@ -1,5 +1,8 @@
-import type { PaymentEvent } from "@ampersend_ai/ampersend-sdk/mcp/client"
-import { OWNABLE_VALIDATOR } from "@ampersend_ai/ampersend-sdk/smart-account"
+import type { Address, Hex } from "viem"
+import { privateKeyToAccount } from "viem/accounts"
+
+import type { PaymentEvent } from "../mcp/client/index.ts"
+import { OWNABLE_VALIDATOR } from "../smart-account/index.ts"
 import {
   createWalletFromConfig,
   type Authorization,
@@ -9,10 +12,7 @@ import {
   type WalletConfig,
   type X402Treasurer,
   type X402Wallet,
-} from "@ampersend_ai/ampersend-sdk/x402"
-import type { Address, Hex } from "viem"
-import { privateKeyToAccount } from "viem/accounts"
-
+} from "../x402/index.ts"
 import { ApiClient } from "./client.ts"
 
 /** Default Ampersend API URL */

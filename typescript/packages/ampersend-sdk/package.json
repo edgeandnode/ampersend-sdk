@@ -1,7 +1,7 @@
 {
   "name": "@ampersend_ai/ampersend-sdk",
   "description": "Tooling for building applications with x402 payment capabilities. Supports buyer and seller roles.",
-  "version": "0.0.10",
+  "version": "0.0.11",
   "repository": {
     "type": "git",
     "url": "https://github.com/edgeandnode/ampersend-sdk.git"
@@ -10,6 +10,7 @@
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "bin": {
+    "ampersend": "./dist/cli/ampersend.js",
     "ampersend-proxy": "./dist/mcp/proxy/cli.js"
   },
   "exports": {
@@ -62,6 +63,7 @@
     "@rhinestone/module-sdk": "^0.4.0",
     "@types/express": "^5.0.6",
     "@x402/core": "^2.5.0",
+    "@x402/fetch": "^2.5.0",
     "async-mutex": "^0.5.0",
     "commander": "^12.1.0",
     "effect": "^3.19.19",

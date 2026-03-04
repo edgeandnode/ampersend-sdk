@@ -44,7 +44,7 @@ class TreasurerSchemeClientV1 {
   async createPaymentPayload(
     x402Version: number,
     requirements: PaymentRequirements,
-  ): Promise<{ x402Version: number; payload: Record<string, unknown> }> {
+  ): Promise<{ x402Version: number; scheme: string; network: string; payload: Record<string, unknown> }> {
     const entry = this.paymentStore.get(requirements)
     if (!entry) {
       throw new Error("No payment authorization found for requirements")
@@ -55,6 +55,8 @@ class TreasurerSchemeClientV1 {
 
     return {
       x402Version,
+      scheme: entry.authorization.payment.scheme,
+      network: entry.authorization.payment.network,
       payload: entry.authorization.payment.payload,
     }
   }

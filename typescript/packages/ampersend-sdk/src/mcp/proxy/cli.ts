@@ -3,6 +3,7 @@ import { Command } from "commander"
 import type { Address } from "viem"
 
 import { createAmpersendTreasurer } from "../../ampersend/index.ts"
+import { VERSION } from "../../version.ts"
 import { createNaiveTreasurer } from "../../x402/treasurers/index.ts"
 import { parseEnvConfig, type ProxyEnvConfig } from "./env.ts"
 import { initializeProxyServer } from "./server/index.ts"
@@ -73,7 +74,7 @@ function parseOptions(args: Array<string>, envPrefix = "TS__MCP_PROXY__"): Proxy
   const program = new Command()
     .name("ampersend-proxy")
     .description("MCP x402 proxy server")
-    .version("0.1.0")
+    .version(VERSION)
     .option("-p, --port <number>", "Port number (overrides env)", (value) => parseInt(value, 10))
     .option("-e, --env-prefix <value>", "Environment variable prefix (empty string for no prefix)")
     .parse(args, { from: "user" })
