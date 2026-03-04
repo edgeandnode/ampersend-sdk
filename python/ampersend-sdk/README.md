@@ -6,23 +6,24 @@ protocol applications.
 ## Quick Start
 
 ```python
+# agent.py
+import os
 from ampersend_sdk import create_ampersend_treasurer
 from ampersend_sdk.a2a.client import X402RemoteA2aAgent
 
-# Create treasurer (one-liner setup)
 treasurer = create_ampersend_treasurer(
-    smart_account_address="0x...",
-    session_key_private_key="0x...",
+    smart_account_address=os.environ["SMART_ACCOUNT_ADDRESS"],
+    session_key_private_key=os.environ["SESSION_KEY_PRIVATE_KEY"],
 )
 
-agent = X402RemoteA2aAgent(
+root_agent = X402RemoteA2aAgent(
     treasurer=treasurer,
     name="my_agent",
     agent_card="https://agent.example.com/.well-known/agent-card.json",
 )
-
-result = await agent.run("your query")
 ```
+
+Run with ADK: `adk run agent.py`
 
 ## Package Structure
 
