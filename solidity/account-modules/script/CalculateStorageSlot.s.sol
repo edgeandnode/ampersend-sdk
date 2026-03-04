@@ -23,5 +23,14 @@ contract CalculateStorageSlot is Script {
         console.log("AutoCollectExecutor Namespace:", collectNamespace);
         console.log("AutoCollectExecutor Storage slot:");
         console.logBytes32(collectSlot);
+
+        console.log("");
+
+        // CoSignerValidator storage slot
+        string memory coSignerNamespace = "cosigner.storage.CoSignerValidator";
+        bytes32 coSignerSlot = coSignerNamespace.erc7201Slot();
+        console.log("CoSignerValidator Namespace:", coSignerNamespace);
+        console.log("CoSignerValidator Storage slot:");
+        console.logBytes32(coSignerSlot);
     }
 }
