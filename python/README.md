@@ -35,25 +35,30 @@ uv sync --frozen --group dev
 ### 3. Create Your Agent
 
 ```python
+# agent.py
+import os
 from ampersend_sdk import create_ampersend_treasurer
 from ampersend_sdk.a2a.client import X402RemoteA2aAgent
 
 # Create treasurer (one-liner setup)
 treasurer = create_ampersend_treasurer(
-    smart_account_address="0x...",  # From staging dashboard
-    session_key_private_key="0x...",  # From staging dashboard
+    smart_account_address=os.environ["SMART_ACCOUNT_ADDRESS"],  # From dashboard
+    session_key_private_key=os.environ["SESSION_KEY_PRIVATE_KEY"],  # From dashboard
     api_url="https://api.staging.ampersend.ai",
 )
 
 # Create agent pointing to staging service (testnet, rate-limited)
-agent = X402RemoteA2aAgent(
+root_agent = X402RemoteA2aAgent(
     treasurer=treasurer,
     name="my_agent",
-    agent_card="https://subgraph-a2a.x402.staging.thegraph.com/.well-known/agent-card.json"
+    agent_card="https://subgraph-a2a.x402.staging.thegraph.com/.well-known/agent-card.json",
 )
+```
 
-# Use the agent (payments handled automatically with spend limits)
-result = await agent.run("Query Uniswap V3 pools on Base Sepolia")
+Run with ADK:
+
+```bash
+adk run agent.py
 ```
 
 ### Testing Without Ampersend Account
@@ -71,28 +76,30 @@ treasurer = NaiveTreasurer(wallet=wallet)  # Auto-approves all payments
 ### Server (Seller)
 
 ```python
-from google.adk.agents import Agent
+# agent.py
+import os
+from google.adk import Agent
 from ampersend_sdk.a2a.server import to_a2a, make_x402_before_agent_callback
 
-# Create your ADK agent with payment requirements
-agent = Agent(
-    name="MyAgent",
+root_agent = Agent(
+    name="my_agent",
     before_agent_callback=make_x402_before_agent_callback(
         price="$0.001",
         network="base-sepolia",
-        pay_to_address="0x...",
+        pay_to_address=os.environ["PAY_TO_ADDRESS"],
     ),
+    model="gemini-2.5-flash-lite",
+    description="My agent description.",
+    instruction="You are a helpful agent.",
 )
 
-@agent.tool()
-async def my_tool(query: str) -> str:
-    return "result"
+a2a_app = to_a2a(root_agent, port=8001)
+```
 
-# Convert to A2A app (x402 support configured via before_agent_callback)
-a2a_app = to_a2a(agent, host="localhost", port=8001)
+Run with uvicorn:
 
-# Serve with uvicorn
-# uvicorn module:a2a_app --host 0.0.0.0 --port 8001
+```bash
+uvicorn agent:a2a_app --host localhost --port 8001
 ```
 
 ## Core Concepts
