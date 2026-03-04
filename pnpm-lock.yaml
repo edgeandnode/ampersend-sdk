@@ -71,6 +71,9 @@ importers:
       '@x402/core':
         specifier: ^2.5.0
         version: 2.5.0
+      '@x402/fetch':
+        specifier: ^2.5.0
+        version: 2.5.0(bufferutil@4.0.9)(typescript@5.9.3)(utf-8-validate@5.0.10)
       async-mutex:
         specifier: ^0.5.0
         version: 0.5.0
@@ -1868,6 +1871,9 @@ packages:
 
   '@x402/core@2.5.0':
     resolution: {integrity: sha512-nUr8HW8WhkU1DvrpUfsRvALy5NF8UWKoFezZOtX61mohxp2lWZpJ2GnvscxDM8nmBAbtIollmksd5z5pj8InXw==}
+
+  '@x402/fetch@2.5.0':
+    resolution: {integrity: sha512-D2jH3bn0nf8w9Jg3Vxo+6reE6Z9GickzkSIw+udITJFvsrGOpfjZvhcTeflLcthCODk4Nuu9Oe8x7Q3NLUdaRQ==}
 
   abitype@1.0.6:
     resolution: {integrity: sha512-MMSqYh4+C/aVqI2RQaWqbvI4Kxo5cQV40WQ4QFtDnNzCkqChm8MuENhElmynZlO0qUy/ObkEUaXtKqYnx1Kp3A==}
@@ -6922,6 +6928,16 @@ snapshots:
   '@x402/core@2.5.0':
     dependencies:
       zod: 3.25.76
+
+  '@x402/fetch@2.5.0(bufferutil@4.0.9)(typescript@5.9.3)(utf-8-validate@5.0.10)':
+    dependencies:
+      '@x402/core': 2.5.0
+      viem: 2.45.0(bufferutil@4.0.9)(typescript@5.9.3)(utf-8-validate@5.0.10)(zod@3.25.76)
+      zod: 3.25.76
+    transitivePeerDependencies:
+      - bufferutil
+      - typescript
+      - utf-8-validate
 
   abitype@1.0.6(typescript@5.9.3)(zod@3.25.76):
     optionalDependencies:
