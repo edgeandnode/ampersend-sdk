@@ -31,15 +31,6 @@ jobs:
           submodules: recursive
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Show checkout info
-        run: |
-          echo "event_name=${{ github.event_name }}"
-          echo "github.ref=${{ github.ref }}"
-          echo "github.sha=${{ github.sha }}"
-          echo "pull_request.head.sha=${{ github.event.pull_request.head.sha || '' }}"
-          git rev-parse HEAD
-          git log -1 --oneline
-
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
         with:
@@ -82,15 +73,6 @@ jobs:
         with:
           submodules: recursive
           token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Show checkout info
-        run: |
-          echo "event_name=${{ github.event_name }}"
-          echo "github.ref=${{ github.ref }}"
-          echo "github.sha=${{ github.sha }}"
-          echo "pull_request.head.sha=${{ github.event.pull_request.head.sha || '' }}"
-          git rev-parse HEAD
-          git log -1 --oneline
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
