@@ -179,6 +179,7 @@ def create_ampersend_treasurer(
         options=ApiClientOptions(
             base_url=api_url,
             session_key_private_key=session_key_private_key,
+            agent_address=smart_account_address,
         )
     )
 

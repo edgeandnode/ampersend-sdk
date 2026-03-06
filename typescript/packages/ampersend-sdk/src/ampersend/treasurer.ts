@@ -11,6 +11,7 @@ import {
   type X402Wallet,
 } from "@ampersend_ai/ampersend-sdk/x402"
 import type { Address, Hex } from "viem"
+import { privateKeyToAccount } from "viem/accounts"
 
 import { ApiClient } from "./client.ts"
 
@@ -214,6 +215,7 @@ export function createAmpersendTreasurer(config: AmpersendTreasurerConfig): X402
     const apiClient = new ApiClient({
       baseUrl: config.apiUrl ?? DEFAULT_API_URL,
       sessionKeyPrivateKey: config.sessionKeyPrivateKey,
+      agentAddress: config.smartAccountAddress,
       timeout: 30000,
     })
 
@@ -227,10 +229,17 @@ export function createAmpersendTreasurer(config: AmpersendTreasurerConfig): X402
   // Determine which private key to use for API authentication
   const authPrivateKey = walletConfig.type === "eoa" ? walletConfig.privateKey : walletConfig.sessionKeyPrivateKey
 
+  // Derive agent address from wallet config
+  const agentAddress =
+    walletConfig.type === "smart-account"
+      ? walletConfig.smartAccountAddress
+      : privateKeyToAccount(walletConfig.privateKey).address
+
   // Create API client
   const apiClient = new ApiClient({
     baseUrl: apiUrl,
     sessionKeyPrivateKey: authPrivateKey,
+    agentAddress,
     timeout: 30000,
     ...authConfig,
   })
