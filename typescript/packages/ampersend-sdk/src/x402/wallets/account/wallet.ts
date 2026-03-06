@@ -40,8 +40,9 @@ export class AccountWallet implements X402Wallet {
   /**
    * Creates a payment payload from requirements.
    * Only supports "exact" payment scheme.
+   * Note: serverAuthorization parameter is ignored for EOA wallets (only used by SmartAccountWallet)
    */
-  async createPayment(requirements: PaymentRequirements): Promise<PaymentPayload> {
+  async createPayment(requirements: PaymentRequirements, _serverAuthorization?: unknown): Promise<PaymentPayload> {
     if (requirements.scheme !== "exact") {
       throw new WalletError(`Unsupported payment scheme: ${requirements.scheme}. AccountWallet only supports "exact".`)
     }

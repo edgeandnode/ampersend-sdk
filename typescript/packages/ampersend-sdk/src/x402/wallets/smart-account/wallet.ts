@@ -3,7 +3,9 @@ import type { PaymentPayload, PaymentRequirements } from "x402/types"
 
 import { OWNABLE_VALIDATOR } from "../../../smart-account/constants.ts"
 import { WalletError, type X402Wallet } from "../../wallet.ts"
+import type { ServerAuthorizationData } from "../../../ampersend/types.ts"
 import { createExactPayment } from "./exact.ts"
+import { createCoSignedPayment } from "./cosigned.ts"
 
 /**
  * Configuration for SmartAccountWallet
@@ -17,6 +19,8 @@ export interface SmartAccountConfig {
   chainId: number
   /** OwnableValidator address (defaults to standard OwnableValidator) */
   validatorAddress?: Address
+  /** CoSignerValidator address (required for co-signed keys) */
+  coSignerValidatorAddress?: Address
 }
 
 /**
@@ -52,8 +56,15 @@ export class SmartAccountWallet implements X402Wallet {
   /**
    * Creates a payment payload from requirements.
    * Only supports "exact" payment scheme with ERC-3009 authorizations.
+   *
+   * @param requirements Payment requirements from x402
+   * @param serverAuthorization Optional server co-signature data for co-signed keys
+   * @returns Payment payload ready to submit
    */
-  async createPayment(requirements: PaymentRequirements): Promise<PaymentPayload> {
+  async createPayment(
+    requirements: PaymentRequirements,
+    serverAuthorization?: ServerAuthorizationData,
+  ): Promise<PaymentPayload> {
     if (requirements.scheme !== "exact") {
       throw new WalletError(
         `Unsupported payment scheme: ${requirements.scheme}. SmartAccountWallet only supports "exact".`,
@@ -61,6 +72,20 @@ export class SmartAccountWallet implements X402Wallet {
     }
 
     try {
+      // If server authorization provided, use co-signed path
+      if (serverAuthorization) {
+        if (!this.config.coSignerValidatorAddress) {
+          throw new WalletError(
+            "coSignerValidatorAddress required in config for co-signed payments",
+          )
+        }
+        return await createCoSignedPayment(requirements, {
+          ...this.config,
+          coSignerValidatorAddress: this.config.coSignerValidatorAddress,
+        }, serverAuthorization)
+      }
+
+      // Otherwise use direct signing (full-access keys)
       return await createExactPayment(requirements, this.config)
     } catch (error) {
       throw new WalletError(
