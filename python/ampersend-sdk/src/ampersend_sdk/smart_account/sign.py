@@ -13,6 +13,7 @@ class SmartAccountConfig(NamedTuple):
     session_key: str
     smart_account_address: str
     validator_address: str = OWNABLE_VALIDATOR
+    cosigner_validator_address: str | None = None
 
 
 def encode_1271_signature(

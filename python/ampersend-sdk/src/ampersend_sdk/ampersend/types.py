@@ -94,6 +94,38 @@ class RejectedRequirement(BaseModel):
     reason: str = Field(description="Why this requirement was rejected")
 
 
+class ERC3009AuthorizationData(BaseModel):
+    """ERC-3009 TransferWithAuthorization data."""
+
+    from_address: str = Field(alias="from", description="Sender address (agent smart account)")
+    to: str = Field(description="Recipient address (seller)")
+    value: str = Field(description="Transfer amount in wei (stringified)")
+    valid_after: str = Field(alias="validAfter", description="Unix timestamp after which valid (stringified)")
+    valid_before: str = Field(alias="validBefore", description="Unix timestamp before which expires (stringified)")
+    nonce: str = Field(description="Random 32-byte nonce as hex string")
+
+    model_config = ConfigDict(
+        populate_by_name=True,
+    )
+
+
+class ServerAuthorizationData(BaseModel):
+    """Server co-signature data for co-signed agent keys."""
+
+    authorization_data: ERC3009AuthorizationData = Field(
+        alias="authorizationData",
+        description="ERC-3009 authorization data"
+    )
+    server_signature: str = Field(
+        alias="serverSignature",
+        description="Server's ECDSA signature (65 bytes as hex)"
+    )
+
+    model_config = ConfigDict(
+        populate_by_name=True,
+    )
+
+
 class AuthorizedResponse(BaseModel):
     """Authorized requirements with recommendation."""
 
@@ -106,6 +138,26 @@ class AuthorizedResponse(BaseModel):
     )
 
 
+class PaymentData(BaseModel):
+    """Server-generated payment data and co-signature."""
+
+    authorization_data: ERC3009AuthorizationData = Field(
+        alias="authorizationData",
+        description="Server-generated ERC-3009 authorization data"
+    )
+    server_signature: str = Field(
+        alias="serverSignature",
+        description="Server's co-signature (65 bytes as hex)"
+    )
+    requirement: PaymentRequirements = Field(
+        description="The payment requirement this authorization is for"
+    )
+
+    model_config = ConfigDict(
+        populate_by_name=True,
+    )
+
+
 class ApiResponseAgentPaymentAuthorization(BaseModel):
     """Agent payment authorization response."""
 
@@ -114,6 +166,10 @@ class ApiResponseAgentPaymentAuthorization(BaseModel):
     )
     rejected: List[RejectedRequirement] = Field(
         description="List of rejected payment requirements with reasons"
+    )
+    payment: Optional[PaymentData] = Field(
+        default=None,
+        description="Server-generated payment data and co-signature. Present only for co-signed keys when authorization passes."
     )
 
 

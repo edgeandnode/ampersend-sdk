@@ -77,10 +77,18 @@ class AmpersendTreasurer(X402Treasurer):
 
         authorized_req = result.authorized.requirements[recommended_index]
 
-        # Create payment with wallet using the authorized requirement
-        payment = self._wallet.create_payment(
-            requirements=authorized_req.requirement,
-        )
+        # Check if server provided co-signature (for co-signed keys)
+        if result.payment:
+            # Co-signed path: use server-provided authorization
+            payment = self._wallet.create_payment(
+                requirements=result.payment.requirement,
+                server_authorization=result.payment,
+            )
+        else:
+            # Full-access path: sign independently
+            payment = self._wallet.create_payment(
+                requirements=authorized_req.requirement,
+            )
         authorization_id = uuid.uuid4().hex
 
         await self._api_client.report_payment_event(
