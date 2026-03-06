@@ -123,10 +123,20 @@ export class AmpersendTreasurer implements X402Treasurer {
         throw new Error("Recommended requirement index out of bounds")
       }
 
-      // Create payment with wallet using the authorized requirement
-      // Note: Type assertion needed because ampersend PaymentRequirements uses string for network,
-      // while x402 PaymentRequirements uses specific network literals. Runtime compatible.
-      const payment = await this.wallet.createPayment(authorizedReq.requirement as any)
+      // Check if server provided co-signature (for co-signed keys)
+      let payment
+      if (response.payment) {
+        // Co-signed path: use server-provided authorization data and signature
+        payment = await this.wallet.createPayment(
+          response.payment.requirement as any,
+          response.payment as any, // ServerAuthorizationData
+        )
+      } else {
+        // Full-access path: sign independently
+        // Note: Type assertion needed because ampersend PaymentRequirements uses string for network,
+        // while x402 PaymentRequirements uses specific network literals. Runtime compatible.
+        payment = await this.wallet.createPayment(authorizedReq.requirement as any)
+      }
 
       return {
         payment,
