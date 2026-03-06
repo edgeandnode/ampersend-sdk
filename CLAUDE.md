@@ -224,3 +224,13 @@ be used without inheritance.
 - Type checking is strict mode enabled in tsconfig
 - MCP SDK dependency comes from a forked git repository
 - FastMCP dependency comes from a forked git repository (peer dependency)
+
+### Additional Context (TypeScript)
+
+- `.repos/` is a local, gitignored workspace for allowing access to reference codebases
+
+**Effect v4**
+
+- Effect v4 reference examples should exist at `.repos/effect-smol`.
+  - If missing, clone it first: `git clone https://github.com/Effect-TS/effect-smol .repos/effect-smol`
+  - Make sure to read the `.repos/effect-smol/LLMS.md` to understand "golden" patterns for working with Effect

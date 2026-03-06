@@ -1,27 +1,28 @@
 import { Schema } from "effect"
 import { isAddress, isHex } from "viem"
 
+const NonEmptyTrimmedString = Schema.Trimmed.check(Schema.isNonEmpty())
+
 // ============ Primitives ============
 
-export const Scheme = Schema.Literal("exact", "deferred")
+export const Scheme = Schema.Literals(["exact", "deferred"])
 export type Scheme = typeof Scheme.Type
 
-export const Address = Schema.NonEmptyTrimmedString.pipe(
-  Schema.filter(
+export const Address = NonEmptyTrimmedString.check(
+  Schema.makeFilter(
     (val) => isAddress(val, { strict: false }) || "Must be a valid Ethereum address (0x followed by 40 hex characters)",
   ),
-  Schema.annotations({
-    jsonSchema: {
-      type: "string",
-      pattern: "^0x[a-fA-F0-9]{40}$",
-      description: "Ethereum address",
-    },
-  }),
-)
+).annotate({
+  jsonSchema: {
+    type: "string",
+    pattern: "^0x[a-fA-F0-9]{40}$",
+    description: "Ethereum address",
+  },
+})
 export type Address = typeof Address.Type
 
-export const TxHash = Schema.NonEmptyTrimmedString.pipe(
-  Schema.filter((val) => isHex(val) || "Must be a valid transaction hash (0x followed by hex characters)"),
+export const TxHash = NonEmptyTrimmedString.check(
+  Schema.makeFilter((val) => isHex(val) || "Must be a valid transaction hash (0x followed by hex characters)"),
 )
 export type TxHash = typeof TxHash.Type
 
@@ -30,45 +31,45 @@ function isCaip2ID(val: string): val is Caip2IDFormat {
   return /^eip155:[0-9]{1,32}$/.test(val)
 }
 
-export const Caip2ID = Schema.NonEmptyTrimmedString.pipe(
-  Schema.filter((val) => isCaip2ID(val) || "Must be a valid CAIP-2 chain ID (e.g., eip155:1)"),
+export const Caip2ID = NonEmptyTrimmedString.check(
+  Schema.makeFilter((val) => isCaip2ID(val) || "Must be a valid CAIP-2 chain ID (e.g., eip155:1)"),
 )
 export type Caip2ID = typeof Caip2ID.Type
 
 // ============ SIWE Authentication Schemas ============
 
 export class SIWENonceResponse extends Schema.Class<SIWENonceResponse>("SIWENonceResponse")({
-  nonce: Schema.NonEmptyTrimmedString.annotations({
+  nonce: NonEmptyTrimmedString.annotate({
     description: "Random nonce for SIWE message",
   }),
-  sessionId: Schema.NonEmptyTrimmedString.annotations({
+  sessionId: NonEmptyTrimmedString.annotate({
     description: "Session identifier for nonce validation",
   }),
 }) {}
 
 export class SIWELoginRequest extends Schema.Class<SIWELoginRequest>("SIWELoginRequest")({
-  signature: Schema.NonEmptyTrimmedString.annotations({
+  signature: NonEmptyTrimmedString.annotate({
     description: "SIWE signature signed by session key",
   }),
-  message: Schema.NonEmptyTrimmedString.annotations({
+  message: NonEmptyTrimmedString.annotate({
     description: "SIWE message that was signed",
   }),
-  sessionId: Schema.NonEmptyTrimmedString.annotations({
+  sessionId: NonEmptyTrimmedString.annotate({
     description: "Session identifier from nonce response",
   }),
-  agentAddress: Address.annotations({
+  agentAddress: Address.annotate({
     description: "Agent smart account address",
   }),
 }) {}
 
 export class SIWELoginResponse extends Schema.Class<SIWELoginResponse>("SIWELoginResponse")({
-  token: Schema.NonEmptyTrimmedString.annotations({
+  token: NonEmptyTrimmedString.annotate({
     description: "Random session token for agent",
   }),
-  agentAddress: Address.annotations({
+  agentAddress: Address.annotate({
     description: "Agent smart account address (looked up from session key)",
   }),
-  expiresAt: Schema.DateTimeUtc.annotations({
+  expiresAt: Schema.DateTimeUtc.annotate({
     description: "Token expiration time",
     jsonSchema: {
       type: "string",
@@ -81,34 +82,34 @@ export class SIWELoginResponse extends Schema.Class<SIWELoginResponse>("SIWELogi
 // ============ Payment Requirements (from x402) ============
 
 export class PaymentRequirements extends Schema.Class<PaymentRequirements>("PaymentRequirements")({
-  scheme: Schema.Literal("exact").annotations({
+  scheme: Schema.Literal("exact").annotate({
     description: "Payment scheme - starting with exact only for MVP",
   }),
-  network: Schema.NonEmptyTrimmedString.annotations({
+  network: NonEmptyTrimmedString.annotate({
     description: "Blockchain network identifier",
   }),
-  maxAmountRequired: Schema.NonEmptyTrimmedString.annotations({
+  maxAmountRequired: NonEmptyTrimmedString.annotate({
     description: "Maximum payment amount in atomic units (wei/gwei)",
   }),
-  resource: Schema.NonEmptyTrimmedString.annotations({
+  resource: NonEmptyTrimmedString.annotate({
     description: "Resource identifier for the payment",
   }),
-  description: Schema.NonEmptyTrimmedString.annotations({
+  description: NonEmptyTrimmedString.annotate({
     description: "Human-readable payment description",
   }),
-  mimeType: Schema.NonEmptyTrimmedString.annotations({
+  mimeType: NonEmptyTrimmedString.annotate({
     description: "MIME type of the resource",
   }),
-  payTo: Address.annotations({
+  payTo: Address.annotate({
     description: "Seller address to receive payment",
   }),
-  maxTimeoutSeconds: Schema.Number.annotations({
+  maxTimeoutSeconds: Schema.Number.annotate({
     description: "Maximum timeout for payment completion",
   }),
-  asset: Address.annotations({
+  asset: Address.annotate({
     description: "Token contract address (e.g., USDC)",
   }),
-  extra: Schema.optional(Schema.Record({ key: Schema.String, value: Schema.Unknown })).annotations({
+  extra: Schema.optional(Schema.Record(Schema.String, Schema.Unknown)).annotate({
     description: "Additional payment metadata",
   }),
 }) {}
@@ -116,80 +117,80 @@ export class PaymentRequirements extends Schema.Class<PaymentRequirements>("Paym
 // ============ Agent Payment Authorization ============
 
 export class AgentPaymentAuthRequest extends Schema.Class<AgentPaymentAuthRequest>("AgentPaymentAuthRequest")({
-  requirements: Schema.NonEmptyArray(PaymentRequirements).annotations({
+  requirements: Schema.NonEmptyArray(PaymentRequirements).annotate({
     description: "List of payment requirements from x402",
   }),
   context: Schema.optional(
     Schema.Struct({
-      method: Schema.optional(Schema.NonEmptyTrimmedString),
-      serverUrl: Schema.optional(Schema.NonEmptyTrimmedString),
+      method: Schema.optional(NonEmptyTrimmedString),
+      serverUrl: Schema.optional(NonEmptyTrimmedString),
       params: Schema.optional(Schema.Unknown),
     }),
-  ).annotations({
+  ).annotate({
     description: "Optional protocol call context for debugging (MCP method, A2A action, etc)",
   }),
 }) {}
 
 export class AgentPaymentAuthResponse extends Schema.Class<AgentPaymentAuthResponse>("AgentPaymentAuthResponse")({
   authorized: Schema.Struct({
-    recommended: Schema.NullOr(Schema.NonNegativeInt).annotations({
+    recommended: Schema.NullOr(Schema.Int.check(Schema.isGreaterThanOrEqualTo(0))).annotate({
       description:
         "Index of recommended payment requirement (cheapest option). Null if no requirements are authorized.",
     }),
     requirements: Schema.Array(
       Schema.Struct({
-        requirement: PaymentRequirements.annotations({
+        requirement: PaymentRequirements.annotate({
           description: "Authorized payment requirement",
         }),
         limits: Schema.Struct({
-          dailyRemaining: Schema.NonEmptyTrimmedString.annotations({
+          dailyRemaining: NonEmptyTrimmedString.annotate({
             description: "Remaining daily budget after this requirement (in wei)",
           }),
-          monthlyRemaining: Schema.NonEmptyTrimmedString.annotations({
+          monthlyRemaining: NonEmptyTrimmedString.annotate({
             description: "Remaining monthly budget after this requirement (in wei)",
           }),
-        }).annotations({
+        }).annotate({
           description: "Remaining spend limits after this specific requirement is used",
         }),
       }),
-    ).annotations({
+    ).annotate({
       description: "List of authorized payment requirements. Empty if none authorized.",
     }),
-  }).annotations({
+  }).annotate({
     description: "Authorized payment requirements with recommendation",
   }),
   rejected: Schema.Array(
     Schema.Struct({
-      requirement: PaymentRequirements.annotations({
+      requirement: PaymentRequirements.annotate({
         description: "Rejected payment requirement",
       }),
-      reason: Schema.NonEmptyTrimmedString.annotations({
+      reason: NonEmptyTrimmedString.annotate({
         description: "Reason why this requirement was rejected",
       }),
     }),
-  ).annotations({
+  ).annotate({
     description: "List of rejected payment requirements with reasons",
   }),
 }) {}
 
 // ============ Payment Event Types ============
 
-export const PaymentEventType = Schema.Union(
+export const PaymentEventType = Schema.Union([
   Schema.Struct({
-    type: Schema.Literal("sending").annotations({ description: "Payment is being sent" }),
+    type: Schema.Literal("sending").annotate({ description: "Payment is being sent" }),
   }),
   Schema.Struct({
-    type: Schema.Literal("accepted").annotations({ description: "Payment was accepted" }),
+    type: Schema.Literal("accepted").annotate({ description: "Payment was accepted" }),
   }),
   Schema.Struct({
     type: Schema.Literal("rejected"),
-    reason: Schema.NonEmptyTrimmedString.annotations({ description: "Rejection reason" }),
+    reason: NonEmptyTrimmedString.annotate({ description: "Rejection reason" }),
   }),
   Schema.Struct({
     type: Schema.Literal("error"),
-    reason: Schema.NonEmptyTrimmedString.annotations({ description: "Error details" }),
+    reason: NonEmptyTrimmedString.annotate({ description: "Error details" }),
   }),
-).annotations({
+]).annotate({
   description: "Payment lifecycle event types",
 })
 export type PaymentEventType = typeof PaymentEventType.Type
@@ -197,31 +198,31 @@ export type PaymentEventType = typeof PaymentEventType.Type
 // ============ Exact EVM Payment ============
 
 export class ExactEvmAuthorization extends Schema.Class<ExactEvmAuthorization>("ExactEvmAuthorization")({
-  from: Address.annotations({
+  from: Address.annotate({
     description: "Payer address",
   }),
-  to: Address.annotations({
+  to: Address.annotate({
     description: "Payee address",
   }),
-  value: Schema.NonEmptyTrimmedString.annotations({
+  value: NonEmptyTrimmedString.annotate({
     description: "Payment amount in wei",
   }),
-  validAfter: Schema.NonEmptyTrimmedString.annotations({
+  validAfter: NonEmptyTrimmedString.annotate({
     description: "Valid after timestamp",
   }),
-  validBefore: Schema.NonEmptyTrimmedString.annotations({
+  validBefore: NonEmptyTrimmedString.annotate({
     description: "Valid before timestamp",
   }),
-  nonce: Schema.NonEmptyTrimmedString.annotations({
+  nonce: NonEmptyTrimmedString.annotate({
     description: "Unique nonce for this authorization",
   }),
 }) {}
 
 export class ExactEvmPayload extends Schema.Class<ExactEvmPayload>("ExactEvmPayload")({
-  signature: Schema.NonEmptyTrimmedString.annotations({
+  signature: NonEmptyTrimmedString.annotate({
     description: "EIP-3009 signature",
   }),
-  authorization: ExactEvmAuthorization.annotations({
+  authorization: ExactEvmAuthorization.annotate({
     description: "Payment authorization details",
   }),
 }) {}
@@ -229,16 +230,16 @@ export class ExactEvmPayload extends Schema.Class<ExactEvmPayload>("ExactEvmPayl
 // ============ x402 Payment Payload ============
 
 export class PaymentPayload extends Schema.Class<PaymentPayload>("PaymentPayload")({
-  x402Version: Schema.Number.annotations({
+  x402Version: Schema.Number.annotate({
     description: "x402 protocol version",
   }),
-  scheme: Schema.NonEmptyTrimmedString.annotations({
+  scheme: NonEmptyTrimmedString.annotate({
     description: "Payment scheme (exact/deferred)",
   }),
-  network: Schema.NonEmptyTrimmedString.annotations({
+  network: NonEmptyTrimmedString.annotate({
     description: "Blockchain network",
   }),
-  payload: Schema.Union(ExactEvmPayload, Schema.Unknown).annotations({
+  payload: Schema.Union([ExactEvmPayload, Schema.Unknown]).annotate({
     description: "Scheme-specific payload (ExactEvmPayload or DeferredEvmPayload)",
   }),
 }) {}
@@ -246,22 +247,22 @@ export class PaymentPayload extends Schema.Class<PaymentPayload>("PaymentPayload
 // ============ Agent Payment Event Report ============
 
 export class AgentPaymentEventReport extends Schema.Class<AgentPaymentEventReport>("AgentPaymentEventReport")({
-  id: Schema.NonEmptyTrimmedString.annotations({
+  id: NonEmptyTrimmedString.annotate({
     description: "Unique event ID from client",
   }),
-  payment: PaymentPayload.annotations({
+  payment: PaymentPayload.annotate({
     description: "x402 payment payload",
   }),
-  event: PaymentEventType.annotations({
+  event: PaymentEventType.annotate({
     description: "Payment lifecycle event",
   }),
 }) {}
 
 export class AgentPaymentEventResponse extends Schema.Class<AgentPaymentEventResponse>("AgentPaymentEventResponse")({
-  received: Schema.Boolean.annotations({
+  received: Schema.Boolean.annotate({
     description: "Confirmation that event was received",
   }),
-  paymentId: Schema.optional(Schema.UUID).annotations({
+  paymentId: Schema.optional(Schema.String.check(Schema.isUUID(4))).annotate({
     description: "Internal payment record ID if created",
   }),
 }) {}
