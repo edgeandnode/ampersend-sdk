@@ -11,14 +11,14 @@ export type Scheme = typeof Scheme.Type
 export const Address = NonEmptyTrimmedString.check(
   Schema.makeFilter(
     (val) => isAddress(val, { strict: false }) || "Must be a valid Ethereum address (0x followed by 40 hex characters)",
-  ))
-  .annotate({
-    jsonSchema: {
-      type: "string",
-      pattern: "^0x[a-fA-F0-9]{40}$",
-      description: "Ethereum address",
-    },
-  })
+  ),
+).annotate({
+  jsonSchema: {
+    type: "string",
+    pattern: "^0x[a-fA-F0-9]{40}$",
+    description: "Ethereum address",
+  },
+})
 export type Address = typeof Address.Type
 
 export const TxHash = NonEmptyTrimmedString.check(

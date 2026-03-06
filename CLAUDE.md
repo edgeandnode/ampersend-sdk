@@ -233,5 +233,4 @@ be used without inheritance.
 
 - Effect v4 reference examples should exist at `.repos/effect-smol`.
   - If missing, clone it first: `git clone https://github.com/Effect-TS/effect-smol .repos/effect-smol`
-  - Make sure to read the `.repos/effect-smol/LLMS.md` to understand "golden" patterns for working with Effect 
-
+  - Make sure to read the `.repos/effect-smol/LLMS.md` to understand "golden" patterns for working with Effect

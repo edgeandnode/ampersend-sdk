@@ -5,7 +5,7 @@
     "rootDir": "tests",
     "types": ["node"],
     "paths": {
-      "@/*": ["../src/*"]
+      "@/*": ["./src/*"]
     }
   },
   "include": ["tests"]
