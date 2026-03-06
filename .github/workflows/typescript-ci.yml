@@ -6,6 +6,12 @@ on:
     branches: [main]
   workflow_dispatch:
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions: {}
+
 env:
   NODE_VERSION: "22.x"
 
@@ -13,6 +19,8 @@ jobs:
   build:
     name: "ts: build"
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     env:
       NODE_OPTIONS: --max-old-space-size=6144 # Avoids [ERR_WORKER_OUT_OF_MEMORY]: Worker terminated due to reaching memory limit: JS heap out of memory
     steps:
@@ -21,6 +29,15 @@ jobs:
         with:
           submodules: recursive
           token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Show checkout info
+        run: |
+          echo "event_name=${{ github.event_name }}"
+          echo "github.ref=${{ github.ref }}"
+          echo "github.sha=${{ github.sha }}"
+          echo "pull_request.head.sha=${{ github.event.pull_request.head.sha || '' }}"
+          git rev-parse HEAD
+          git log -1 --oneline
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
@@ -52,6 +69,8 @@ jobs:
   lint-format-test:
     name: "ts: ${{ matrix.cmd }}"
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     strategy:
       fail-fast: false
       matrix:
@@ -62,6 +81,15 @@ jobs:
         with:
           submodules: recursive
           token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Show checkout info
+        run: |
+          echo "event_name=${{ github.event_name }}"
+          echo "github.ref=${{ github.ref }}"
+          echo "github.sha=${{ github.sha }}"
+          echo "pull_request.head.sha=${{ github.event.pull_request.head.sha || '' }}"
+          git rev-parse HEAD
+          git log -1 --oneline
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
