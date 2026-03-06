@@ -10,8 +10,8 @@
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "bin": {
-    "ampersend-proxy": "./dist/mcp/proxy/cli.js",
-    "asndurl": "./dist/cli/asndurl.js"
+    "ampersend": "./dist/cli/ampersend.js",
+    "ampersend-proxy": "./dist/mcp/proxy/cli.js"
   },
   "exports": {
     ".": {

@@ -1,12 +1,11 @@
-#!/usr/bin/env node
 import { wrapFetchWithPayment } from "@x402/fetch"
-import { Command } from "commander"
+import type { Command } from "commander"
 
-import { NETWORKS, parseEnvConfig } from "../ampersend/env.ts"
-import { createAmpersendHttpClient } from "../x402/http/factory.ts"
-import { createDebugFetch, createLogger } from "./debug.ts"
+import { NETWORKS, parseEnvConfig } from "../../ampersend/env.ts"
+import { createAmpersendHttpClient } from "../../x402/http/factory.ts"
+import { createDebugFetch, createLogger } from "../debug.ts"
 
-interface CliOptions {
+interface FetchOptions {
   method: string
   header?: Array<string>
   data?: string
@@ -73,7 +72,7 @@ function headersToObject(headers: Headers): Record<string, string> {
 /**
  * Build RequestInit from options, handling undefined body correctly
  */
-function buildRequestInit(options: CliOptions, headers: Headers): RequestInit {
+function buildRequestInit(options: FetchOptions, headers: Headers): RequestInit {
   const init: RequestInit = {
     method: options.method,
     headers,
@@ -87,7 +86,7 @@ function buildRequestInit(options: CliOptions, headers: Headers): RequestInit {
 /**
  * Inspect mode: fetch URL and display payment requirements without paying
  */
-async function runInspect(url: string, options: CliOptions): Promise<void> {
+async function runInspect(url: string, options: FetchOptions): Promise<void> {
   const logger = createLogger(options.debug)
   const headers = parseHeaders(options.header)
 
@@ -158,7 +157,7 @@ async function runInspect(url: string, options: CliOptions): Promise<void> {
 /**
  * Handle response output
  */
-async function handleResponse(response: Response, options: CliOptions): Promise<void> {
+async function handleResponse(response: Response, options: FetchOptions): Promise<void> {
   if (options.raw) {
     const body = await response.text()
     console.log(body)
@@ -185,11 +184,11 @@ async function handleResponse(response: Response, options: CliOptions): Promise<
 }
 
 /**
- * Main execution: fetch URL with automatic payment handling
+ * Execute fetch with automatic x402 payment handling
  */
-async function runFetch(url: string, options: CliOptions): Promise<void> {
+async function runFetch(url: string, options: FetchOptions): Promise<void> {
   const logger = createLogger(options.debug)
-  logger.debug("cli.init", "Starting asndurl", { url, method: options.method })
+  logger.debug("cli.init", "Starting ampersend fetch", { url, method: options.method })
 
   let config
   try {
@@ -248,11 +247,33 @@ async function runFetch(url: string, options: CliOptions): Promise<void> {
   await handleResponse(response, options)
 }
 
-async function main(): Promise<void> {
-  const program = new Command()
-    .name("asndurl")
-    .description("HTTP client with automatic x402 payment support via Ampersend wallet")
-    .version("0.1.0")
+/**
+ * Execute the fetch command
+ */
+async function executeFetch(url: string, options: FetchOptions): Promise<void> {
+  try {
+    if (options.inspect) {
+      await runInspect(url, options)
+    } else {
+      await runFetch(url, options)
+    }
+  } catch (error) {
+    if (options.raw) {
+      console.error(`Error: ${error instanceof Error ? error.message : String(error)}`)
+    } else {
+      console.log(JSON.stringify(err(error instanceof Error ? error.message : String(error)), null, 2))
+    }
+    process.exit(1)
+  }
+}
+
+/**
+ * Register the fetch subcommand on a Commander program
+ */
+export function registerFetchCommand(program: Command): void {
+  program
+    .command("fetch")
+    .description("Make HTTP requests with automatic x402 payment handling")
     .argument("<url>", "URL to request")
     .option("-X, --method <method>", "HTTP method", "GET")
     .option("-H, --header <header...>", "HTTP header (format: 'Key: Value')")
@@ -274,53 +295,24 @@ Environment Variables:
 
 Examples:
   # Simple GET request
-  asndurl https://api.example.com/paid-endpoint
+  ampersend fetch https://api.example.com/paid-endpoint
 
   # POST with JSON body
-  asndurl -X POST -H "Content-Type: application/json" -d '{"query":"test"}' https://api.example.com/
+  ampersend fetch -X POST -H "Content-Type: application/json" -d '{"query":"test"}' https://api.example.com/
 
   # Inspect payment requirements without paying
-  asndurl --inspect https://api.example.com/paid-endpoint
+  ampersend fetch --inspect https://api.example.com/paid-endpoint
 
   # Debug mode to troubleshoot payment issues
-  asndurl --debug https://api.example.com/paid-endpoint
+  ampersend fetch --debug https://api.example.com/paid-endpoint
 
   # Raw response body (disable JSON output)
-  asndurl --raw https://api.example.com/paid-endpoint
+  ampersend fetch --raw https://api.example.com/paid-endpoint
 `,
     )
-
-  program.parse()
-
-  const [url] = program.args
-  const opts = program.opts<CliOptions>()
-
-  try {
-    if (opts.inspect) {
-      await runInspect(url, opts)
-    } else {
-      await runFetch(url, opts)
-    }
-  } catch (error) {
-    if (opts.raw) {
-      console.error(`Error: ${error instanceof Error ? error.message : String(error)}`)
-    } else {
-      console.log(JSON.stringify(err(error instanceof Error ? error.message : String(error)), null, 2))
-    }
-    process.exit(1)
-  }
+    .action(async (url: string, options: FetchOptions) => {
+      await executeFetch(url, options)
+    })
 }
 
-// Only run if called directly
-const isDirectRun =
-  import.meta.url === `file://${process.argv[1]}` ||
-  process.argv[1]?.endsWith("asndurl.js") ||
-  process.argv[1]?.endsWith("/asndurl")
-if (isDirectRun) {
-  main().catch((error) => {
-    console.error(`Fatal: ${error instanceof Error ? error.message : String(error)}`)
-    process.exit(1)
-  })
-}
-
-export { main, runFetch, runInspect }
+export { executeFetch, runFetch, runInspect }
