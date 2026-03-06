@@ -57,7 +57,7 @@ export class SIWELoginRequest extends Schema.Class<SIWELoginRequest>("SIWELoginR
   sessionId: NonEmptyTrimmedString.annotate({
     description: "Session identifier from nonce response",
   }),
-  agentAddress: Address.annotations({
+  agentAddress: Address.annotate({
     description: "Agent smart account address",
   }),
 }) {}
