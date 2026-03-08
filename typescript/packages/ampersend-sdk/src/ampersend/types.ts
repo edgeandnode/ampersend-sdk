@@ -69,7 +69,7 @@ export class SIWELoginResponse extends Schema.Class<SIWELoginResponse>("SIWELogi
   agentAddress: Address.annotate({
     description: "Agent smart account address (looked up from session key)",
   }),
-  expiresAt: Schema.DateTimeUtc.annotate({
+  expiresAt: Schema.DateTimeUtcFromString.annotate({
     description: "Token expiration time",
     jsonSchema: {
       type: "string",
