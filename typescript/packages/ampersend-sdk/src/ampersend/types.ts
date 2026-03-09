@@ -38,16 +38,17 @@ export type Caip2ID = typeof Caip2ID.Type
 
 // ============ SIWE Authentication Schemas ============
 
-export class SIWENonceResponse extends Schema.Class<SIWENonceResponse>("SIWENonceResponse")({
+export const SIWENonceResponse = Schema.Struct({
   nonce: NonEmptyTrimmedString.annotate({
     description: "Random nonce for SIWE message",
   }),
   sessionId: NonEmptyTrimmedString.annotate({
     description: "Session identifier for nonce validation",
   }),
-}) {}
+}).annotate({ identifier: "SIWENonceResponse" })
+export type SIWENonceResponse = typeof SIWENonceResponse.Type
 
-export class SIWELoginRequest extends Schema.Class<SIWELoginRequest>("SIWELoginRequest")({
+export const SIWELoginRequest = Schema.Struct({
   signature: NonEmptyTrimmedString.annotate({
     description: "SIWE signature signed by session key",
   }),
@@ -60,9 +61,10 @@ export class SIWELoginRequest extends Schema.Class<SIWELoginRequest>("SIWELoginR
   agentAddress: Address.annotate({
     description: "Agent smart account address",
   }),
-}) {}
+}).annotate({ identifier: "SIWELoginRequest" })
+export type SIWELoginRequest = typeof SIWELoginRequest.Type
 
-export class SIWELoginResponse extends Schema.Class<SIWELoginResponse>("SIWELoginResponse")({
+export const SIWELoginResponse = Schema.Struct({
   token: NonEmptyTrimmedString.annotate({
     description: "Random session token for agent",
   }),
@@ -77,11 +79,12 @@ export class SIWELoginResponse extends Schema.Class<SIWELoginResponse>("SIWELogi
       description: "Token expiration time in ISO 8601 format",
     },
   }),
-}) {}
+}).annotate({ identifier: "SIWELoginResponse" })
+export type SIWELoginResponse = typeof SIWELoginResponse.Type
 
 // ============ Payment Requirements (from x402) ============
 
-export class PaymentRequirements extends Schema.Class<PaymentRequirements>("PaymentRequirements")({
+export const PaymentRequirements = Schema.Struct({
   scheme: Schema.Literal("exact").annotate({
     description: "Payment scheme - starting with exact only for MVP",
   }),
@@ -112,11 +115,12 @@ export class PaymentRequirements extends Schema.Class<PaymentRequirements>("Paym
   extra: Schema.optional(Schema.Record(Schema.String, Schema.Unknown)).annotate({
     description: "Additional payment metadata",
   }),
-}) {}
+}).annotate({ identifier: "PaymentRequirements" })
+export type PaymentRequirements = typeof PaymentRequirements.Type
 
 // ============ Agent Payment Authorization ============
 
-export class AgentPaymentAuthRequest extends Schema.Class<AgentPaymentAuthRequest>("AgentPaymentAuthRequest")({
+export const AgentPaymentAuthRequest = Schema.Struct({
   requirements: Schema.NonEmptyArray(PaymentRequirements).annotate({
     description: "List of payment requirements from x402",
   }),
@@ -129,9 +133,10 @@ export class AgentPaymentAuthRequest extends Schema.Class<AgentPaymentAuthReques
   ).annotate({
     description: "Optional protocol call context for debugging (MCP method, A2A action, etc)",
   }),
-}) {}
+}).annotate({ identifier: "AgentPaymentAuthRequest" })
+export type AgentPaymentAuthRequest = typeof AgentPaymentAuthRequest.Type
 
-export class AgentPaymentAuthResponse extends Schema.Class<AgentPaymentAuthResponse>("AgentPaymentAuthResponse")({
+export const AgentPaymentAuthResponse = Schema.Struct({
   authorized: Schema.Struct({
     recommended: Schema.NullOr(Schema.Int.check(Schema.isGreaterThanOrEqualTo(0))).annotate({
       description:
@@ -171,7 +176,8 @@ export class AgentPaymentAuthResponse extends Schema.Class<AgentPaymentAuthRespo
   ).annotate({
     description: "List of rejected payment requirements with reasons",
   }),
-}) {}
+}).annotate({ identifier: "AgentPaymentAuthResponse" })
+export type AgentPaymentAuthResponse = typeof AgentPaymentAuthResponse.Type
 
 // ============ Payment Event Types ============
 
@@ -197,7 +203,7 @@ export type PaymentEventType = typeof PaymentEventType.Type
 
 // ============ Exact EVM Payment ============
 
-export class ExactEvmAuthorization extends Schema.Class<ExactEvmAuthorization>("ExactEvmAuthorization")({
+export const ExactEvmAuthorization = Schema.Struct({
   from: Address.annotate({
     description: "Payer address",
   }),
@@ -216,20 +222,22 @@ export class ExactEvmAuthorization extends Schema.Class<ExactEvmAuthorization>("
   nonce: NonEmptyTrimmedString.annotate({
     description: "Unique nonce for this authorization",
   }),
-}) {}
+}).annotate({ identifier: "ExactEvmAuthorization" })
+export type ExactEvmAuthorization = typeof ExactEvmAuthorization.Type
 
-export class ExactEvmPayload extends Schema.Class<ExactEvmPayload>("ExactEvmPayload")({
+export const ExactEvmPayload = Schema.Struct({
   signature: NonEmptyTrimmedString.annotate({
     description: "EIP-3009 signature",
   }),
   authorization: ExactEvmAuthorization.annotate({
     description: "Payment authorization details",
   }),
-}) {}
+}).annotate({ identifier: "ExactEvmPayload" })
+export type ExactEvmPayload = typeof ExactEvmPayload.Type
 
 // ============ x402 Payment Payload ============
 
-export class PaymentPayload extends Schema.Class<PaymentPayload>("PaymentPayload")({
+export const PaymentPayload = Schema.Struct({
   x402Version: Schema.Number.annotate({
     description: "x402 protocol version",
   }),
@@ -242,11 +250,12 @@ export class PaymentPayload extends Schema.Class<PaymentPayload>("PaymentPayload
   payload: Schema.Union([ExactEvmPayload, Schema.Unknown]).annotate({
     description: "Scheme-specific payload (ExactEvmPayload or DeferredEvmPayload)",
   }),
-}) {}
+}).annotate({ identifier: "PaymentPayload" })
+export type PaymentPayload = typeof PaymentPayload.Type
 
 // ============ Agent Payment Event Report ============
 
-export class AgentPaymentEventReport extends Schema.Class<AgentPaymentEventReport>("AgentPaymentEventReport")({
+export const AgentPaymentEventReport = Schema.Struct({
   id: NonEmptyTrimmedString.annotate({
     description: "Unique event ID from client",
   }),
@@ -256,16 +265,18 @@ export class AgentPaymentEventReport extends Schema.Class<AgentPaymentEventRepor
   event: PaymentEventType.annotate({
     description: "Payment lifecycle event",
   }),
-}) {}
+}).annotate({ identifier: "AgentPaymentEventReport" })
+export type AgentPaymentEventReport = typeof AgentPaymentEventReport.Type
 
-export class AgentPaymentEventResponse extends Schema.Class<AgentPaymentEventResponse>("AgentPaymentEventResponse")({
+export const AgentPaymentEventResponse = Schema.Struct({
   received: Schema.Boolean.annotate({
     description: "Confirmation that event was received",
   }),
   paymentId: Schema.optional(Schema.String.check(Schema.isUUID(4))).annotate({
     description: "Internal payment record ID if created",
   }),
-}) {}
+}).annotate({ identifier: "AgentPaymentEventResponse" })
+export type AgentPaymentEventResponse = typeof AgentPaymentEventResponse.Type
 
 // ============ SDK-specific types ============
 
