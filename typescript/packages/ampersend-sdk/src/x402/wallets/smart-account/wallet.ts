@@ -1,11 +1,11 @@
 import { type Address, type Hex } from "viem"
 import type { PaymentPayload, PaymentRequirements } from "x402/types"
 
+import type { ServerAuthorizationData } from "../../../ampersend/types.ts"
 import { OWNABLE_VALIDATOR } from "../../../smart-account/constants.ts"
 import { WalletError, type X402Wallet } from "../../wallet.ts"
-import type { ServerAuthorizationData } from "../../../ampersend/types.ts"
-import { createExactPayment } from "./exact.ts"
 import { createCoSignedPayment } from "./cosigned.ts"
+import { createExactPayment } from "./exact.ts"
 
 /**
  * Configuration for SmartAccountWallet
@@ -75,14 +75,16 @@ export class SmartAccountWallet implements X402Wallet {
       // If server authorization provided, use co-signed path
       if (serverAuthorization) {
         if (!this.config.coSignerValidatorAddress) {
-          throw new WalletError(
-            "coSignerValidatorAddress required in config for co-signed payments",
-          )
+          throw new WalletError("coSignerValidatorAddress required in config for co-signed payments")
         }
-        return await createCoSignedPayment(requirements, {
-          ...this.config,
-          coSignerValidatorAddress: this.config.coSignerValidatorAddress,
-        }, serverAuthorization)
+        return await createCoSignedPayment(
+          requirements,
+          {
+            ...this.config,
+            coSignerValidatorAddress: this.config.coSignerValidatorAddress,
+          },
+          serverAuthorization,
+        )
       }
 
       // Otherwise use direct signing (full-access keys)

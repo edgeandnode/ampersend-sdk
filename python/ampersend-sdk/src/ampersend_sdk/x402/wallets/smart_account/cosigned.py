@@ -6,10 +6,11 @@ for enhanced security. The server provides the ERC-3009 authorization data and i
 signature, and the agent adds its signature to complete the dual-signature requirement.
 """
 
-from eth_abi import encode as abi_encode
+from eth_abi.abi import encode as abi_encode
 from eth_account import Account
 from eth_account.messages import encode_typed_data
-from eth_utils import to_bytes, to_hex
+from eth_utils.conversions import to_bytes
+from eth_utils.hexadecimal import to_hex
 from x402.chains import get_chain_id
 from x402_a2a import PaymentPayload, PaymentRequirements
 from x402_a2a.types import EIP3009Authorization, ExactPaymentPayload
@@ -83,7 +84,9 @@ def smart_account_create_cosigned_payment(
     domain_version = requirements.extra.get("version")
 
     if not domain_name or not domain_version:
-        raise ValueError("requirements.extra must contain 'name' and 'version' for EIP-712 domain")
+        raise ValueError(
+            "requirements.extra must contain 'name' and 'version' for EIP-712 domain"
+        )
 
     # Create account from session key
     account = Account.from_key(config.session_key)
@@ -133,7 +136,9 @@ def smart_account_create_cosigned_payment(
 
     # Validate coSignerValidatorAddress is present
     if not config.cosigner_validator_address:
-        raise ValueError("config.cosigner_validator_address required for co-signed payments")
+        raise ValueError(
+            "config.cosigner_validator_address required for co-signed payments"
+        )
 
     # Encode for ERC-1271
     signature = encode_cosigned_1271_signature(
