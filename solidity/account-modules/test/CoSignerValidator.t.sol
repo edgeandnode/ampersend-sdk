@@ -707,7 +707,11 @@ contract CoSignerValidatorTest is Test {
         return keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", hash));
     }
 
-    function _createDualSignature(uint256 agentPk, uint256 coSignerPk, bytes32 hash) internal pure returns (bytes memory) {
+    function _createDualSignature(uint256 agentPk, uint256 coSignerPk, bytes32 hash)
+        internal
+        pure
+        returns (bytes memory)
+    {
         (uint8 v1, bytes32 r1, bytes32 s1) = vm.sign(agentPk, hash);
         (uint8 v2, bytes32 r2, bytes32 s2) = vm.sign(coSignerPk, hash);
         return abi.encode(abi.encodePacked(r1, s1, v1), abi.encodePacked(r2, s2, v2));

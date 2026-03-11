@@ -129,10 +129,12 @@ contract CoSignerValidator is ICoSignerValidator, ERC7579ValidatorBase, Reentran
      * @param userOpHash The hash of the user operation
      * @return ValidationData packed validation result (0 = success, 1 = failure)
      */
-    function validateUserOp(
-        PackedUserOperation calldata userOp,
-        bytes32 userOpHash
-    ) external view override returns (ValidationData) {
+    function validateUserOp(PackedUserOperation calldata userOp, bytes32 userOpHash)
+        external
+        view
+        override
+        returns (ValidationData)
+    {
         CoSignerStorage storage $ = _getStorage();
         address account = msg.sender;
 
@@ -167,11 +169,12 @@ contract CoSignerValidator is ICoSignerValidator, ERC7579ValidatorBase, Reentran
      * @param signature The signature to validate
      * @return Magic value (0x1626ba7e) if valid, 0xffffffff if invalid
      */
-    function isValidSignatureWithSender(
-        address sender,
-        bytes32 hash,
-        bytes calldata signature
-    ) external view override returns (bytes4) {
+    function isValidSignatureWithSender(address sender, bytes32 hash, bytes calldata signature)
+        external
+        view
+        override
+        returns (bytes4)
+    {
         CoSignerStorage storage $ = _getStorage();
 
         // Decode signature as (bytes agentSig, bytes coSignerSig)
