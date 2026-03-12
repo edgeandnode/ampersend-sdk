@@ -6,11 +6,12 @@ for enhanced security. The server provides the ERC-3009 authorization data and i
 signature, and the agent adds its signature to complete the dual-signature requirement.
 """
 
+from typing import cast
+
 from eth_abi.abi import encode as abi_encode
 from eth_account import Account
 from eth_account.messages import encode_typed_data
-from eth_utils.conversions import to_bytes
-from eth_utils.hexadecimal import to_hex
+from eth_utils.conversions import to_bytes, to_hex
 from x402.chains import get_chain_id
 from x402_a2a import PaymentPayload, PaymentRequirements
 from x402_a2a.types import EIP3009Authorization, ExactPaymentPayload
@@ -45,7 +46,7 @@ def encode_cosigned_1271_signature(
     # Prefix with validator address
     validator_bytes = to_bytes(hexstr=cosigner_validator_address)
 
-    return to_hex(validator_bytes + combined)
+    return cast(str, to_hex(validator_bytes + combined))
 
 
 def smart_account_create_cosigned_payment(
