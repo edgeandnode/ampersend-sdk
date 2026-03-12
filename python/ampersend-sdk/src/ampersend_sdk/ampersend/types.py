@@ -97,11 +97,18 @@ class RejectedRequirement(BaseModel):
 class ERC3009AuthorizationData(BaseModel):
     """ERC-3009 TransferWithAuthorization data."""
 
-    from_address: str = Field(alias="from", description="Sender address (agent smart account)")
+    from_address: str = Field(
+        alias="from", description="Sender address (agent smart account)"
+    )
     to: str = Field(description="Recipient address (seller)")
     value: str = Field(description="Transfer amount in wei (stringified)")
-    valid_after: str = Field(alias="validAfter", description="Unix timestamp after which valid (stringified)")
-    valid_before: str = Field(alias="validBefore", description="Unix timestamp before which expires (stringified)")
+    valid_after: str = Field(
+        alias="validAfter", description="Unix timestamp after which valid (stringified)"
+    )
+    valid_before: str = Field(
+        alias="validBefore",
+        description="Unix timestamp before which expires (stringified)",
+    )
     nonce: str = Field(description="Random 32-byte nonce as hex string")
 
     model_config = ConfigDict(
@@ -113,12 +120,11 @@ class ServerAuthorizationData(BaseModel):
     """Server co-signature data for co-signed agent keys."""
 
     authorization_data: ERC3009AuthorizationData = Field(
-        alias="authorizationData",
-        description="ERC-3009 authorization data"
+        alias="authorizationData", description="ERC-3009 authorization data"
     )
     server_signature: str = Field(
         alias="serverSignature",
-        description="Server's ECDSA signature (65 bytes as hex)"
+        description="Server's ECDSA signature (65 bytes as hex)",
     )
 
     model_config = ConfigDict(
@@ -143,11 +149,10 @@ class PaymentData(BaseModel):
 
     authorization_data: ERC3009AuthorizationData = Field(
         alias="authorizationData",
-        description="Server-generated ERC-3009 authorization data"
+        description="Server-generated ERC-3009 authorization data",
     )
     server_signature: str = Field(
-        alias="serverSignature",
-        description="Server's co-signature (65 bytes as hex)"
+        alias="serverSignature", description="Server's co-signature (65 bytes as hex)"
     )
     requirement: PaymentRequirements = Field(
         description="The payment requirement this authorization is for"
@@ -169,7 +174,7 @@ class ApiResponseAgentPaymentAuthorization(BaseModel):
     )
     payment: Optional[PaymentData] = Field(
         default=None,
-        description="Server-generated payment data and co-signature. Present only for co-signed keys when authorization passes."
+        description="Server-generated payment data and co-signature. Present only for co-signed keys when authorization passes.",
     )
 
 
