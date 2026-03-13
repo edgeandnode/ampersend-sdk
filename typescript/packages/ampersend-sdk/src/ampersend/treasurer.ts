@@ -13,8 +13,8 @@ import {
   type X402Treasurer,
   type X402Wallet,
 } from "../x402/index.ts"
-import type { PaymentPayload, PaymentRequirements } from "x402/types"
 import type { Address, Hex } from "viem"
+import type { PaymentPayload, PaymentRequirements } from "x402/types"
 
 import { ApiClient } from "./client.ts"
 import type { PaymentRequirements as AmpersendPaymentRequirements, ServerAuthorizationData } from "./types.ts"
@@ -136,10 +136,7 @@ export class AmpersendTreasurer implements X402Treasurer {
           authorizationData: response.payment.authorizationData,
           serverSignature: response.payment.serverSignature,
         }
-        payment = await this.wallet.createPayment(
-          response.payment.requirement as any,
-          serverAuth,
-        )
+        payment = await this.wallet.createPayment(response.payment.requirement as any, serverAuth)
       } else {
         // Full-access path: sign independently
         // Note: Type assertion needed because ampersend PaymentRequirements uses string for network,
