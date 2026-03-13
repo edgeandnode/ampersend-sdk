@@ -4,7 +4,7 @@ from eth_account import Account
 from eth_account.messages import encode_typed_data
 from eth_utils.conversions import to_bytes, to_hex
 
-from .constants import OWNABLE_VALIDATOR
+from .constants import COSIGNER_VALIDATOR, OWNABLE_VALIDATOR
 
 
 class SmartAccountConfig(NamedTuple):
@@ -13,7 +13,7 @@ class SmartAccountConfig(NamedTuple):
     session_key: str
     smart_account_address: str
     validator_address: str = OWNABLE_VALIDATOR
-    cosigner_validator_address: str | None = None
+    cosigner_validator_address: str = COSIGNER_VALIDATOR
 
 
 def encode_1271_signature(

@@ -18,6 +18,7 @@ from x402_a2a.types import EIP3009Authorization, ExactPaymentPayload
 
 from ....ampersend.types import ServerAuthorizationData
 from ....smart_account.sign import SmartAccountConfig
+from .eip712_types import EIP712_DOMAIN_FIELDS, TRANSFER_WITH_AUTHORIZATION_FIELDS
 
 
 def encode_cosigned_1271_signature(
@@ -95,20 +96,8 @@ def smart_account_create_cosigned_payment(
     # Build EIP-712 typed data
     typed_data = {
         "types": {
-            "EIP712Domain": [
-                {"name": "name", "type": "string"},
-                {"name": "version", "type": "string"},
-                {"name": "chainId", "type": "uint256"},
-                {"name": "verifyingContract", "type": "address"},
-            ],
-            "TransferWithAuthorization": [
-                {"name": "from", "type": "address"},
-                {"name": "to", "type": "address"},
-                {"name": "value", "type": "uint256"},
-                {"name": "validAfter", "type": "uint256"},
-                {"name": "validBefore", "type": "uint256"},
-                {"name": "nonce", "type": "bytes32"},
-            ],
+            "EIP712Domain": EIP712_DOMAIN_FIELDS,
+            "TransferWithAuthorization": TRANSFER_WITH_AUTHORIZATION_FIELDS,
         },
         "primaryType": "TransferWithAuthorization",
         "domain": {

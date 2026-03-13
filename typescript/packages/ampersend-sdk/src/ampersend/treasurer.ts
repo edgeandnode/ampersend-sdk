@@ -13,7 +13,11 @@ import {
   type X402Treasurer,
   type X402Wallet,
 } from "../x402/index.ts"
+import type { PaymentPayload, PaymentRequirements } from "x402/types"
+import type { Address, Hex } from "viem"
+
 import { ApiClient } from "./client.ts"
+import type { PaymentRequirements as AmpersendPaymentRequirements, ServerAuthorizationData } from "./types.ts"
 
 /** Default Ampersend API URL */
 const DEFAULT_API_URL = "https://api.ampersend.ai"
@@ -125,12 +129,16 @@ export class AmpersendTreasurer implements X402Treasurer {
       }
 
       // Check if server provided co-signature (for co-signed keys)
-      let payment
+      let payment: PaymentPayload
       if (response.payment) {
         // Co-signed path: use server-provided authorization data and signature
+        const serverAuth: ServerAuthorizationData = {
+          authorizationData: response.payment.authorizationData,
+          serverSignature: response.payment.serverSignature,
+        }
         payment = await this.wallet.createPayment(
           response.payment.requirement as any,
-          response.payment as any, // ServerAuthorizationData
+          serverAuth,
         )
       } else {
         // Full-access path: sign independently

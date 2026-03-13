@@ -3,6 +3,7 @@ import { privateKeyToAccount } from "viem/accounts"
 import type { PaymentPayload, PaymentRequirements } from "x402/types"
 
 import type { ServerAuthorizationData } from "../../../ampersend/types.ts"
+import { TRANSFER_WITH_AUTHORIZATION_TYPE } from "../../../smart-account/eip712-types.ts"
 
 /**
  * Configuration for creating a co-signed payment
@@ -89,14 +90,7 @@ export async function createCoSignedPayment(
       verifyingContract: requirements.asset as Address,
     },
     types: {
-      TransferWithAuthorization: [
-        { name: "from", type: "address" },
-        { name: "to", type: "address" },
-        { name: "value", type: "uint256" },
-        { name: "validAfter", type: "uint256" },
-        { name: "validBefore", type: "uint256" },
-        { name: "nonce", type: "bytes32" },
-      ],
+      TransferWithAuthorization: TRANSFER_WITH_AUTHORIZATION_TYPE,
     },
     primaryType: "TransferWithAuthorization",
     message: {

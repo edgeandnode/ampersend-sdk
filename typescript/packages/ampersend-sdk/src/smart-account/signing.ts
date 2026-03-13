@@ -2,6 +2,7 @@ import { encode1271Signature, getAccount, getOwnableValidatorSignature } from "@
 import type { Address, Hex, TypedData, TypedDataDefinition } from "viem"
 import { privateKeyToAccount } from "viem/accounts"
 
+import { TRANSFER_WITH_AUTHORIZATION_TYPE } from "./eip712-types.ts"
 import type { ERC3009AuthorizationData } from "./types.ts"
 
 /**
@@ -82,14 +83,7 @@ export async function signERC3009Authorization(
         verifyingContract: tokenAddress,
       },
       types: {
-        TransferWithAuthorization: [
-          { name: "from", type: "address" },
-          { name: "to", type: "address" },
-          { name: "value", type: "uint256" },
-          { name: "validAfter", type: "uint256" },
-          { name: "validBefore", type: "uint256" },
-          { name: "nonce", type: "bytes32" },
-        ],
+        TransferWithAuthorization: TRANSFER_WITH_AUTHORIZATION_TYPE,
       },
       primaryType: "TransferWithAuthorization",
       message: {
