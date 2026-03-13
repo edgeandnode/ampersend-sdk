@@ -75,6 +75,8 @@ contract CoSignerValidator is ICoSignerValidator, ERC7579ValidatorBase {
 
         // Mark account as initialized
         $.accountInitialized[account] = true;
+
+        emit CoSignerValidatorInstalled(account);
     }
 
     /**
@@ -96,6 +98,8 @@ contract CoSignerValidator is ICoSignerValidator, ERC7579ValidatorBase {
 
         // Mark as uninitialized
         $.accountInitialized[account] = false;
+
+        emit CoSignerValidatorUninstalled(account);
     }
 
     /**

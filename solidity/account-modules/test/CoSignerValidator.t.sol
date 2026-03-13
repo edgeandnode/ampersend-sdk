@@ -27,6 +27,8 @@ contract CoSignerValidatorTest is Test {
     uint256 public coSigner2Pk;
 
     // Events to test
+    event CoSignerValidatorInstalled(address indexed account);
+    event CoSignerValidatorUninstalled(address indexed account);
     event CoSignerAdded(address indexed admin, address indexed coSigner);
     event CoSignerRemoved(address indexed admin, address indexed coSigner);
     event AdminUpdated(address indexed account, address indexed oldAdmin, address indexed newAdmin);
@@ -74,6 +76,8 @@ contract CoSignerValidatorTest is Test {
         emit AgentKeyAdded(account1, agentKey1);
         vm.expectEmit(true, true, false, false);
         emit AgentKeyAdded(account1, agentKey2);
+        vm.expectEmit(true, false, false, false);
+        emit CoSignerValidatorInstalled(account1);
 
         vm.prank(account1);
         validator.onInstall(initData);
@@ -90,6 +94,9 @@ contract CoSignerValidatorTest is Test {
     function test_OnInstall_EmptyAgentKeys() public {
         address[] memory keys = new address[](0);
         bytes memory initData = abi.encode(admin1, keys);
+
+        vm.expectEmit(true, false, false, false);
+        emit CoSignerValidatorInstalled(account1);
 
         vm.prank(account1);
         validator.onInstall(initData);

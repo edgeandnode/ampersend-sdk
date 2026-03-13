@@ -17,6 +17,8 @@ interface ICoSignerValidator {
 
     // ============ Events ============
 
+    event CoSignerValidatorInstalled(address indexed account);
+    event CoSignerValidatorUninstalled(address indexed account);
     event CoSignerAdded(address indexed admin, address indexed coSigner);
     event CoSignerRemoved(address indexed admin, address indexed coSigner);
     event AdminUpdated(address indexed account, address indexed oldAdmin, address indexed newAdmin);
