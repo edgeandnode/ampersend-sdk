@@ -7,6 +7,14 @@ pragma solidity ^0.8.30;
  * @dev Validator requiring dual signatures: agent key + server co-signer
  */
 interface ICoSignerValidator {
+    // ============ Errors ============
+
+    error CoSignerValidator_AlreadyInitialized();
+    error CoSignerValidator_NotInitialized();
+    error CoSignerValidator_InvalidAddress();
+    error CoSignerValidator_InvalidAgentKey();
+    error CoSignerValidator_InvalidCoSigner();
+
     // ============ Events ============
 
     event CoSignerAdded(address indexed admin, address indexed coSigner);
@@ -25,11 +33,25 @@ interface ICoSignerValidator {
     function addAgentKey(address key) external;
 
     /**
+     * @notice Add multiple agent keys to the account
+     * @dev Can only be called by the account itself via UserOp
+     * @param keys The agent key addresses to add
+     */
+    function addAgentKeys(address[] calldata keys) external;
+
+    /**
      * @notice Remove an agent key from the account
      * @dev Can only be called by the account itself via UserOp
      * @param key The agent key address to remove
      */
     function removeAgentKey(address key) external;
+
+    /**
+     * @notice Remove multiple agent keys from the account
+     * @dev Can only be called by the account itself via UserOp
+     * @param keys The agent key addresses to remove
+     */
+    function removeAgentKeys(address[] calldata keys) external;
 
     /**
      * @notice Get all agent keys for an account
@@ -84,4 +106,12 @@ interface ICoSignerValidator {
      * @return The admin address
      */
     function getAdmin(address account) external view returns (address);
+
+    /**
+     * @notice Check if a co-signer is valid for an account
+     * @param account The account address
+     * @param coSigner The co-signer address to check
+     * @return True if coSigner is valid for this account
+     */
+    function isValidCoSignerForAccount(address account, address coSigner) external view returns (bool);
 }

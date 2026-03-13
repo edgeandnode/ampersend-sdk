@@ -111,7 +111,7 @@ contract CoSignerValidatorTest is Test {
 
         // Try to install again
         vm.prank(account1);
-        vm.expectRevert("Already initialized");
+        vm.expectRevert(ICoSignerValidator.CoSignerValidator_AlreadyInitialized.selector);
         validator.onInstall(initData);
     }
 
@@ -120,7 +120,7 @@ contract CoSignerValidatorTest is Test {
         bytes memory initData = abi.encode(address(0), keys);
 
         vm.prank(account1);
-        vm.expectRevert("Invalid admin address");
+        vm.expectRevert(ICoSignerValidator.CoSignerValidator_InvalidAddress.selector);
         validator.onInstall(initData);
     }
 
@@ -131,7 +131,7 @@ contract CoSignerValidatorTest is Test {
         bytes memory initData = abi.encode(admin1, keys);
 
         vm.prank(account1);
-        vm.expectRevert("Invalid key address");
+        vm.expectRevert(ICoSignerValidator.CoSignerValidator_InvalidAddress.selector);
         validator.onInstall(initData);
     }
 
@@ -216,7 +216,7 @@ contract CoSignerValidatorTest is Test {
 
     function test_AddAgentKey_RevertsIfNotInitialized() public {
         vm.prank(account1);
-        vm.expectRevert("Not initialized");
+        vm.expectRevert(ICoSignerValidator.CoSignerValidator_NotInitialized.selector);
         validator.addAgentKey(agentKey1);
     }
 
@@ -229,7 +229,7 @@ contract CoSignerValidatorTest is Test {
         validator.onInstall(initData);
 
         vm.prank(account1);
-        vm.expectRevert("Invalid key address");
+        vm.expectRevert(ICoSignerValidator.CoSignerValidator_InvalidAddress.selector);
         validator.addAgentKey(address(0));
     }
 
@@ -254,8 +254,56 @@ contract CoSignerValidatorTest is Test {
 
     function test_RemoveAgentKey_RevertsIfNotInitialized() public {
         vm.prank(account1);
-        vm.expectRevert("Not initialized");
+        vm.expectRevert(ICoSignerValidator.CoSignerValidator_NotInitialized.selector);
         validator.removeAgentKey(agentKey1);
+    }
+
+    function test_AddAgentKeys_Batched() public {
+        // Install with no keys
+        address[] memory keys = new address[](0);
+        vm.prank(account1);
+        validator.onInstall(abi.encode(admin1, keys));
+
+        // Add multiple keys at once
+        address[] memory keysToAdd = new address[](2);
+        keysToAdd[0] = agentKey1;
+        keysToAdd[1] = agentKey2;
+
+        vm.expectEmit(true, true, false, false);
+        emit AgentKeyAdded(account1, agentKey1);
+        vm.expectEmit(true, true, false, false);
+        emit AgentKeyAdded(account1, agentKey2);
+
+        vm.prank(account1);
+        validator.addAgentKeys(keysToAdd);
+
+        assertTrue(validator.isAgentKey(account1, agentKey1));
+        assertTrue(validator.isAgentKey(account1, agentKey2));
+    }
+
+    function test_RemoveAgentKeys_Batched() public {
+        // Install with keys
+        address[] memory keys = new address[](2);
+        keys[0] = agentKey1;
+        keys[1] = agentKey2;
+        vm.prank(account1);
+        validator.onInstall(abi.encode(admin1, keys));
+
+        // Remove multiple keys at once
+        address[] memory keysToRemove = new address[](2);
+        keysToRemove[0] = agentKey1;
+        keysToRemove[1] = agentKey2;
+
+        vm.expectEmit(true, true, false, false);
+        emit AgentKeyRemoved(account1, agentKey1);
+        vm.expectEmit(true, true, false, false);
+        emit AgentKeyRemoved(account1, agentKey2);
+
+        vm.prank(account1);
+        validator.removeAgentKeys(keysToRemove);
+
+        assertFalse(validator.isAgentKey(account1, agentKey1));
+        assertFalse(validator.isAgentKey(account1, agentKey2));
     }
 
     // ============ CoSigner Management Tests ============
@@ -274,7 +322,7 @@ contract CoSignerValidatorTest is Test {
 
     function test_AddCoSigner_RevertsIfInvalidAddress() public {
         vm.prank(admin1);
-        vm.expectRevert("Invalid coSigner address");
+        vm.expectRevert(ICoSignerValidator.CoSignerValidator_InvalidAddress.selector);
         validator.addCoSigner(address(0));
     }
 
@@ -329,7 +377,7 @@ contract CoSignerValidatorTest is Test {
 
     function test_SetAdmin_RevertsIfNotInitialized() public {
         vm.prank(account1);
-        vm.expectRevert("Not initialized");
+        vm.expectRevert(ICoSignerValidator.CoSignerValidator_NotInitialized.selector);
         validator.setAdmin(admin2);
     }
 
@@ -342,7 +390,7 @@ contract CoSignerValidatorTest is Test {
         validator.onInstall(initData);
 
         vm.prank(account1);
-        vm.expectRevert("Invalid admin address");
+        vm.expectRevert(ICoSignerValidator.CoSignerValidator_InvalidAddress.selector);
         validator.setAdmin(address(0));
     }
 
@@ -655,6 +703,29 @@ contract CoSignerValidatorTest is Test {
 
         bytes memory sig2New = _createDualSignature(agentKey2Pk, coSigner2Pk, hash);
         assertEq(validator.isValidSignatureWithSender(account2, hash, sig2New), bytes4(0x1626ba7e));
+    }
+
+    // ============ Helper Functions Tests ============
+
+    function test_IsValidCoSignerForAccount() public {
+        // Install account trusting admin1
+        address[] memory keys = new address[](1);
+        keys[0] = agentKey1;
+        vm.prank(account1);
+        validator.onInstall(abi.encode(admin1, keys));
+
+        // coSigner1 is registered for admin1 (in setUp)
+        assertTrue(validator.isValidCoSignerForAccount(account1, coSigner1));
+
+        // coSigner2 is not registered
+        assertFalse(validator.isValidCoSignerForAccount(account1, coSigner2));
+
+        // Add coSigner2
+        vm.prank(admin1);
+        validator.addCoSigner(coSigner2);
+
+        // Now coSigner2 should be valid
+        assertTrue(validator.isValidCoSignerForAccount(account1, coSigner2));
     }
 
     // ============ Edge Cases ============

@@ -5,7 +5,6 @@ import {ICoSignerValidator} from "./ICoSignerValidator.sol";
 import {ERC7579ValidatorBase} from "modulekit/src/module-bases/ERC7579ValidatorBase.sol";
 import {IModule} from "modulekit/src/accounts/common/interfaces/IERC7579Module.sol";
 import {PackedUserOperation} from "modulekit/src/external/ERC4337.sol";
-import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import {EnumerableSet} from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 import {ECDSA} from "solady/utils/ECDSA.sol";
 
@@ -14,7 +13,7 @@ import {ECDSA} from "solady/utils/ECDSA.sol";
  * @notice ERC-7579 validator requiring dual signatures (agent key + server co-signer)
  * @dev Provides server-enforced spend limits and programmable policies for agent operations
  */
-contract CoSignerValidator is ICoSignerValidator, ERC7579ValidatorBase, ReentrancyGuard {
+contract CoSignerValidator is ICoSignerValidator, ERC7579ValidatorBase {
     using EnumerableSet for EnumerableSet.AddressSet;
 
     // ============ Storage ============
@@ -36,10 +35,6 @@ contract CoSignerValidator is ICoSignerValidator, ERC7579ValidatorBase, Reentran
         mapping(address => bool) accountInitialized;
     }
 
-    // ============ Constructor ============
-
-    constructor() {}
-
     // ============ Storage Access ============
 
     function _getStorage() private pure returns (CoSignerStorage storage $) {
@@ -59,13 +54,13 @@ contract CoSignerValidator is ICoSignerValidator, ERC7579ValidatorBase, Reentran
         address account = msg.sender;
 
         // Prevent double initialization
-        require(!$.accountInitialized[account], "Already initialized");
+        require(!$.accountInitialized[account], CoSignerValidator_AlreadyInitialized());
 
         // Decode installation data
         (address trustedAdmin, address[] memory initialAgentKeys) = abi.decode(data, (address, address[]));
 
         // Validate admin address
-        require(trustedAdmin != address(0), "Invalid admin address");
+        require(trustedAdmin != address(0), CoSignerValidator_InvalidAddress());
 
         // Set trusted admin
         $.admin[account] = trustedAdmin;
@@ -73,7 +68,7 @@ contract CoSignerValidator is ICoSignerValidator, ERC7579ValidatorBase, Reentran
         // Register initial agent keys
         for (uint256 i = 0; i < initialAgentKeys.length; i++) {
             address key = initialAgentKeys[i];
-            require(key != address(0), "Invalid key address");
+            require(key != address(0), CoSignerValidator_InvalidAddress());
             $.agentKeys[account].add(key);
             emit AgentKeyAdded(account, key);
         }
@@ -92,10 +87,11 @@ contract CoSignerValidator is ICoSignerValidator, ERC7579ValidatorBase, Reentran
         // Clear admin
         delete $.admin[account];
 
-        // Clear all agent keys
+        // Clear all agent keys and emit events
         address[] memory keys = $.agentKeys[account].values();
         for (uint256 i = 0; i < keys.length; i++) {
             $.agentKeys[account].remove(keys[i]);
+            emit AgentKeyRemoved(account, keys[i]);
         }
 
         // Mark as uninitialized
@@ -135,36 +131,19 @@ contract CoSignerValidator is ICoSignerValidator, ERC7579ValidatorBase, Reentran
         override
         returns (ValidationData)
     {
-        CoSignerStorage storage $ = _getStorage();
-        address account = msg.sender;
-
-        // Hash with Ethereum signed message prefix (matches ERC-4337 validation pattern)
+        // Hash with Ethereum signed message prefix for UserOps
         bytes32 messageHash = ECDSA.toEthSignedMessageHash(userOpHash);
 
-        // Decode signature as (bytes agentSig, bytes coSignerSig)
-        (bytes memory agentSig, bytes memory coSignerSig) = abi.decode(userOp.signature, (bytes, bytes));
-
-        // Recover agent address
-        address agentAddress = ECDSA.recover(messageHash, agentSig);
-        if (!$.agentKeys[account].contains(agentAddress)) {
-            return VALIDATION_FAILED;
+        // Validate dual signature
+        if (_validateDualSignature(msg.sender, messageHash, userOp.signature)) {
+            return VALIDATION_SUCCESS;
         }
-
-        // Recover co-signer address
-        address coSignerAddress = ECDSA.recover(messageHash, coSignerSig);
-
-        // Look up trusted admin and verify co-signer
-        address trustedAdmin = $.admin[account];
-        if (!$.coSigners[trustedAdmin].contains(coSignerAddress)) {
-            return VALIDATION_FAILED;
-        }
-
-        return VALIDATION_SUCCESS;
+        return VALIDATION_FAILED;
     }
 
     /**
      * @notice Validates a signature using ERC-1271
-     * @param sender The account address (not used but required by interface)
+     * @param sender The account address
      * @param hash The hash to validate
      * @param signature The signature to validate
      * @return Magic value (0x1626ba7e) if valid, 0xffffffff if invalid
@@ -175,27 +154,46 @@ contract CoSignerValidator is ICoSignerValidator, ERC7579ValidatorBase, Reentran
         override
         returns (bytes4)
     {
+        // Validate dual signature (NO Ethereum prefix for ERC-1271)
+        if (_validateDualSignature(sender, hash, signature)) {
+            return EIP1271_SUCCESS;
+        }
+        return EIP1271_FAILED;
+    }
+
+    /**
+     * @notice Internal function to validate dual signature (agent + co-signer)
+     * @param account The account address
+     * @param hash The hash that was signed
+     * @param signature The encoded dual signature
+     * @return True if both signatures are valid
+     */
+    function _validateDualSignature(address account, bytes32 hash, bytes memory signature)
+        internal
+        view
+        returns (bool)
+    {
         CoSignerStorage storage $ = _getStorage();
 
         // Decode signature as (bytes agentSig, bytes coSignerSig)
         (bytes memory agentSig, bytes memory coSignerSig) = abi.decode(signature, (bytes, bytes));
 
-        // Recover agent address (NO Ethereum prefix for ERC-1271)
+        // Recover and verify agent key
         address agentAddress = ECDSA.recover(hash, agentSig);
-        if (!$.agentKeys[sender].contains(agentAddress)) {
-            return EIP1271_FAILED;
+        if (!$.agentKeys[account].contains(agentAddress)) {
+            return false;
         }
 
         // Recover co-signer address
         address coSignerAddress = ECDSA.recover(hash, coSignerSig);
 
         // Look up trusted admin and verify co-signer
-        address trustedAdmin = $.admin[sender];
+        address trustedAdmin = $.admin[account];
         if (!$.coSigners[trustedAdmin].contains(coSignerAddress)) {
-            return EIP1271_FAILED;
+            return false;
         }
 
-        return EIP1271_SUCCESS;
+        return true;
     }
 
     // ============ Agent Key Management ============
@@ -209,11 +207,30 @@ contract CoSignerValidator is ICoSignerValidator, ERC7579ValidatorBase, Reentran
         CoSignerStorage storage $ = _getStorage();
         address account = msg.sender;
 
-        require($.accountInitialized[account], "Not initialized");
-        require(key != address(0), "Invalid key address");
+        require($.accountInitialized[account], CoSignerValidator_NotInitialized());
+        require(key != address(0), CoSignerValidator_InvalidAddress());
 
         $.agentKeys[account].add(key);
         emit AgentKeyAdded(account, key);
+    }
+
+    /**
+     * @notice Add multiple agent keys to the account
+     * @dev Can only be called by the account itself
+     * @param keys The agent key addresses to add
+     */
+    function addAgentKeys(address[] calldata keys) external {
+        CoSignerStorage storage $ = _getStorage();
+        address account = msg.sender;
+
+        require($.accountInitialized[account], CoSignerValidator_NotInitialized());
+
+        for (uint256 i = 0; i < keys.length; i++) {
+            address key = keys[i];
+            require(key != address(0), CoSignerValidator_InvalidAddress());
+            $.agentKeys[account].add(key);
+            emit AgentKeyAdded(account, key);
+        }
     }
 
     /**
@@ -225,10 +242,31 @@ contract CoSignerValidator is ICoSignerValidator, ERC7579ValidatorBase, Reentran
         CoSignerStorage storage $ = _getStorage();
         address account = msg.sender;
 
-        require($.accountInitialized[account], "Not initialized");
+        require($.accountInitialized[account], CoSignerValidator_NotInitialized());
 
-        $.agentKeys[account].remove(key);
-        emit AgentKeyRemoved(account, key);
+        // Only emit if actually removed
+        if ($.agentKeys[account].remove(key)) {
+            emit AgentKeyRemoved(account, key);
+        }
+    }
+
+    /**
+     * @notice Remove multiple agent keys from the account
+     * @dev Can only be called by the account itself
+     * @param keys The agent key addresses to remove
+     */
+    function removeAgentKeys(address[] calldata keys) external {
+        CoSignerStorage storage $ = _getStorage();
+        address account = msg.sender;
+
+        require($.accountInitialized[account], CoSignerValidator_NotInitialized());
+
+        for (uint256 i = 0; i < keys.length; i++) {
+            // Only emit if actually removed
+            if ($.agentKeys[account].remove(keys[i])) {
+                emit AgentKeyRemoved(account, keys[i]);
+            }
+        }
     }
 
     /**
@@ -260,7 +298,7 @@ contract CoSignerValidator is ICoSignerValidator, ERC7579ValidatorBase, Reentran
      * @param coSigner The co-signer address to add
      */
     function addCoSigner(address coSigner) external {
-        require(coSigner != address(0), "Invalid coSigner address");
+        require(coSigner != address(0), CoSignerValidator_InvalidAddress());
 
         CoSignerStorage storage $ = _getStorage();
         $.coSigners[msg.sender].add(coSigner);
@@ -274,8 +312,11 @@ contract CoSignerValidator is ICoSignerValidator, ERC7579ValidatorBase, Reentran
      */
     function removeCoSigner(address coSigner) external {
         CoSignerStorage storage $ = _getStorage();
-        $.coSigners[msg.sender].remove(coSigner);
-        emit CoSignerRemoved(msg.sender, coSigner);
+
+        // Only emit if actually removed
+        if ($.coSigners[msg.sender].remove(coSigner)) {
+            emit CoSignerRemoved(msg.sender, coSigner);
+        }
     }
 
     /**
@@ -299,8 +340,8 @@ contract CoSignerValidator is ICoSignerValidator, ERC7579ValidatorBase, Reentran
         CoSignerStorage storage $ = _getStorage();
         address account = msg.sender;
 
-        require($.accountInitialized[account], "Not initialized");
-        require(newAdmin != address(0), "Invalid admin address");
+        require($.accountInitialized[account], CoSignerValidator_NotInitialized());
+        require(newAdmin != address(0), CoSignerValidator_InvalidAddress());
 
         address oldAdmin = $.admin[account];
         $.admin[account] = newAdmin;
@@ -316,5 +357,18 @@ contract CoSignerValidator is ICoSignerValidator, ERC7579ValidatorBase, Reentran
     function getAdmin(address account) external view returns (address) {
         CoSignerStorage storage $ = _getStorage();
         return $.admin[account];
+    }
+
+    /**
+     * @notice Check if a co-signer is valid for an account
+     * @dev Helper to check admin->coSigner relationship in one call
+     * @param account The account address
+     * @param coSigner The co-signer address to check
+     * @return True if coSigner is in the account's trusted admin's set
+     */
+    function isValidCoSignerForAccount(address account, address coSigner) external view returns (bool) {
+        CoSignerStorage storage $ = _getStorage();
+        address trustedAdmin = $.admin[account];
+        return $.coSigners[trustedAdmin].contains(coSigner);
     }
 }
