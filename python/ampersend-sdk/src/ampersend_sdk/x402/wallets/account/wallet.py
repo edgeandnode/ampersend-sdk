@@ -11,7 +11,8 @@ class AccountWallet:
     def create_payment(
         self,
         requirements: PaymentRequirements,
-        server_authorization: ServerAuthorizationData | None = None,  # Ignored for EOA wallets
+        server_authorization: ServerAuthorizationData
+        | None = None,  # Ignored for EOA wallets
     ) -> PaymentPayload:
         return process_payment(
             requirements=requirements,

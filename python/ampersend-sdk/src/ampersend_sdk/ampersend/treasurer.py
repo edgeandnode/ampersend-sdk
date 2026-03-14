@@ -16,6 +16,7 @@ from .types import (
     PaymentEventError,
     PaymentEventRejected,
     PaymentEventSending,
+    ServerAuthorizationData,
 )
 
 logger = logging.getLogger(__name__)
@@ -80,9 +81,13 @@ class AmpersendTreasurer(X402Treasurer):
         # Check if server provided co-signature (for co-signed keys)
         if result.payment:
             # Co-signed path: use server-provided authorization
+            server_auth = ServerAuthorizationData(
+                authorizationData=result.payment.authorization_data,
+                serverSignature=result.payment.server_signature,
+            )
             payment = self._wallet.create_payment(
                 requirements=result.payment.requirement,
-                server_authorization=result.payment,
+                server_authorization=server_auth,
             )
         else:
             # Full-access path: sign independently
