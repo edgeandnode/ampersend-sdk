@@ -12,8 +12,6 @@ interface ICoSignerValidator {
     error CoSignerValidator_AlreadyInitialized();
     error CoSignerValidator_NotInitialized();
     error CoSignerValidator_InvalidAddress();
-    error CoSignerValidator_InvalidAgentKey();
-    error CoSignerValidator_InvalidCoSigner();
 
     // ============ Events ============
 

@@ -43,6 +43,33 @@ contract CoSignerValidator is ICoSignerValidator, ERC7579ValidatorBase {
         }
     }
 
+    // ============ Internal Helpers ============
+
+    /**
+     * @notice Internal helper to add an agent key
+     * @param $ Storage reference
+     * @param account The account to add the key for
+     * @param key The agent key address
+     */
+    function _addAgentKey(CoSignerStorage storage $, address account, address key) private {
+        require(key != address(0), CoSignerValidator_InvalidAddress());
+        if ($.agentKeys[account].add(key)) {
+            emit AgentKeyAdded(account, key);
+        }
+    }
+
+    /**
+     * @notice Internal helper to remove an agent key
+     * @param $ Storage reference
+     * @param account The account to remove the key from
+     * @param key The agent key address
+     */
+    function _removeAgentKey(CoSignerStorage storage $, address account, address key) private {
+        if ($.agentKeys[account].remove(key)) {
+            emit AgentKeyRemoved(account, key);
+        }
+    }
+
     // ============ Module Management (ERC-7579) ============
 
     /**
@@ -67,10 +94,7 @@ contract CoSignerValidator is ICoSignerValidator, ERC7579ValidatorBase {
 
         // Register initial agent keys
         for (uint256 i = 0; i < initialAgentKeys.length; i++) {
-            address key = initialAgentKeys[i];
-            require(key != address(0), CoSignerValidator_InvalidAddress());
-            $.agentKeys[account].add(key);
-            emit AgentKeyAdded(account, key);
+            _addAgentKey($, account, initialAgentKeys[i]);
         }
 
         // Mark account as initialized
@@ -86,14 +110,16 @@ contract CoSignerValidator is ICoSignerValidator, ERC7579ValidatorBase {
         CoSignerStorage storage $ = _getStorage();
         address account = msg.sender;
 
+        // Exit early if not installed
+        require($.accountInitialized[account], CoSignerValidator_NotInitialized());
+
         // Clear admin
         delete $.admin[account];
 
         // Clear all agent keys and emit events
         address[] memory keys = $.agentKeys[account].values();
         for (uint256 i = 0; i < keys.length; i++) {
-            $.agentKeys[account].remove(keys[i]);
-            emit AgentKeyRemoved(account, keys[i]);
+            _removeAgentKey($, account, keys[i]);
         }
 
         // Mark as uninitialized
@@ -212,10 +238,7 @@ contract CoSignerValidator is ICoSignerValidator, ERC7579ValidatorBase {
         address account = msg.sender;
 
         require($.accountInitialized[account], CoSignerValidator_NotInitialized());
-        require(key != address(0), CoSignerValidator_InvalidAddress());
-
-        $.agentKeys[account].add(key);
-        emit AgentKeyAdded(account, key);
+        _addAgentKey($, account, key);
     }
 
     /**
@@ -230,10 +253,7 @@ contract CoSignerValidator is ICoSignerValidator, ERC7579ValidatorBase {
         require($.accountInitialized[account], CoSignerValidator_NotInitialized());
 
         for (uint256 i = 0; i < keys.length; i++) {
-            address key = keys[i];
-            require(key != address(0), CoSignerValidator_InvalidAddress());
-            $.agentKeys[account].add(key);
-            emit AgentKeyAdded(account, key);
+            _addAgentKey($, account, keys[i]);
         }
     }
 
@@ -247,11 +267,7 @@ contract CoSignerValidator is ICoSignerValidator, ERC7579ValidatorBase {
         address account = msg.sender;
 
         require($.accountInitialized[account], CoSignerValidator_NotInitialized());
-
-        // Only emit if actually removed
-        if ($.agentKeys[account].remove(key)) {
-            emit AgentKeyRemoved(account, key);
-        }
+        _removeAgentKey($, account, key);
     }
 
     /**
@@ -266,10 +282,7 @@ contract CoSignerValidator is ICoSignerValidator, ERC7579ValidatorBase {
         require($.accountInitialized[account], CoSignerValidator_NotInitialized());
 
         for (uint256 i = 0; i < keys.length; i++) {
-            // Only emit if actually removed
-            if ($.agentKeys[account].remove(keys[i])) {
-                emit AgentKeyRemoved(account, keys[i]);
-            }
+            _removeAgentKey($, account, keys[i]);
         }
     }
 
@@ -305,8 +318,10 @@ contract CoSignerValidator is ICoSignerValidator, ERC7579ValidatorBase {
         require(coSigner != address(0), CoSignerValidator_InvalidAddress());
 
         CoSignerStorage storage $ = _getStorage();
-        $.coSigners[msg.sender].add(coSigner);
-        emit CoSignerAdded(msg.sender, coSigner);
+        // Only emit if actually added (not already present)
+        if ($.coSigners[msg.sender].add(coSigner)) {
+            emit CoSignerAdded(msg.sender, coSigner);
+        }
     }
 
     /**

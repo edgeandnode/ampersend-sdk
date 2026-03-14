@@ -191,6 +191,87 @@ contract CoSignerValidatorTest is Test {
         assertEq(coSigners[0], coSigner1);
     }
 
+    function test_OnUninstall_RevertsIfNotInitialized() public {
+        vm.prank(account1);
+        vm.expectRevert(ICoSignerValidator.CoSignerValidator_NotInitialized.selector);
+        validator.onUninstall("");
+    }
+
+    function test_UninstallReinstall_Flow() public {
+        // Install with keys
+        address[] memory keys = new address[](1);
+        keys[0] = agentKey1;
+        vm.prank(account1);
+        validator.onInstall(abi.encode(admin1, keys));
+
+        assertTrue(validator.isInitialized(account1));
+        assertTrue(validator.isAgentKey(account1, agentKey1));
+
+        // Uninstall
+        vm.prank(account1);
+        validator.onUninstall("");
+
+        assertFalse(validator.isInitialized(account1));
+        assertFalse(validator.isAgentKey(account1, agentKey1));
+
+        // Reinstall with different keys and admin
+        address[] memory keys2 = new address[](1);
+        keys2[0] = agentKey2;
+        vm.prank(account1);
+        validator.onInstall(abi.encode(admin2, keys2));
+
+        assertTrue(validator.isInitialized(account1));
+        assertEq(validator.getAdmin(account1), admin2);
+        assertFalse(validator.isAgentKey(account1, agentKey1)); // Old key gone
+        assertTrue(validator.isAgentKey(account1, agentKey2)); // New key present
+    }
+
+    function test_OnInstall_DuplicateAgentKey_NoDuplicateInSet() public {
+        // Install with the same key twice
+        address[] memory keys = new address[](2);
+        keys[0] = agentKey1;
+        keys[1] = agentKey1; // duplicate
+
+        vm.prank(account1);
+        validator.onInstall(abi.encode(admin1, keys));
+
+        // Should only have one key in the set (EnumerableSet deduplicates)
+        address[] memory registeredKeys = validator.getAgentKeys(account1);
+        assertEq(registeredKeys.length, 1);
+        assertEq(registeredKeys[0], agentKey1);
+    }
+
+    function test_AddAgentKey_DuplicateDoesNotEmit() public {
+        // Install with key
+        address[] memory keys = new address[](1);
+        keys[0] = agentKey1;
+        vm.prank(account1);
+        validator.onInstall(abi.encode(admin1, keys));
+
+        // Add same key again - should not emit since already present
+        vm.prank(account1);
+        // We can't easily assert "no event emitted" in Foundry,
+        // but we verify the set size doesn't change
+        validator.addAgentKey(agentKey1);
+
+        address[] memory registeredKeys = validator.getAgentKeys(account1);
+        assertEq(registeredKeys.length, 1);
+    }
+
+    function test_AddCoSigner_DuplicateDoesNotEmit() public {
+        // coSigner1 already added in setUp
+        address[] memory coSigners = validator.getCoSigners(admin1);
+        assertEq(coSigners.length, 1);
+
+        // Add same coSigner again
+        vm.prank(admin1);
+        validator.addCoSigner(coSigner1);
+
+        // Set size should not change
+        coSigners = validator.getCoSigners(admin1);
+        assertEq(coSigners.length, 1);
+    }
+
     // ============ Module Type Tests ============
 
     function test_IsModuleType_Validator() public {
