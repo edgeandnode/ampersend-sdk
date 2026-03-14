@@ -3,6 +3,7 @@ import { privateKeyToAccount } from "viem/accounts"
 import { createPaymentHeader } from "x402/client"
 import type { PaymentPayload, PaymentRequirements } from "x402/types"
 
+import type { ServerAuthorizationData } from "../../../ampersend/types.ts"
 import { WalletError, type X402Wallet } from "../../wallet.ts"
 
 /**
@@ -42,7 +43,7 @@ export class AccountWallet implements X402Wallet {
    * Only supports "exact" payment scheme.
    * Note: serverAuthorization parameter is ignored for EOA wallets (only used by SmartAccountWallet)
    */
-  async createPayment(requirements: PaymentRequirements, _serverAuthorization?: unknown): Promise<PaymentPayload> {
+  async createPayment(requirements: PaymentRequirements, _serverAuthorization?: ServerAuthorizationData): Promise<PaymentPayload> {
     if (requirements.scheme !== "exact") {
       throw new WalletError(`Unsupported payment scheme: ${requirements.scheme}. AccountWallet only supports "exact".`)
     }
