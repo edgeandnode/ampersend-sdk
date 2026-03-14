@@ -107,10 +107,18 @@ export class AmpersendTreasurer implements X402Treasurer {
    * Requests payment authorization from API before creating payment.
    * Only creates payment if API authorizes it.
    */
-  async onPaymentRequired(requirements: Array<any>, context?: PaymentContext): Promise<Authorization | null> {
+  async onPaymentRequired(
+    requirements: ReadonlyArray<PaymentRequirements>,
+    context?: PaymentContext,
+  ): Promise<Authorization | null> {
     try {
       // Authorize payment with API
-      const response = await this.apiClient.authorizePayment(requirements as any, context)
+      // Cast needed: x402 PaymentRequirements (zod) → ampersend PaymentRequirements (Effect Schema)
+      // Structurally compatible at runtime, different type systems
+      const response = await this.apiClient.authorizePayment(
+        requirements as unknown as readonly [AmpersendPaymentRequirements, ...AmpersendPaymentRequirements[]],
+        context,
+      )
 
       // Check if any requirements were authorized
       if (response.authorized.requirements.length === 0) {
@@ -136,12 +144,10 @@ export class AmpersendTreasurer implements X402Treasurer {
           authorizationData: response.payment.authorizationData,
           serverSignature: response.payment.serverSignature,
         }
-        payment = await this.wallet.createPayment(response.payment.requirement as any, serverAuth)
+        payment = await this.wallet.createPayment(response.payment.requirement as PaymentRequirements, serverAuth)
       } else {
         // Full-access path: sign independently
-        // Note: Type assertion needed because ampersend PaymentRequirements uses string for network,
-        // while x402 PaymentRequirements uses specific network literals. Runtime compatible.
-        payment = await this.wallet.createPayment(authorizedReq.requirement as any)
+        payment = await this.wallet.createPayment(authorizedReq.requirement as PaymentRequirements)
       }
 
       return {

@@ -46,5 +46,8 @@ export interface X402Wallet {
    * @returns Signed payment payload ready for submission
    * @throws {WalletError} If unable to create payment (unsupported scheme, insufficient funds, etc.)
    */
-  createPayment(requirements: PaymentRequirements, serverAuthorization?: ServerAuthorizationData): Promise<PaymentPayload>
+  createPayment(
+    requirements: PaymentRequirements,
+    serverAuthorization?: ServerAuthorizationData,
+  ): Promise<PaymentPayload>
 }
