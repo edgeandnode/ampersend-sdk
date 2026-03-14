@@ -5,7 +5,7 @@ from x402_a2a import (
     PaymentRequirements,
 )
 
-from ..ampersend.types import ServerAuthorizationData
+from .types import ServerAuthorizationData
 
 
 class X402Wallet(Protocol):

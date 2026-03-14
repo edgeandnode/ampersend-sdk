@@ -16,8 +16,8 @@ from x402.chains import get_chain_id
 from x402_a2a import PaymentPayload, PaymentRequirements
 from x402_a2a.types import EIP3009Authorization, ExactPaymentPayload
 
-from ....ampersend.types import ServerAuthorizationData
 from ....smart_account.sign import SmartAccountConfig
+from ...types import ServerAuthorizationData
 from .eip712_types import EIP712_DOMAIN_FIELDS, TRANSFER_WITH_AUTHORIZATION_FIELDS
 
 

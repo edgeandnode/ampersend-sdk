@@ -1,7 +1,7 @@
 from eth_account import Account
 from x402_a2a import PaymentPayload, PaymentRequirements, process_payment
 
-from ....ampersend.types import ServerAuthorizationData
+from ...types import ServerAuthorizationData
 
 
 class AccountWallet:

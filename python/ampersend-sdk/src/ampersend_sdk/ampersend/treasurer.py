@@ -8,6 +8,7 @@ from x402_a2a.types import (
 )
 
 from ampersend_sdk.x402 import X402Authorization, X402Treasurer, X402Wallet
+from ampersend_sdk.x402.types import ServerAuthorizationData
 
 from .client import ApiClient
 from .types import (
@@ -16,7 +17,6 @@ from .types import (
     PaymentEventError,
     PaymentEventRejected,
     PaymentEventSending,
-    ServerAuthorizationData,
 )
 
 logger = logging.getLogger(__name__)

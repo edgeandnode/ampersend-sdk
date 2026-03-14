@@ -2,8 +2,8 @@ from typing import Optional
 
 from x402_a2a import PaymentPayload, PaymentRequirements
 
-from ....ampersend.types import ServerAuthorizationData
 from ....smart_account.sign import SmartAccountConfig
+from ...types import ServerAuthorizationData
 from .cosigned import smart_account_create_cosigned_payment
 from .exact import smart_account_create_payment
 
