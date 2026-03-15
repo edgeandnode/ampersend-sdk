@@ -2,7 +2,7 @@ import { type Address, type Hex } from "viem"
 import type { PaymentPayload, PaymentRequirements } from "x402/types"
 
 import type { ServerAuthorizationData } from "../../../ampersend/types.ts"
-import { OWNABLE_VALIDATOR } from "../../../smart-account/constants.ts"
+import { COSIGNER_VALIDATOR, OWNABLE_VALIDATOR } from "../../../smart-account/constants.ts"
 import { WalletError, type X402Wallet } from "../../wallet.ts"
 import { createCoSignedPayment } from "./cosigned.ts"
 import { createExactPayment } from "./exact.ts"
@@ -19,7 +19,7 @@ export interface SmartAccountConfig {
   chainId: number
   /** OwnableValidator address (defaults to standard OwnableValidator) */
   validatorAddress?: Address
-  /** CoSignerValidator address (required for co-signed keys) */
+  /** CoSignerValidator address (defaults to standard CoSignerValidator) */
   coSignerValidatorAddress?: Address
 }
 
@@ -43,13 +43,14 @@ export interface SmartAccountConfig {
  * ```
  */
 export class SmartAccountWallet implements X402Wallet {
-  private readonly config: SmartAccountConfig & { validatorAddress: Address }
+  private readonly config: SmartAccountConfig & { validatorAddress: Address; coSignerValidatorAddress: Address }
 
   constructor(config: SmartAccountConfig) {
-    // Apply default validator address if not provided
+    // Apply default validator addresses if not provided
     this.config = {
       ...config,
       validatorAddress: config.validatorAddress ?? OWNABLE_VALIDATOR,
+      coSignerValidatorAddress: config.coSignerValidatorAddress ?? COSIGNER_VALIDATOR,
     }
   }
 
@@ -74,17 +75,7 @@ export class SmartAccountWallet implements X402Wallet {
     try {
       // If server authorization provided, use co-signed path
       if (serverAuthorization) {
-        if (!this.config.coSignerValidatorAddress) {
-          throw new WalletError("coSignerValidatorAddress required in config for co-signed payments")
-        }
-        return await createCoSignedPayment(
-          requirements,
-          {
-            ...this.config,
-            coSignerValidatorAddress: this.config.coSignerValidatorAddress,
-          },
-          serverAuthorization,
-        )
+        return await createCoSignedPayment(requirements, this.config, serverAuthorization)
       }
 
       // Otherwise use direct signing (full-access keys)
