@@ -5,8 +5,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Project Overview
 
 Multi-language SDK for integrating x402 payment capabilities into agent and LLM applications. Includes Python
-implementation for A2A (Agent-to-Agent) protocol and TypeScript implementation for MCP (Model Context Protocol). Both
-support buyer (client) and seller (server) roles with flexible payment authorization patterns.
+implementation for A2A (Agent-to-Agent) protocol, TypeScript implementation for MCP (Model Context Protocol), and Rust
+implementation for MCP. All support buyer (client) and seller (server) roles with flexible payment authorization
+patterns.
 
 ## Development Commands
 
@@ -18,6 +19,16 @@ uv python install 3.13
 
 # Install dependencies including dev tools
 uv sync --frozen --all-packages --group dev
+```
+
+### Rust Setup
+
+```bash
+# Build (default features: mcp + http-adapter)
+cargo build --manifest-path rust/ampersend-sdk/Cargo.toml
+
+# Build with all features (including CLI)
+cargo build --manifest-path rust/ampersend-sdk/Cargo.toml --all-features
 ```
 
 ### TypeScript Setup
@@ -41,6 +52,19 @@ uv run -- pytest python/ampersend-sdk/tests/unit/x402/treasurers/test_naive.py
 
 # Run only slow tests
 uv run -- pytest -m slow
+```
+
+### Rust Testing
+
+```bash
+# Run unit tests
+cargo test --manifest-path rust/ampersend-sdk/Cargo.toml
+
+# Run integration tests (requires .env with credentials)
+cargo test --manifest-path rust/ampersend-sdk/Cargo.toml --test integration_test -- --ignored
+
+# Run specific test
+cargo test --manifest-path rust/ampersend-sdk/Cargo.toml wallet_creates_signed_payment
 ```
 
 ### TypeScript Testing
@@ -70,6 +94,19 @@ uv run -- ruff format python
 
 # Type checking (strict mode enabled)
 uv run -- mypy python
+```
+
+### Rust Linting & Formatting
+
+```bash
+# Lint (clippy)
+cargo clippy --manifest-path rust/ampersend-sdk/Cargo.toml --all-features -- -D warnings
+
+# Format check
+cargo fmt --manifest-path rust/ampersend-sdk/Cargo.toml --check
+
+# Format fix
+cargo fmt --manifest-path rust/ampersend-sdk/Cargo.toml
 ```
 
 ### TypeScript Linting & Formatting
@@ -126,6 +163,12 @@ This is a multi-language monorepo with both workspace at the repository root:
 
 - `typescript/packages/ampersend-sdk/`: TypeScript SDK with MCP protocol integration
 - Configured via `pnpm-workspace.yaml` and `package.json`
+
+**Rust** (Cargo):
+
+- `rust/ampersend-sdk/`: Rust SDK with MCP protocol integration
+- Configured via `Cargo.toml`
+- Feature flags: `mcp` (proxy server), `http-adapter` (HTTP client), `cli` (proxy binary)
 
 ### Core Components (Python)
 
@@ -208,6 +251,46 @@ be used without inheritance.
 - `onExecute`: Callback to determine payment requirements
 - `onPayment`: Callback to verify payments
 
+### Core Components (Rust)
+
+**X402Treasurer (Trait)**
+
+- Async trait with `on_payment_required()` and `on_status()`
+- `NaiveTreasurer`: Auto-approves all payments
+- `AmpersendTreasurer`: API-backed authorization with SIWE authentication
+
+**X402Wallet (Trait)**
+
+- Creates payment payloads from requirements
+- `AccountWallet`: For EOA (Externally Owned Accounts) with EIP-712 signing
+- `SmartAccountWallet`: For smart contract wallets with ERC-3009/ERC-1271 signatures
+
+**MCP Client**
+
+- `McpClient`: MCP client with automatic x402 payment retry
+- `X402Middleware`: Transport-level payment interception for the proxy bridge
+
+**MCP Proxy**
+
+- `ProxyServer`: HTTP proxy (axum) that adds x402 to any MCP server
+- `X402Bridge`: Bidirectional message forwarding with payment middleware
+- CLI tool: `ampersend-proxy` (feature-gated behind `cli`)
+
+**FastMCP Server**
+
+- `execute_with_x402_payment()`: Middleware for server-side payment checking
+- `OnExecute` / `OnPayment` callbacks for payment requirements and verification
+
+**HTTP Client**
+
+- `X402HttpClient`: reqwest wrapper with automatic 402 handling
+- v1/v2 protocol adapter for CAIP-2 network conversion
+
+**Ampersend API**
+
+- `ApiClient`: SIWE authentication, payment authorization, event reporting
+- `AmpersendManagementClient`: Agent deployment and listing via API key
+
 ## Important Notes
 
 **Python:**
@@ -224,6 +307,16 @@ be used without inheritance.
 - Type checking is strict mode enabled in tsconfig
 - MCP SDK dependency comes from a forked git repository
 - FastMCP dependency comes from a forked git repository (peer dependency)
+
+**Rust:**
+
+- Rust edition 2021, minimum rust-version 1.80
+- Uses `alloy` crate family (0.8) for Ethereum primitives and EIP-712 signing
+- Uses `axum` for the MCP proxy HTTP server
+- Uses `reqwest` for HTTP client operations
+- Feature flags control optional dependencies (`mcp`, `http-adapter`, `cli`)
+- Integration tests require `.env` file with smart account credentials
+- CI uses `cargo clippy` for linting, `cargo fmt` for formatting
 
 ### Additional Context (TypeScript)
 

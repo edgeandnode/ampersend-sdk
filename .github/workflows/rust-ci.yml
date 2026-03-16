@@ -1,0 +1,71 @@
+name: Rust CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions: {}
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+    name: "rs: build"
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: rust/ampersend-sdk
+
+      - name: Build
+        working-directory: rust/ampersend-sdk
+        run: cargo build --all-features
+
+  lint-format-test:
+    name: "rs: ${{ matrix.name }}"
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: clippy
+            cmd: cargo clippy --all-features -- -D warnings
+          - name: format
+            cmd: cargo fmt --check
+          - name: test
+            cmd: cargo test --all-features
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: rust/ampersend-sdk
+
+      - name: ${{ matrix.name }}
+        working-directory: rust/ampersend-sdk
+        run: ${{ matrix.cmd }}

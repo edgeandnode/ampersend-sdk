@@ -1,0 +1,67 @@
+name: Rust Release
+
+on:
+  push:
+    tags:
+      - "rs-v*.*.*"
+      - "rs-v*.*.*-alpha.*"
+      - "rs-v*.*.*-beta.*"
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+
+jobs:
+  verify-version:
+    name: "rs: verify version"
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Extract version from tag
+        id: tag
+        run: |
+          TAG=${GITHUB_REF#refs/tags/rs-v}
+          echo "version=$TAG" >> $GITHUB_OUTPUT
+          echo "Tagged version: $TAG"
+
+      - name: Read Cargo.toml version
+        id: package
+        working-directory: rust/ampersend-sdk
+        run: |
+          VERSION=$(grep '^version' Cargo.toml | head -1 | sed 's/.*"\(.*\)"/\1/')
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Package version: $VERSION"
+
+      - name: Compare versions
+        run: |
+          if [ "${{ steps.tag.outputs.version }}" != "${{ steps.package.outputs.version }}" ]; then
+            echo "ERROR: Tag version (${{ steps.tag.outputs.version }}) does not match Cargo.toml version (${{ steps.package.outputs.version }})"
+            exit 1
+          fi
+          echo "✓ Versions match: ${{ steps.tag.outputs.version }}"
+
+  publish:
+    name: "rs: publish to crates.io"
+    runs-on: ubuntu-latest
+    needs: verify-version
+    environment:
+      name: crates-io
+      url: https://crates.io/crates/ampersend-sdk
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: rust/ampersend-sdk
+
+      - name: Publish to crates.io
+        working-directory: rust/ampersend-sdk
+        run: cargo publish

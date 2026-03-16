@@ -1,0 +1,70 @@
+[package]
+name = "ampersend-sdk"
+version = "0.0.10"
+edition = "2021"
+rust-version = "1.80"
+description = "Rust SDK for integrating x402 payment capabilities into agent and LLM applications"
+license = "MIT"
+repository = "https://github.com/edgeandnode/ampersend-sdk"
+homepage = "https://github.com/edgeandnode/ampersend-sdk"
+keywords = ["x402", "payments", "mcp", "agents", "ethereum"]
+categories = ["api-bindings", "cryptography", "web-programming"]
+readme = "README.md"
+
+[[bin]]
+name = "ampersend-proxy"
+path = "src/bin/ampersend_proxy.rs"
+required-features = ["cli"]
+
+[features]
+default = ["mcp", "http-adapter"]
+mcp = ["dep:axum", "dep:tower", "dep:tower-http"]
+http-adapter = []
+cli = ["mcp", "dep:clap", "dep:tracing-subscriber"]
+
+[dependencies]
+# Ethereum / crypto
+alloy-primitives = { version = "0.8", features = ["serde"] }
+alloy-signer = "0.8"
+alloy-signer-local = "0.8"
+alloy-sol-types = "0.8"
+alloy-dyn-abi = "0.8"
+k256 = { version = "0.13", features = ["ecdsa"] }
+
+# Async
+tokio = { version = "1", features = ["full"] }
+async-trait = "0.1"
+
+# HTTP
+reqwest = { version = "0.12", features = ["json"] }
+
+# Serialization
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+# Web server (for MCP proxy)
+axum = { version = "0.8", optional = true }
+tower = { version = "0.5", optional = true }
+tower-http = { version = "0.6", features = ["cors"], optional = true }
+
+# CLI
+clap = { version = "4", features = ["derive"], optional = true }
+
+# SIWE
+siwe = "0.6"
+
+# Utilities
+uuid = { version = "1", features = ["v4"] }
+thiserror = "2"
+base64 = "0.22"
+rand = "0.8"
+chrono = { version = "0.4", features = ["serde"] }
+url = "2"
+hex = "0.4"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", optional = true }
+
+[dev-dependencies]
+tokio = { version = "1", features = ["full", "test-util"] }
+wiremock = "0.6"
+dotenvy = "0.15"

@@ -16,3 +16,6 @@ tmp
 .repos
 .direnv
 .no-nix
+# Rust
+**/target
+Cargo.lock
