@@ -6,8 +6,6 @@ import { Address as AddressSchema, ApiError } from "./types.js"
 
 const DEFAULT_API_URL = "https://api.ampersend.ai"
 
-const NonEmptyTrimmedString = Schema.Trimmed.check(Schema.isNonEmpty())
-
 // ============ Response Schemas ============
 
 export class AgentInitData extends Schema.Class<AgentInitData>("AgentInitData")({
@@ -19,7 +17,7 @@ export class AgentInitData extends Schema.Class<AgentInitData>("AgentInitData")(
 
 export class AgentResponse extends Schema.Class<AgentResponse>("AgentResponse")({
   address: AddressSchema,
-  name: NonEmptyTrimmedString,
+  name: Schema.NonEmptyTrimmedString,
   userId: Schema.String,
   balance: Schema.String,
   initData: AgentInitData,
@@ -115,7 +113,7 @@ export class AmpersendManagementClient {
     return items.map((agent) => Schema.decodeUnknownSync(AgentResponse)(agent))
   }
 
-  private async fetch<A>(method: string, path: string, body: unknown, schema: Schema.Decoder<A>): Promise<A> {
+  private async fetch<A, I>(method: string, path: string, body: unknown, schema: Schema.Schema<A, I>): Promise<A> {
     const data = await this.fetchRaw(method, path, body)
     return Schema.decodeUnknownSync(schema)(data)
   }
