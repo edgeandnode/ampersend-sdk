@@ -2,9 +2,16 @@ name: Typescript CI
 
 on:
   pull_request:
+    branches: [main]
   push:
     branches: [main]
   workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions: {}
 
 env:
   NODE_VERSION: "22.x"
@@ -13,11 +20,13 @@ jobs:
   build:
     name: "ts: build"
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     env:
       NODE_OPTIONS: --max-old-space-size=6144 # Avoids [ERR_WORKER_OUT_OF_MEMORY]: Worker terminated due to reaching memory limit: JS heap out of memory
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           submodules: recursive
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -52,13 +61,15 @@ jobs:
   lint-format-test:
     name: "ts: ${{ matrix.cmd }}"
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     strategy:
       fail-fast: false
       matrix:
         cmd: [lint, format, test]
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           submodules: recursive
           token: ${{ secrets.GITHUB_TOKEN }}
