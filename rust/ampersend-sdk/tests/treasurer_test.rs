@@ -1,11 +1,9 @@
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicU32, Ordering};
-use std::sync::Arc;
 
 use ampersend_sdk::x402::treasurer::{Authorization, PaymentContext, PaymentStatus, X402Treasurer};
 use ampersend_sdk::x402::treasurers::NaiveTreasurer;
 use ampersend_sdk::x402::types::{PaymentPayload, PaymentRequirements};
-use ampersend_sdk::x402::wallet::X402Wallet;
 use ampersend_sdk::x402::wallets::AccountWallet;
 
 const TEST_PRIVATE_KEY: &str = "0xabababababababababababababababababababababababababababababababab";
