@@ -1,4 +1,3 @@
-import { COSIGNER_VALIDATOR, OWNABLE_VALIDATOR } from "@/smart-account/constants.ts"
 import { SmartAccountWallet, type SmartAccountConfig } from "@/x402/wallets/smart-account/wallet.ts"
 import type { Address, Hex } from "viem"
 import { generatePrivateKey } from "viem/accounts"
