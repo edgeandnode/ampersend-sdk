@@ -1,6 +1,6 @@
 import { type JSONRPCMessage, type JSONRPCRequest } from "@modelcontextprotocol/sdk/types.js"
 
-import type { Authorization, PaymentStatus, X402Treasurer } from "../../x402/treasurer.ts"
+import type { Authorization, PaymentContext, PaymentStatus, X402Treasurer } from "../../x402/treasurer.ts"
 import {
   buildMessageWithPayment,
   isMcpX402PaymentResponse,
@@ -76,9 +76,9 @@ export class X402Middleware {
     requirements: ReadonlyArray<any>,
   ): Promise<{ messageWithPayment: JSONRPCRequest; authorization: Authorization } | null> {
     // Build payment context from request
-    const paymentContext = {
+    const paymentContext: PaymentContext = {
       method: request.method,
-      params: request.params,
+      params: request.params ?? {},
       metadata: { requestId: request.id },
     }
 
