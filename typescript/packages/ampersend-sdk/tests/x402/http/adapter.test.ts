@@ -203,6 +203,8 @@ describe("wrapWithAmpersend", () => {
 
       expect(result).toEqual({
         x402Version: 1,
+        scheme: payment.scheme,
+        network: payment.network,
         payload: payment.payload,
       })
     })
