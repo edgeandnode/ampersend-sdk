@@ -5,7 +5,7 @@ import type { PaymentPayload, PaymentRequirements } from "x402/types"
  */
 export interface PaymentContext {
   method: string
-  params: any
+  params: Record<string, unknown>
   metadata?: Record<string, unknown>
 }
 
