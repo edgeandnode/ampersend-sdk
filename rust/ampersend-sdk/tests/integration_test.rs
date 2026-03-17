@@ -1,7 +1,11 @@
-//! Integration tests demonstrating the X402Treasurer pattern.
+//! Integration tests for the Rust SDK, aligned with areas covered by Python and TypeScript.
 //!
-//! These tests require a .env file at `rust/ampersend-sdk/.env` with smart account
-//! configuration. They are ignored by default and run with:
+//! - **Treasurer**: Ampersend API (SIWE auth, authorize, report events) — requires
+//!   AMPERSEND_API_URL, BUYER_SMART_ACCOUNT_*, or EOA BUYER_PRIVATE_KEY.
+//! - **Wallet**: Create payment from env config (no live API).
+//! - **Management**: list_agents when AMPERSEND_API_KEY is set (optional).
+//!
+//! These tests require a .env file at `rust/ampersend-sdk/.env`. They are ignored by default:
 //!
 //!   cargo test --test integration_test -- --ignored --nocapture
 
@@ -11,8 +15,10 @@ use ampersend_sdk::ampersend::treasurer::{
     create_ampersend_treasurer, AmpersendTreasurerConfig, SimpleAmpersendTreasurerConfig,
 };
 use ampersend_sdk::mcp::proxy::env::parse_env_config;
+use ampersend_sdk::smart_account::constants::OWNABLE_VALIDATOR;
 use ampersend_sdk::x402::treasurer::{PaymentContext, PaymentStatus, X402Treasurer};
 use ampersend_sdk::x402::types::PaymentRequirements;
+use ampersend_sdk::x402::wallets::{create_wallet_from_config, SmartAccountConfig, WalletConfig};
 
 /// Load .env and return the parsed config.
 fn load_env() -> ampersend_sdk::mcp::proxy::env::ProxyEnvConfig {
@@ -37,6 +43,32 @@ fn test_payment_requirements() -> PaymentRequirements {
         max_timeout_seconds: 300,
         asset: "0x036CbD53842c5426634e7929541eC2318f3dCF7e".to_string(),
         extra: Some(extra),
+    }
+}
+
+/// Build a WalletConfig from proxy env (same logic as ampersend-proxy binary).
+fn wallet_config_from_env(
+    env: &ampersend_sdk::mcp::proxy::env::ProxyEnvConfig,
+) -> Option<WalletConfig> {
+    if let Some(ref sa_addr) = env.buyer_smart_account_address {
+        let validator: alloy_primitives::Address = env
+            .buyer_smart_account_validator_address
+            .as_deref()
+            .unwrap_or(OWNABLE_VALIDATOR)
+            .parse()
+            .ok()?;
+        Some(WalletConfig::SmartAccount(SmartAccountConfig {
+            smart_account_address: sa_addr.parse().ok()?,
+            session_key_private_key: env.buyer_smart_account_key_private_key.clone()?,
+            chain_id: env.buyer_smart_account_chain_id.unwrap_or(84532),
+            validator_address: Some(validator),
+        }))
+    } else if let Some(ref pk) = env.buyer_private_key {
+        Some(WalletConfig::Eoa {
+            private_key: pk.clone(),
+        })
+    } else {
+        None
     }
 }
 
@@ -395,4 +427,91 @@ async fn x402_treasurer_siwe_auth_and_authorize() {
     println!("\n4. Client is now authenticated (token cached)");
 
     println!("\n=== SIWE authentication test completed ===\n");
+}
+
+// ============================================================================
+// Wallet: Create payment from env config (matches Python/TS wallet coverage)
+// ============================================================================
+
+#[tokio::test]
+#[ignore]
+async fn wallet_creates_payment_from_env() {
+    let env = load_env();
+    let wallet_config = wallet_config_from_env(&env).expect(
+        "Set BUYER_PRIVATE_KEY or BUYER_SMART_ACCOUNT_ADDRESS + BUYER_SMART_ACCOUNT_KEY_PRIVATE_KEY",
+    );
+
+    println!("\n=== Wallet: Create payment from env config ===\n");
+
+    let wallet = create_wallet_from_config(wallet_config);
+    let requirements = test_payment_requirements();
+
+    let payload = wallet
+        .create_payment(&requirements)
+        .await
+        .expect("create_payment should succeed");
+
+    assert_eq!(payload.scheme, "exact");
+    assert_eq!(payload.network, "base-sepolia");
+    assert_eq!(payload.x402_version, 1);
+    assert!(
+        payload.payload.get("signature").and_then(|v| v.as_str()).is_some(),
+        "payload should contain signature"
+    );
+    assert!(
+        payload
+            .payload
+            .get("authorization")
+            .and_then(|v| v.get("from"))
+            .is_some(),
+        "payload should contain authorization.from"
+    );
+
+    println!("  ✓ Payment created: scheme={}, network={}", payload.scheme, payload.network);
+    println!(
+        "  ✓ Signature present: {} bytes",
+        payload
+            .payload
+            .get("signature")
+            .and_then(|v| v.as_str())
+            .map(|s| s.len())
+            .unwrap_or(0)
+    );
+    println!("\n=== Wallet integration test completed ===\n");
+}
+
+// ============================================================================
+// Management API: list_agents (optional — run when AMPERSEND_API_KEY is set)
+// ============================================================================
+
+#[tokio::test]
+#[ignore]
+async fn management_list_agents() {
+    let api_key = std::env::var("AMPERSEND_API_KEY").ok();
+    let api_url = std::env::var("AMPERSEND_API_URL").ok();
+
+    if api_key.is_none() {
+        println!("\n=== Management: Skipped (AMPERSEND_API_KEY not set) ===\n");
+        return;
+    }
+
+    let api_key = api_key.unwrap();
+    println!("\n=== Management: list_agents (live API) ===\n");
+
+    let client = ampersend_sdk::ampersend::AmpersendManagementClient::new(
+        api_key,
+        api_url,
+        Some(30000),
+    );
+
+    let agents = client
+        .list_agents()
+        .await
+        .expect("list_agents should succeed");
+
+    println!("  ✓ list_agents returned {} agent(s)", agents.len());
+    for a in agents.iter().take(3) {
+        println!("    - {} ({})", a.name, a.address);
+    }
+    println!("\n=== Management integration test completed ===\n");
 }
