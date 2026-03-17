@@ -1,6 +1,6 @@
 import type { PaymentPayload, PaymentRequirements } from "x402/types"
 
-import type { ServerAuthorizationData } from "../ampersend/types.ts"
+import type { ServerAuthorizationData } from "./types.ts"
 
 /**
  * Error thrown when wallet cannot create a payment
