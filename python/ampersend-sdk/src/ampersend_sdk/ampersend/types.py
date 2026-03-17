@@ -8,6 +8,9 @@ from x402.types import (
     PaymentRequirements,
 )
 
+from ..x402.types import ERC3009AuthorizationData
+from ..x402.types import ServerAuthorizationData as ServerAuthorizationData  # re-export
+
 
 class ApiClientOptions(BaseModel):
     """Configuration options for the API client."""
@@ -92,9 +95,6 @@ class RejectedRequirement(BaseModel):
 
     requirement: PaymentRequirements = Field(description="Rejected payment requirement")
     reason: str = Field(description="Why this requirement was rejected")
-
-
-from ..x402.types import ERC3009AuthorizationData, ServerAuthorizationData  # noqa: F401
 
 
 class AuthorizedResponse(BaseModel):
