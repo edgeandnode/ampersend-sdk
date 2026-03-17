@@ -8,7 +8,8 @@ from x402.types import (
     PaymentRequirements,
 )
 
-from ..x402.types import ERC3009AuthorizationData, ServerAuthorizationData
+from ..x402.types import ERC3009AuthorizationData
+from ..x402.types import ServerAuthorizationData as ServerAuthorizationData
 
 
 class ApiClientOptions(BaseModel):
