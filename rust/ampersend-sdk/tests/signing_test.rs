@@ -7,8 +7,7 @@ use alloy_primitives::{Address, FixedBytes, U256};
 use ampersend_sdk::smart_account::signing::sign_erc3009_authorization;
 use ampersend_sdk::smart_account::types::ERC3009AuthorizationData;
 
-const TEST_PRIVATE_KEY: &str =
-    "0xabababababababababababababababababababababababababababababababab";
+const TEST_PRIVATE_KEY: &str = "0xabababababababababababababababababababababababababababababababab";
 
 fn test_auth_data() -> ERC3009AuthorizationData {
     ERC3009AuthorizationData {
@@ -109,10 +108,7 @@ mod erc3009_signing {
 
         // The EOA signature part (last 65 bytes) should have valid v value
         let v = sig_bytes[84]; // last byte is v
-        assert!(
-            v == 27 || v == 28,
-            "v value should be 27 or 28, got {v}"
-        );
+        assert!(v == 27 || v == 28, "v value should be 27 or 28, got {v}");
     }
 
     #[tokio::test]

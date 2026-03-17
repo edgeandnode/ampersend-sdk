@@ -275,10 +275,7 @@ mod mcp_client_middleware {
 
         let result = middleware.on_message(&request, &response).await;
 
-        assert!(
-            result.is_none(),
-            "Should return None for non-402 errors"
-        );
+        assert!(result.is_none(), "Should return None for non-402 errors");
     }
 
     #[tokio::test]
@@ -306,7 +303,10 @@ mod mcp_client_middleware {
         // Step 1: Get payment retry request
         let request = make_request("tools/call", 1);
         let response_402 = make_402_response(1);
-        let retry = middleware.on_message(&request, &response_402).await.unwrap();
+        let retry = middleware
+            .on_message(&request, &response_402)
+            .await
+            .unwrap();
 
         // Step 2: Simulate successful payment response with x402/payment-response in result
         let payment_response = JsonRpcResponse {
@@ -340,7 +340,10 @@ mod mcp_client_middleware {
         // Step 1: Get payment retry request
         let request = make_request("tools/call", 1);
         let response_402 = make_402_response(1);
-        let retry = middleware.on_message(&request, &response_402).await.unwrap();
+        let retry = middleware
+            .on_message(&request, &response_402)
+            .await
+            .unwrap();
 
         // Step 2: Simulate rejected payment response
         let payment_response = JsonRpcResponse {
@@ -375,10 +378,7 @@ mod mcp_client_middleware {
 
         let _ = middleware.on_message(&request, &response).await;
 
-        assert_eq!(
-            treasurer.payment_required_count.load(Ordering::Relaxed),
-            1
-        );
+        assert_eq!(treasurer.payment_required_count.load(Ordering::Relaxed), 1);
     }
 
     #[tokio::test]

@@ -135,10 +135,7 @@ mod http_adapter {
         assert_eq!(response.status(), 200);
 
         // Treasurer should NOT have been called
-        assert_eq!(
-            treasurer.payment_required_count.load(Ordering::Relaxed),
-            0
-        );
+        assert_eq!(treasurer.payment_required_count.load(Ordering::Relaxed), 0);
         let statuses = treasurer.status_calls.lock().await;
         assert!(statuses.is_empty());
     }
@@ -185,10 +182,7 @@ mod http_adapter {
         assert_eq!(response.status(), 200);
 
         // Treasurer should have been called once
-        assert_eq!(
-            treasurer.payment_required_count.load(Ordering::Relaxed),
-            1
-        );
+        assert_eq!(treasurer.payment_required_count.load(Ordering::Relaxed), 1);
 
         // Status should track sending → accepted
         let statuses = treasurer.status_calls.lock().await;
@@ -229,12 +223,12 @@ mod http_adapter {
         );
 
         // Treasurer was called but no status tracking (declined path)
-        assert_eq!(
-            treasurer.payment_required_count.load(Ordering::Relaxed),
-            1
-        );
+        assert_eq!(treasurer.payment_required_count.load(Ordering::Relaxed), 1);
         let statuses = treasurer.status_calls.lock().await;
-        assert!(statuses.is_empty(), "No status should be tracked on decline");
+        assert!(
+            statuses.is_empty(),
+            "No status should be tracked on decline"
+        );
     }
 
     #[tokio::test]
@@ -333,10 +327,7 @@ mod http_adapter {
         assert!(result.is_err(), "Should fail on non-JSON 402 body");
 
         // Treasurer should NOT have been called (couldn't parse requirements)
-        assert_eq!(
-            treasurer.payment_required_count.load(Ordering::Relaxed),
-            0
-        );
+        assert_eq!(treasurer.payment_required_count.load(Ordering::Relaxed), 0);
     }
 
     #[tokio::test]
@@ -364,10 +355,7 @@ mod http_adapter {
         let result = client.execute(request).await;
         assert!(result.is_err(), "Should fail on non-x402 JSON 402 body");
 
-        assert_eq!(
-            treasurer.payment_required_count.load(Ordering::Relaxed),
-            0
-        );
+        assert_eq!(treasurer.payment_required_count.load(Ordering::Relaxed), 0);
     }
 
     #[tokio::test]
@@ -446,9 +434,6 @@ mod http_adapter {
         assert_eq!(response.status(), 200);
 
         // Verify the payment was approved and sent
-        assert_eq!(
-            treasurer.payment_required_count.load(Ordering::Relaxed),
-            1
-        );
+        assert_eq!(treasurer.payment_required_count.load(Ordering::Relaxed), 1);
     }
 }

@@ -45,10 +45,29 @@ jobs:
           fi
           echo "✓ Versions match: ${{ steps.tag.outputs.version }}"
 
+  test:
+    name: "rs: test"
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: rust/ampersend-sdk
+
+      - name: Test
+        working-directory: rust/ampersend-sdk
+        run: cargo test --all-features
+
   publish:
     name: "rs: publish to crates.io"
     runs-on: ubuntu-latest
-    needs: verify-version
+    needs: [verify-version, test]
     environment:
       name: crates-io
       url: https://crates.io/crates/ampersend-sdk

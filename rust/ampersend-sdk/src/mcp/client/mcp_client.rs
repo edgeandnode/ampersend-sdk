@@ -70,7 +70,11 @@ impl McpClient {
             "params": {}
         });
 
-        let url = self.server_url.as_ref().unwrap().clone();
+        let url = self
+            .server_url
+            .as_ref()
+            .expect("server_url set by connect()")
+            .clone();
         let mut req = self.http.post(url.as_str()).json(&notification);
         if let Some(ref sid) = self.session_id {
             req = req.header("mcp-session-id", sid);
