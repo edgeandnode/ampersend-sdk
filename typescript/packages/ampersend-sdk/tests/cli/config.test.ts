@@ -2,205 +2,218 @@ import { existsSync, rmSync } from "node:fs"
 import { join } from "node:path"
 
 import {
-  clearApiUrl,
-  generateConfigName,
+  clearPendingApproval,
+  computeApprovalExpiry,
   getStatus,
-  initConfig,
+  isPendingExpired,
+  promotePending,
   readConfig,
-  setAgent,
-  setApiUrl,
+  setConfig,
+  storePendingApproval,
+  writeConfig,
 } from "@/cli/config.ts"
+import { generatePrivateKey, privateKeyToAddress } from "viem/accounts"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
-// Get temp dir before mocking
-const TEMP_DIR = process.env.TMPDIR ?? "/tmp"
+// Use a unique temp dir to avoid conflicts with other test files
+const TEMP_DIR = join(process.env.TMPDIR ?? "/tmp", "ampersend-config-test")
 
 vi.mock("node:os", () => ({
-  homedir: () => process.env.TMPDIR ?? "/tmp",
-  tmpdir: () => process.env.TMPDIR ?? "/tmp",
+  homedir: () => join(process.env.TMPDIR ?? "/tmp", "ampersend-config-test"),
+  tmpdir: () => join(process.env.TMPDIR ?? "/tmp", "ampersend-config-test"),
 }))
 
 describe("CLI Config", () => {
   const configDir = join(TEMP_DIR, ".ampersend")
 
   beforeEach(() => {
-    // Ensure clean state
     if (existsSync(configDir)) {
       rmSync(configDir, { recursive: true })
     }
   })
 
   afterEach(() => {
-    // Clean up
     if (existsSync(configDir)) {
       rmSync(configDir, { recursive: true })
     }
-    // Clear env vars
     delete process.env.AMPERSEND_AGENT_SECRET
     delete process.env.AMPERSEND_AGENT_ACCOUNT
     delete process.env.AMPERSEND_AGENT_KEY
     delete process.env.AMPERSEND_API_URL
   })
 
-  describe("initConfig", () => {
-    it("should create config with new agent key", () => {
-      const result = initConfig()
+  describe("setConfig", () => {
+    it("should accept valid key:::account format", () => {
+      const agentKey = generatePrivateKey()
+      const agentAccount = "0x1234567890123456789012345678901234567890"
+      const result = setConfig(`${agentKey}:::${agentAccount}`)
 
       expect(result.ok).toBe(true)
       if (result.ok) {
-        expect(result.data.status).toBe("pending_agent")
+        expect(result.data.status).toBe("ready")
+        expect(result.data.agentAccount).toBe(agentAccount)
         expect(result.data.agentKeyAddress).toMatch(/^0x[a-fA-F0-9]{40}$/)
       }
     })
 
     it("should store config with version field", () => {
-      initConfig()
+      const agentKey = generatePrivateKey()
+      setConfig(`${agentKey}:::0x1234567890123456789012345678901234567890`)
 
       const config = readConfig()
       expect(config).not.toBeNull()
       expect(config?.version).toBe(1)
-      expect(config?.agentKey).toMatch(/^0x[a-fA-F0-9]{64}$/)
-    })
-
-    it("should return existing pending config", () => {
-      // First init
-      const first = initConfig()
-      expect(first.ok).toBe(true)
-
-      // Second init should return same address
-      const second = initConfig()
-      expect(second.ok).toBe(true)
-      if (first.ok && second.ok) {
-        expect(second.data.agentKeyAddress).toBe(first.data.agentKeyAddress)
-      }
-    })
-
-    it("should error if already fully configured", () => {
-      // Init and set agent
-      initConfig()
-      setAgent("0x1234567890123456789012345678901234567890")
-
-      // Try to init again
-      const result = initConfig()
-      expect(result.ok).toBe(false)
-      if (!result.ok) {
-        expect(result.error.code).toBe("ALREADY_CONFIGURED")
-      }
-    })
-  })
-
-  describe("setAgent", () => {
-    it("should error if not initialized", () => {
-      const result = setAgent("0x1234567890123456789012345678901234567890")
-
-      expect(result.ok).toBe(false)
-      if (!result.ok) {
-        expect(result.error.code).toBe("NOT_INITIALIZED")
-      }
-    })
-
-    it("should reject invalid address format", () => {
-      initConfig()
-      const result = setAgent("not-an-address")
-
-      expect(result.ok).toBe(false)
-      if (!result.ok) {
-        expect(result.error.code).toBe("INVALID_ADDRESS")
-      }
-    })
-
-    it("should reject address with wrong length", () => {
-      initConfig()
-      const result = setAgent("0x1234") // too short
-
-      expect(result.ok).toBe(false)
-      if (!result.ok) {
-        expect(result.error.code).toBe("INVALID_ADDRESS")
-      }
-    })
-
-    it("should accept valid address and complete setup with configName", () => {
-      const initResult = initConfig()
-      expect(initResult.ok).toBe(true)
-      if (!initResult.ok) return
-
-      const result = setAgent("0x1234567890123456789012345678901234567890")
-
-      expect(result.ok).toBe(true)
-      if (result.ok) {
-        expect(result.data.status).toBe("ready")
-        expect(result.data.agentAccount).toBe("0x1234567890123456789012345678901234567890")
-        expect(result.data.configName).toBe(
-          generateConfigName(initResult.data.agentKeyAddress, "0x1234567890123456789012345678901234567890"),
-        )
-      }
-    })
-
-    it("should preserve version in config after setAgent", () => {
-      initConfig()
-      setAgent("0x1234567890123456789012345678901234567890")
-
-      const config = readConfig()
-      expect(config?.version).toBe(1)
+      expect(config?.agentKey).toBe(agentKey)
       expect(config?.agentAccount).toBe("0x1234567890123456789012345678901234567890")
     })
-  })
 
-  describe("setApiUrl", () => {
-    it("should error if not initialized", () => {
-      const result = setApiUrl("https://example.com")
-
+    it("should reject invalid format (missing separator)", () => {
+      const result = setConfig("0x1234567890123456789012345678901234567890")
       expect(result.ok).toBe(false)
       if (!result.ok) {
-        expect(result.error.code).toBe("NOT_INITIALIZED")
+        expect(result.error.code).toBe("INVALID_FORMAT")
       }
     })
 
-    it("should reject invalid URL", () => {
-      initConfig()
-      const result = setApiUrl("not-a-url")
-
+    it("should reject invalid key length", () => {
+      const result = setConfig("0x1234:::0x1234567890123456789012345678901234567890")
       expect(result.ok).toBe(false)
       if (!result.ok) {
-        expect(result.error.code).toBe("INVALID_URL")
+        expect(result.error.code).toBe("INVALID_KEY")
       }
     })
 
-    it("should accept valid URL", () => {
-      initConfig()
-      const result = setApiUrl("https://api.staging.ampersend.ai")
-
-      expect(result.ok).toBe(true)
-      if (result.ok) {
-        expect(result.data.apiUrl).toBe("https://api.staging.ampersend.ai")
-      }
-    })
-  })
-
-  describe("clearApiUrl", () => {
-    it("should error if not initialized", () => {
-      const result = clearApiUrl()
-
+    it("should reject invalid address", () => {
+      const agentKey = generatePrivateKey()
+      const result = setConfig(`${agentKey}:::not-an-address`)
       expect(result.ok).toBe(false)
       if (!result.ok) {
-        expect(result.error.code).toBe("NOT_INITIALIZED")
+        expect(result.error.code).toBe("INVALID_ADDRESS")
       }
     })
 
-    it("should clear API URL and return default", () => {
-      initConfig()
-      setApiUrl("https://api.staging.ampersend.ai")
+    it("should preserve existing apiUrl", () => {
+      writeConfig({ apiUrl: "https://api.staging.ampersend.ai" })
 
-      const result = clearApiUrl()
+      const agentKey = generatePrivateKey()
+      setConfig(`${agentKey}:::0x1234567890123456789012345678901234567890`)
 
-      expect(result.ok).toBe(true)
-      if (result.ok) {
-        expect(result.data.apiUrl).toBe("https://api.ampersend.ai")
-      }
-
-      // Verify it's actually cleared from storage
       const config = readConfig()
-      expect(config?.apiUrl).toBeUndefined()
+      expect(config?.apiUrl).toBe("https://api.staging.ampersend.ai")
+    })
+  })
+
+  describe("pendingApproval", () => {
+    it("should store and read pending approval", () => {
+      const agentKey = generatePrivateKey()
+      storePendingApproval({
+        token: "test-token-abc",
+        agentKey,
+        expiresAt: computeApprovalExpiry(),
+      })
+
+      const config = readConfig()
+      expect(config?.pendingApproval).toBeDefined()
+      expect(config?.pendingApproval?.token).toBe("test-token-abc")
+      expect(config?.pendingApproval?.agentKey).toBe(agentKey)
+    })
+
+    it("should preserve active config when storing pending", () => {
+      const activeKey = generatePrivateKey()
+      writeConfig({
+        agentKey: activeKey,
+        agentAccount: "0x1111111111111111111111111111111111111111",
+      })
+
+      const pendingKey = generatePrivateKey()
+      storePendingApproval({
+        token: "test-token",
+        agentKey: pendingKey,
+        expiresAt: computeApprovalExpiry(),
+      })
+
+      const config = readConfig()
+      expect(config?.agentKey).toBe(activeKey)
+      expect(config?.agentAccount).toBe("0x1111111111111111111111111111111111111111")
+      expect(config?.pendingApproval?.agentKey).toBe(pendingKey)
+    })
+
+    it("should detect expired pending approvals", () => {
+      const pending = {
+        token: "expired-token",
+        agentKey: generatePrivateKey(),
+        expiresAt: new Date(Date.now() - 1000).toISOString(), // 1 second ago
+      }
+      expect(isPendingExpired(pending)).toBe(true)
+    })
+
+    it("should detect non-expired pending approvals", () => {
+      const pending = {
+        token: "valid-token",
+        agentKey: generatePrivateKey(),
+        expiresAt: computeApprovalExpiry(),
+      }
+      expect(isPendingExpired(pending)).toBe(false)
+    })
+
+    it("should clear pending approval", () => {
+      const activeKey = generatePrivateKey()
+      writeConfig({
+        agentKey: activeKey,
+        agentAccount: "0x1111111111111111111111111111111111111111",
+        pendingApproval: {
+          token: "test-token",
+          agentKey: generatePrivateKey(),
+          expiresAt: computeApprovalExpiry(),
+        },
+      })
+
+      clearPendingApproval()
+
+      const config = readConfig()
+      expect(config?.pendingApproval).toBeUndefined()
+      expect(config?.agentKey).toBe(activeKey) // active config preserved
+    })
+
+    it("should promote pending to active", () => {
+      const pendingKey = generatePrivateKey()
+      const pendingKeyAddress = privateKeyToAddress(pendingKey)
+
+      writeConfig({
+        pendingApproval: {
+          token: "test-token",
+          agentKey: pendingKey,
+          expiresAt: computeApprovalExpiry(),
+        },
+      })
+
+      const agentAccount = "0x2222222222222222222222222222222222222222" as `0x${string}`
+      const result = promotePending(agentAccount)
+
+      expect(result.ok).toBe(true)
+      if (result.ok) {
+        expect(result.data.agentKeyAddress).toBe(pendingKeyAddress)
+        expect(result.data.agentAccount).toBe(agentAccount)
+        expect(result.data.status).toBe("ready")
+      }
+
+      // Verify config was updated
+      const config = readConfig()
+      expect(config?.agentKey).toBe(pendingKey)
+      expect(config?.agentAccount).toBe(agentAccount)
+      expect(config?.pendingApproval).toBeUndefined()
+    })
+
+    it("should error when promoting with no pending", () => {
+      writeConfig({
+        agentKey: generatePrivateKey(),
+      })
+
+      const result = promotePending("0x2222222222222222222222222222222222222222")
+      expect(result.ok).toBe(false)
+      if (!result.ok) {
+        expect(result.error.code).toBe("NO_PENDING")
+      }
     })
   })
 
@@ -211,82 +224,41 @@ describe("CLI Config", () => {
       expect(result.ok).toBe(true)
       if (result.ok) {
         expect(result.data.status).toBe("not_initialized")
-        expect(result.data.source).toBe("none")
+        expect(result.data.credentialSource).toBe("none")
       }
     })
 
-    it("should return pending_agent status without addresses by default", () => {
-      initConfig()
+    it("should return pending_agent status for config without account", () => {
+      writeConfig({ agentKey: generatePrivateKey() })
       const result = getStatus()
 
       expect(result.ok).toBe(true)
       if (result.ok) {
         expect(result.data.status).toBe("pending_agent")
-        expect(result.data.source).toBe("file")
-        expect(result.data.agentKeyAddress).toBeUndefined()
-      }
-    })
-
-    it("should include addresses with verbose flag", () => {
-      initConfig()
-      const result = getStatus({ verbose: true })
-
-      expect(result.ok).toBe(true)
-      if (result.ok) {
-        expect(result.data.status).toBe("pending_agent")
-        expect(result.data.source).toBe("file")
+        expect(result.data.credentialSource).toBe("file")
         expect(result.data.agentKeyAddress).toMatch(/^0x[a-fA-F0-9]{40}$/)
       }
     })
 
-    it("should return ready status without addresses by default", () => {
-      const initResult = initConfig()
-      expect(initResult.ok).toBe(true)
-      if (!initResult.ok) return
-
-      setAgent("0x1234567890123456789012345678901234567890")
+    it("should return ready status for full config", () => {
+      const agentKey = generatePrivateKey()
+      setConfig(`${agentKey}:::0x1234567890123456789012345678901234567890`)
 
       const result = getStatus()
 
       expect(result.ok).toBe(true)
       if (result.ok) {
         expect(result.data.status).toBe("ready")
-        expect(result.data.source).toBe("file")
-        expect(result.data.configName).toBe(
-          generateConfigName(initResult.data.agentKeyAddress, "0x1234567890123456789012345678901234567890"),
-        )
-        expect(result.data.agentAccount).toBeUndefined()
-        expect(result.data.agentKeyAddress).toBeUndefined()
-      }
-    })
-
-    it("should include full details with verbose flag when ready", () => {
-      const initResult = initConfig()
-      expect(initResult.ok).toBe(true)
-      if (!initResult.ok) return
-
-      setAgent("0x1234567890123456789012345678901234567890")
-
-      const result = getStatus({ verbose: true })
-
-      expect(result.ok).toBe(true)
-      if (result.ok) {
-        expect(result.data.status).toBe("ready")
-        expect(result.data.source).toBe("file")
-        expect(result.data.configName).toBe(
-          generateConfigName(initResult.data.agentKeyAddress, "0x1234567890123456789012345678901234567890"),
-        )
+        expect(result.data.credentialSource).toBe("file")
+        expect(result.data.agentKeyAddress).toMatch(/^0x[a-fA-F0-9]{40}$/)
         expect(result.data.agentAccount).toBe("0x1234567890123456789012345678901234567890")
-        expect(result.data.agentKeyAddress).toMatch(/^0x[a-fA-F0-9]{40}$/)
       }
     })
 
     it("should prefer env vars over file config", () => {
-      // Set up file config
-      initConfig()
-      setAgent("0x1111111111111111111111111111111111111111")
+      const agentKey = generatePrivateKey()
+      setConfig(`${agentKey}:::0x1111111111111111111111111111111111111111`)
 
-      // Set env vars
       process.env.AMPERSEND_AGENT_SECRET =
         "0x0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef:::0x2222222222222222222222222222222222222222"
 
@@ -295,47 +267,42 @@ describe("CLI Config", () => {
       expect(result.ok).toBe(true)
       if (result.ok) {
         expect(result.data.status).toBe("ready")
-        expect(result.data.source).toBe("env")
-        // configName is always included when ready
-        expect(result.data.configName).toBeDefined()
-        // Addresses not included without verbose flag
-        expect(result.data.agentAccount).toBeUndefined()
-      }
-    })
-
-    it("should include env addresses with verbose flag", () => {
-      process.env.AMPERSEND_AGENT_SECRET =
-        "0x0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef:::0x2222222222222222222222222222222222222222"
-
-      const result = getStatus({ verbose: true })
-
-      expect(result.ok).toBe(true)
-      if (result.ok) {
-        expect(result.data.status).toBe("ready")
-        expect(result.data.source).toBe("env")
-        expect(result.data.configName).toBeDefined()
-        expect(result.data.agentAccount).toBe("0x2222222222222222222222222222222222222222")
+        expect(result.data.credentialSource).toBe("env")
         expect(result.data.agentKeyAddress).toMatch(/^0x[a-fA-F0-9]{40}$/)
+        expect(result.data.agentAccount).toBe("0x2222222222222222222222222222222222222222")
       }
     })
 
-    it("should only include apiUrl when different from production default", () => {
-      initConfig()
-      setAgent("0x1234567890123456789012345678901234567890")
+    it("should show pending approval info", () => {
+      const pendingKey = generatePrivateKey()
+      storePendingApproval({
+        token: "test-token",
+        agentKey: pendingKey,
+        expiresAt: computeApprovalExpiry(),
+      })
 
-      // Without custom API URL
-      let result = getStatus({ verbose: true })
+      const result = getStatus()
+
       expect(result.ok).toBe(true)
       if (result.ok) {
-        expect(result.data.apiUrl).toBeUndefined()
+        expect(result.data.pendingApproval).toBeDefined()
+        expect(result.data.pendingApproval?.agentKeyAddress).toMatch(/^0x[a-fA-F0-9]{40}$/)
+        expect(result.data.pendingApproval?.expired).toBe(false)
       }
+    })
 
-      // With custom API URL
-      setApiUrl("https://api.staging.ampersend.ai")
-      result = getStatus({ verbose: true })
+    it("should show expired pending approval", () => {
+      storePendingApproval({
+        token: "expired-token",
+        agentKey: generatePrivateKey(),
+        expiresAt: new Date(Date.now() - 1000).toISOString(),
+      })
+
+      const result = getStatus()
+
       expect(result.ok).toBe(true)
       if (result.ok) {
-        expect(result.data.apiUrl).toBe("https://api.staging.ampersend.ai")
+        expect(result.data.pendingApproval?.expired).toBe(true)
       }
     })
   })

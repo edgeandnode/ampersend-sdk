@@ -7,6 +7,7 @@ export {
   type SpendConfig,
   type CreateAgentOptions,
 } from "./management.ts"
+export { ApprovalClient, type ApprovalClientOptions } from "./approval.ts"
 export {
   AmpersendTreasurer,
   createAmpersendTreasurer,

@@ -3,17 +3,20 @@ import { homedir } from "node:os"
 import { join } from "node:path"
 
 import { isAddress } from "viem"
-import { generatePrivateKey, privateKeyToAddress } from "viem/accounts"
+import { privateKeyToAddress } from "viem/accounts"
 
 import { parseEnvConfig } from "../ampersend/env.ts"
 import { err, ok, type ConfigStatus, type JsonEnvelope } from "./envelope.ts"
 
 /** Config directory and file paths */
 const CONFIG_DIR = join(homedir(), ".ampersend")
-const CONFIG_FILE = join(CONFIG_DIR, "config.json")
+export const CONFIG_FILE = join(CONFIG_DIR, "config.json")
 
 /** Current config version */
 const CONFIG_VERSION = 1
+
+/** Hard-coded approval expiration: 30 minutes */
+const APPROVAL_EXPIRY_MS = 30 * 60 * 1000
 
 // Re-export ConfigStatus for consumers
 export type { ConfigStatus }
@@ -21,28 +24,31 @@ export type { ConfigStatus }
 /** Default API URL (production) */
 export const DEFAULT_API_URL = "https://api.ampersend.ai"
 
-/**
- * Generate a config name from agent key address and agent account.
- * Format: agentKeyAddress:::agentAccount (both lowercase)
- */
-export function generateConfigName(agentKeyAddress: string, agentAccount: string): string {
-  return `${agentKeyAddress.toLowerCase()}:::${agentAccount.toLowerCase()}`
+/** Pending approval stored in config */
+export interface PendingApproval {
+  token: string
+  agentKey: `0x${string}`
+  expiresAt: string // ISO timestamp — informational, `setup start` enforces locally; `setup finish` lets API decide
 }
 
 /** Stored configuration V1 */
 export interface StoredConfigV1 {
   version: 1
-  agentKey: `0x${string}`
+  agentKey?: `0x${string}`
   agentAccount?: `0x${string}`
   apiUrl?: string
+  pendingApproval?: PendingApproval
 }
 
 /** Current stored config type */
 export type StoredConfig = StoredConfigV1
 
 /** Runtime configuration with derived fields */
-export interface RuntimeConfig extends Omit<StoredConfig, "version"> {
-  agentKeyAddress: `0x${string}`
+export interface RuntimeConfig {
+  agentKey?: `0x${string}`
+  agentAccount?: `0x${string}`
+  apiUrl?: string
+  pendingApproval?: PendingApproval
   status: ConfigStatus
 }
 
@@ -63,27 +69,20 @@ export function readConfig(): StoredConfig | null {
     return null
   }
   const content = readFileSync(CONFIG_FILE, "utf-8")
-  const parsed = JSON.parse(content) as Record<string, unknown>
-  // Ensure version field exists (for forward compatibility)
-  return {
-    version: 1,
-    agentKey: parsed.agentKey as `0x${string}`,
-    ...(parsed.agentAccount ? { agentAccount: parsed.agentAccount as `0x${string}` } : {}),
-    ...(parsed.apiUrl ? { apiUrl: parsed.apiUrl as string } : {}),
-  }
+  return JSON.parse(content) as StoredConfig
 }
 
 /**
  * Write config file with secure permissions
  */
-function writeConfig(config: Omit<StoredConfig, "version">): void {
+export function writeConfig(config: Omit<StoredConfig, "version">): void {
   ensureConfigDir()
   const withVersion: StoredConfig = { version: CONFIG_VERSION, ...config }
   writeFileSync(CONFIG_FILE, JSON.stringify(withVersion, null, 2), { mode: 0o600 })
 }
 
 /**
- * Get runtime config with status and derived fields
+ * Get runtime config with status
  */
 export function getRuntimeConfig(): RuntimeConfig | null {
   const stored = readConfig()
@@ -92,79 +91,68 @@ export function getRuntimeConfig(): RuntimeConfig | null {
   }
 
   const { version: _, ...rest } = stored
-  const agentKeyAddress = privateKeyToAddress(rest.agentKey)
-  const status: ConfigStatus = rest.agentAccount ? "ready" : "pending_agent"
+  const status: ConfigStatus = rest.agentKey && rest.agentAccount ? "ready" : "pending_agent"
 
-  return {
-    ...rest,
-    agentKeyAddress,
-    status,
-  }
+  return { ...rest, status }
 }
 
 /**
  * Get configuration status for error messages
  */
-export function getConfigStatus(): { status: ConfigStatus; agentKeyAddress?: `0x${string}` } {
+export function getConfigStatus(): { status: ConfigStatus } {
   const config = getRuntimeConfig()
   if (!config) {
     return { status: "not_initialized" }
   }
-  return { status: config.status, agentKeyAddress: config.agentKeyAddress }
+  return { status: config.status }
 }
 
 /**
- * Initialize configuration with a new agent key
+ * Check if a pending approval has expired locally.
  */
-export function initConfig(): JsonEnvelope<{ agentKeyAddress: string; status: ConfigStatus }> {
-  const existing = readConfig()
-  if (existing) {
-    const agentKeyAddress = privateKeyToAddress(existing.agentKey)
-    if (existing.agentAccount) {
-      return err("ALREADY_CONFIGURED", "Already configured. Use `ampersend config status` to view.", {
-        status: "ready",
-        agentKeyAddress,
-      })
-    }
-    // Return existing pending config
-    return ok({ agentKeyAddress, status: "pending_agent" as ConfigStatus })
-  }
-
-  // Generate new agent key
-  const agentKey = generatePrivateKey()
-  const agentKeyAddress = privateKeyToAddress(agentKey)
-
-  writeConfig({ agentKey })
-
-  return ok({ agentKeyAddress, status: "pending_agent" as ConfigStatus })
+export function isPendingExpired(pending: PendingApproval): boolean {
+  return new Date(pending.expiresAt).getTime() <= Date.now()
 }
 
 /**
- * Set agent account address to complete configuration
+ * Compute the expiration ISO string for a new approval (now + 30min).
  */
-export function setAgent(
-  agentAccount: string,
-): JsonEnvelope<{ configName: string; agentKeyAddress: string; agentAccount: string; status: ConfigStatus }> {
-  const existing = readConfig()
-  if (!existing) {
-    return err("NOT_INITIALIZED", "Not initialized. Run `ampersend config init` first.", { status: "not_initialized" })
+export function computeApprovalExpiry(): string {
+  return new Date(Date.now() + APPROVAL_EXPIRY_MS).toISOString()
+}
+
+/**
+ * Set active config directly using "agentKey:::agentAccount" format.
+ * Replaces the old `config init` + `config set-agent` flow.
+ */
+export function setConfig(
+  secret: string,
+): JsonEnvelope<{ agentKeyAddress: string; agentAccount: string; status: ConfigStatus }> {
+  const parts = secret.split(":::")
+  if (parts.length !== 2) {
+    return err("INVALID_FORMAT", 'Expected format: "agentKey:::agentAccount"')
   }
 
-  // Validate address format using viem's isAddress (handles checksum validation)
+  const [agentKey, agentAccount] = parts
+  if (!agentKey.startsWith("0x") || agentKey.length !== 66) {
+    return err("INVALID_KEY", "Agent key must be a 0x-prefixed 32-byte hex string (66 chars)")
+  }
   if (!isAddress(agentAccount)) {
-    return err("INVALID_ADDRESS", "Invalid Ethereum address format.")
+    return err("INVALID_ADDRESS", "Invalid Ethereum address format for agent account")
   }
 
-  const agentKeyAddress = privateKeyToAddress(existing.agentKey)
-
+  const existing = readConfig()
   writeConfig({
-    agentKey: existing.agentKey,
+    agentKey: agentKey as `0x${string}`,
     agentAccount: agentAccount as `0x${string}`,
-    ...(existing.apiUrl ? { apiUrl: existing.apiUrl } : {}),
+    ...(existing?.apiUrl ? { apiUrl: existing.apiUrl } : {}),
+    // Preserve pending approval if any
+    ...(existing?.pendingApproval ? { pendingApproval: existing.pendingApproval } : {}),
   })
 
+  const agentKeyAddress = privateKeyToAddress(agentKey as `0x${string}`)
+
   return ok({
-    configName: generateConfigName(agentKeyAddress, agentAccount),
     agentKeyAddress,
     agentAccount,
     status: "ready" as ConfigStatus,
@@ -172,70 +160,106 @@ export function setAgent(
 }
 
 /**
- * Set API URL (for non-production environments)
+ * Set API URL in config. Pass undefined to clear (revert to production default).
  */
-export function setApiUrl(apiUrl: string): JsonEnvelope<{ apiUrl: string }> {
+export function setApiUrl(apiUrl: string | undefined): JsonEnvelope<{ apiUrl: string }> {
+  if (apiUrl != null) {
+    try {
+      new URL(apiUrl)
+    } catch {
+      return err("INVALID_URL", "Invalid URL format.")
+    }
+  }
+
   const existing = readConfig()
-  if (!existing) {
-    return err("NOT_INITIALIZED", "Not initialized. Run `ampersend config init` first.", { status: "not_initialized" })
-  }
-
-  // Validate URL format
-  try {
-    new URL(apiUrl)
-  } catch {
-    return err("INVALID_URL", "Invalid URL format.")
-  }
-
   writeConfig({
-    agentKey: existing.agentKey,
-    ...(existing.agentAccount ? { agentAccount: existing.agentAccount } : {}),
-    apiUrl,
+    ...(existing?.agentKey ? { agentKey: existing.agentKey } : {}),
+    ...(existing?.agentAccount ? { agentAccount: existing.agentAccount } : {}),
+    ...(existing?.pendingApproval ? { pendingApproval: existing.pendingApproval } : {}),
+    ...(apiUrl != null ? { apiUrl } : {}),
   })
 
-  return ok({ apiUrl })
+  return ok({ apiUrl: apiUrl ?? DEFAULT_API_URL })
 }
 
 /**
- * Clear API URL (revert to production default)
+ * Store a pending approval in config.
+ * Called by `setup start`.
  */
-export function clearApiUrl(): JsonEnvelope<{ apiUrl: string }> {
+export function storePendingApproval(pending: PendingApproval): void {
   const existing = readConfig()
-  if (!existing) {
-    return err("NOT_INITIALIZED", "Not initialized. Run `ampersend config init` first.", { status: "not_initialized" })
+  writeConfig({
+    ...(existing?.agentKey ? { agentKey: existing.agentKey } : {}),
+    ...(existing?.agentAccount ? { agentAccount: existing.agentAccount } : {}),
+    ...(existing?.apiUrl ? { apiUrl: existing.apiUrl } : {}),
+    pendingApproval: pending,
+  })
+}
+
+/**
+ * Clear pending approval from config.
+ */
+export function clearPendingApproval(): void {
+  const existing = readConfig()
+  if (!existing) return
+  const { pendingApproval: _, version: __, ...rest } = existing
+  writeConfig(rest)
+}
+
+/**
+ * Promote a pending approval to active config.
+ * Called by `setup finish` when the approval is resolved.
+ */
+export function promotePending(agentAccount: `0x${string}`): JsonEnvelope<{
+  agentKeyAddress: string
+  agentAccount: string
+  status: ConfigStatus
+}> {
+  const existing = readConfig()
+  if (!existing?.pendingApproval) {
+    return err("NO_PENDING", "No pending approval to promote")
   }
 
+  const { agentKey: _oldKey, pendingApproval, version: _, ...rest } = existing
+  const agentKeyAddress = privateKeyToAddress(pendingApproval.agentKey)
+
+  // Promote: pending key becomes active, pending cleared
   writeConfig({
-    agentKey: existing.agentKey,
-    ...(existing.agentAccount ? { agentAccount: existing.agentAccount } : {}),
+    ...rest,
+    agentKey: pendingApproval.agentKey,
+    agentAccount,
+    // pendingApproval intentionally omitted — cleared on promote
   })
 
-  return ok({ apiUrl: DEFAULT_API_URL })
+  return ok({
+    agentKeyAddress,
+    agentAccount,
+    status: "ready" as ConfigStatus,
+  })
 }
 
 /** Configuration source */
-export type ConfigSource = "env" | "file" | "none"
+export type CredentialSource = "env" | "file" | "none"
 
-/** Status output options */
-export interface StatusOptions {
-  verbose?: boolean
-}
-
-/**
- * Get current configuration status
- * Checks env vars first (takes precedence), then config file
- * @param options.verbose - Include raw addresses in output
- */
-export function getStatus(options: StatusOptions = {}): JsonEnvelope<{
+/** Data returned by getStatus */
+export interface StatusData {
   status: ConfigStatus
-  source: ConfigSource
-  configName?: string
+  credentialSource: CredentialSource
+  configPath?: string
   agentKeyAddress?: string
   agentAccount?: string
   apiUrl?: string
-}> {
-  const { verbose = false } = options
+  pendingApproval?: {
+    agentKeyAddress: string
+    expired: boolean
+  }
+}
 
+/**
+ * Get current configuration status.
+ * Checks env vars first (takes precedence), then config file.
+ */
+export function getStatus(): JsonEnvelope<StatusData> {
   // Check env vars first (takes precedence)
   try {
     const envConfig = parseEnvConfig()
@@ -243,22 +267,22 @@ export function getStatus(options: StatusOptions = {}): JsonEnvelope<{
     const agentKeyAddress = privateKeyToAddress(envConfig.AGENT_KEY as `0x${string}`)
     const agentAccount = envConfig.AGENT_ACCOUNT
 
-    const baseResult = {
-      status: "ready" as ConfigStatus,
-      source: "env" as ConfigSource,
-      configName: generateConfigName(agentKeyAddress, agentAccount),
+    const result: StatusData = {
+      status: "ready",
+      credentialSource: "env",
+      agentKeyAddress,
+      agentAccount,
     }
 
-    if (verbose) {
-      return ok({
-        ...baseResult,
-        agentKeyAddress,
-        agentAccount,
-        ...(apiUrl && apiUrl !== DEFAULT_API_URL ? { apiUrl } : {}),
-      })
+    if (existsSync(CONFIG_FILE)) {
+      result.configPath = CONFIG_FILE
     }
 
-    return ok(baseResult)
+    if (apiUrl && apiUrl !== DEFAULT_API_URL) {
+      result.apiUrl = apiUrl
+    }
+
+    return ok(result)
   } catch {
     // No env vars, check file
   }
@@ -266,28 +290,39 @@ export function getStatus(options: StatusOptions = {}): JsonEnvelope<{
   // Check config file
   const config = getRuntimeConfig()
   if (!config) {
-    return ok({ status: "not_initialized", source: "none" })
+    return ok({ status: "not_initialized", credentialSource: "none" })
   }
 
   // Determine effective API URL (env var takes precedence over file)
   const envApiUrl = process.env.AMPERSEND_API_URL
   const effectiveApiUrl = envApiUrl ?? config.apiUrl
 
-  const baseResult = {
+  const result: StatusData = {
     status: config.status,
-    source: "file" as ConfigSource,
-    // Only include configName when ready (both addresses exist)
-    ...(config.agentAccount ? { configName: generateConfigName(config.agentKeyAddress, config.agentAccount) } : {}),
+    credentialSource: "file",
+    configPath: CONFIG_FILE,
   }
 
-  if (verbose) {
-    return ok({
-      ...baseResult,
-      agentKeyAddress: config.agentKeyAddress,
-      ...(config.agentAccount ? { agentAccount: config.agentAccount } : {}),
-      ...(effectiveApiUrl && effectiveApiUrl !== DEFAULT_API_URL ? { apiUrl: effectiveApiUrl } : {}),
-    })
+  if (config.agentKey) {
+    result.agentKeyAddress = privateKeyToAddress(config.agentKey)
   }
 
-  return ok(baseResult)
+  if (config.agentAccount) {
+    result.agentAccount = config.agentAccount
+  }
+
+  if (effectiveApiUrl && effectiveApiUrl !== DEFAULT_API_URL) {
+    result.apiUrl = effectiveApiUrl
+  }
+
+  // Always show pending approval info if present
+  if (config.pendingApproval) {
+    const pendingKeyAddress = privateKeyToAddress(config.pendingApproval.agentKey)
+    result.pendingApproval = {
+      agentKeyAddress: pendingKeyAddress,
+      expired: isPendingExpired(config.pendingApproval),
+    }
+  }
+
+  return ok(result)
 }

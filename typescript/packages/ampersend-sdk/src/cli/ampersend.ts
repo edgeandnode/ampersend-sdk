@@ -4,11 +4,13 @@ import { Command } from "commander"
 import { VERSION } from "../version.ts"
 import { registerConfigCommand } from "./commands/config.ts"
 import { registerFetchCommand } from "./commands/fetch.ts"
+import { registerSetupCommand } from "./commands/setup.ts"
 
 async function main(): Promise<void> {
   const program = new Command().name("ampersend").description("Command-line interface for ampersend").version(VERSION)
 
   registerConfigCommand(program)
+  registerSetupCommand(program)
   registerFetchCommand(program)
 
   await program.parseAsync()
