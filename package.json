@@ -12,7 +12,7 @@
     "test": "pnpm --parallel --recursive --recursive run test",
     "md:format": "prettier --check '**/*.md'",
     "md:format:fix": "prettier --write '**/*.md'",
-    "fix:all": " pnpm format:fix && pnpm lint:fix && pnpm md:format:fix"
+    "fix:all": "pnpm format:fix && pnpm lint:fix && pnpm md:format:fix"
   },
   "devDependencies": {
     "@effect/eslint-plugin": "^0.3.2",
