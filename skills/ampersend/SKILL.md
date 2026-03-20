@@ -132,11 +132,11 @@ ampersend fetch --inspect https://api.example.com/paid-endpoint
 Manage local configuration.
 
 ```bash
-ampersend config set <key:::account>                  # Set active config manually
-ampersend config set --api-url http://localhost:3000   # Set API URL
-ampersend config set --clear-api-url                   # Revert to production API
-ampersend config set <key:::account> --api-url <url>   # Set both at once
-ampersend config status                                # Show current status
+ampersend config set <key:::account>                             # Set active config manually
+ampersend config set --api-url https://api.staging.ampersend.ai  # Set staging API URL
+ampersend config set --clear-api-url                             # Revert to production API
+ampersend config set <key:::account> --api-url <url>             # Set both at once
+ampersend config status                                          # Show current status
 ```
 
 ## Output
