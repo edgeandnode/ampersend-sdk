@@ -2,6 +2,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
 import { homedir } from "node:os"
 import { join } from "node:path"
 
+import { Schema } from "effect"
 import { isAddress } from "viem"
 import { privateKeyToAddress } from "viem/accounts"
 
@@ -43,6 +44,23 @@ export interface StoredConfigV1 {
 /** Current stored config type */
 export type StoredConfig = StoredConfigV1
 
+const HexString = Schema.TemplateLiteral(Schema.Literal("0x"), Schema.String)
+
+/** Schema for validating stored config read from disk */
+const StoredConfigSchema = Schema.Struct({
+  version: Schema.Literal(1),
+  agentKey: Schema.optional(HexString),
+  agentAccount: Schema.optional(HexString),
+  apiUrl: Schema.optional(Schema.String),
+  pendingApproval: Schema.optional(
+    Schema.Struct({
+      token: Schema.String,
+      agentKey: HexString,
+      expiresAt: Schema.String,
+    }),
+  ),
+})
+
 /** Runtime configuration with derived fields */
 export interface RuntimeConfig {
   agentKey?: `0x${string}`
@@ -62,14 +80,21 @@ function ensureConfigDir(): void {
 }
 
 /**
- * Read config file if it exists
+ * Read config file if it exists.
+ * Returns null if the file is missing or corrupt.
  */
 export function readConfig(): StoredConfig | null {
   if (!existsSync(CONFIG_FILE)) {
     return null
   }
   const content = readFileSync(CONFIG_FILE, "utf-8")
-  return JSON.parse(content) as StoredConfig
+  try {
+    const parsed = JSON.parse(content)
+    return Schema.decodeUnknownSync(StoredConfigSchema)(parsed) as StoredConfig
+  } catch {
+    // Corrupt or unrecognised config — treat as absent so commands can re-initialise
+    return null
+  }
 }
 
 /**

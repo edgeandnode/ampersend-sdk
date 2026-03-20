@@ -1,6 +1,6 @@
 import { Schema } from "effect"
 
-import { ApiError, ApprovalResponse, ApprovalStatus, type CreateAgentApprovalRequestInput } from "./types.js"
+import { ApiError, ApprovalResponse, ApprovalStatus, type CreateAgentApprovalRequest } from "./types.js"
 
 const DEFAULT_API_URL = "https://api.ampersend.ai"
 
@@ -51,7 +51,7 @@ export class ApprovalClient {
    *
    * Returns URLs for the user to approve the action and to poll for status.
    */
-  async requestAgentCreation(request: CreateAgentApprovalRequestInput): Promise<ApprovalResponse> {
+  async requestAgentCreation(request: typeof CreateAgentApprovalRequest.Encoded): Promise<ApprovalResponse> {
     // Map SDK field names to API wire format
     const payload: Record<string, unknown> = {
       name: request.name,

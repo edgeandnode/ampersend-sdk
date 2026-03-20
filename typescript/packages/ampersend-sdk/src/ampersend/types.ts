@@ -324,19 +324,6 @@ export class CreateAgentApprovalRequest extends Schema.Class<CreateAgentApproval
   ),
   spend_config: Schema.optional(Schema.NullOr(SpendConfigInput)),
 }) {}
-export interface CreateAgentApprovalRequestInput {
-  name: string | null
-  agent_key_address: string
-  spend_config?:
-    | {
-        auto_topup_allowed: boolean
-        daily_limit: string | null
-        monthly_limit: string | null
-        per_transaction_limit: string | null
-      }
-    | null
-    | undefined
-}
 
 export class ApprovalResponse extends Schema.Class<ApprovalResponse>("ApprovalResponse")({
   token: Schema.NonEmptyTrimmedString.annotations({
