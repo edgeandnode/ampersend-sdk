@@ -62,13 +62,12 @@ function loadConfig():
     if (fileConfig.status === "pending_agent") {
       return {
         ok: false,
-        error: err("SETUP_INCOMPLETE", "Run `ampersend config set-agent <ADDRESS>` to complete setup", {
+        error: err("SETUP_INCOMPLETE", 'Run "ampersend setup start" or "ampersend config set" to configure', {
           status: "pending_agent",
-          agentKeyAddress: fileConfig.agentKeyAddress,
         }),
       }
     }
-    if (fileConfig.status === "ready" && fileConfig.agentAccount) {
+    if (fileConfig.status === "ready" && fileConfig.agentAccount && fileConfig.agentKey) {
       // Env var takes precedence over file config
       const apiUrl = process.env.AMPERSEND_API_URL ?? fileConfig.apiUrl
       return {
@@ -88,14 +87,15 @@ function loadConfig():
   if (configStatus.status === "not_initialized") {
     return {
       ok: false,
-      error: err("NOT_CONFIGURED", "Run `ampersend config init`", { status: "not_initialized" }),
+      error: err("NOT_CONFIGURED", 'Run "ampersend setup start" or "ampersend config set"', {
+        status: "not_initialized",
+      }),
     }
   }
   return {
     ok: false,
-    error: err("SETUP_INCOMPLETE", "Run `ampersend config set-agent <ADDRESS>`", {
+    error: err("SETUP_INCOMPLETE", 'Run "ampersend setup start" or "ampersend config set"', {
       status: configStatus.status,
-      ...(configStatus.agentKeyAddress ? { agentKeyAddress: configStatus.agentKeyAddress } : {}),
     }),
   }
 }

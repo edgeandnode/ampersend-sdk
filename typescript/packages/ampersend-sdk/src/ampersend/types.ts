@@ -293,3 +293,89 @@ export class ApiError extends Error {
 
 // Type alias for PaymentEvent (re-export PaymentEventType as PaymentEvent for convenience)
 export type PaymentEvent = PaymentEventType
+
+// ============ Approve Action Types ============
+
+export const SpendConfigInput = Schema.Struct({
+  auto_topup_allowed: Schema.Boolean.annotations({
+    description: "Whether automatic balance top-up is allowed",
+  }),
+  daily_limit: Schema.NullOr(Schema.String).pipe(
+    Schema.annotations({ description: "Daily spending limit in atomic units" }),
+  ),
+  monthly_limit: Schema.NullOr(Schema.String).pipe(
+    Schema.annotations({ description: "Monthly spending limit in atomic units" }),
+  ),
+  per_transaction_limit: Schema.NullOr(Schema.String).pipe(
+    Schema.annotations({ description: "Per-transaction spending limit in atomic units" }),
+  ),
+})
+
+export class CreateAgentApprovalRequest extends Schema.Class<CreateAgentApprovalRequest>("CreateAgentApprovalRequest")({
+  name: Schema.NullOr(Schema.String).pipe(
+    Schema.annotations({
+      description: "Optional name for the agent",
+    }),
+  ),
+  agent_key_address: Address.pipe(
+    Schema.annotations({
+      description: "The agent key address (session key) for the agent",
+    }),
+  ),
+  spend_config: Schema.optional(Schema.NullOr(SpendConfigInput)),
+}) {}
+
+export class ApprovalResponse extends Schema.Class<ApprovalResponse>("ApprovalResponse")({
+  token: Schema.NonEmptyTrimmedString.annotations({
+    description: "Unique token for this approval request",
+  }),
+  status_url: Schema.NonEmptyTrimmedString.annotations({
+    description: "URL to poll for approval status",
+  }),
+  user_approve_url: Schema.NonEmptyTrimmedString.annotations({
+    description: "URL for user to open in browser to approve the action",
+  }),
+}) {}
+
+export const ApprovalStatusPending = Schema.Struct({
+  status: Schema.Literal("pending"),
+})
+
+export const ApprovalStatusResolved = Schema.Struct({
+  status: Schema.Literal("resolved"),
+  agent: Schema.optional(
+    Schema.Struct({
+      address: Address,
+      // TODO: API should return agent_key_address (wire: session_key_address) so clients
+      // can verify the approval matches their local key. Add mapping from API's
+      // session_key_address once API support lands, then make verification in
+      // `setup finish` non-optional.
+      agent_key_address: Schema.optional(Address),
+    }),
+  ),
+  resolved_at: Schema.String.annotations({
+    description: "ISO timestamp of when the action was resolved",
+  }),
+})
+
+export const ApprovalStatusRejected = Schema.Struct({
+  status: Schema.Literal("rejected"),
+  resolved_at: Schema.String.annotations({
+    description: "ISO timestamp of when the action was rejected",
+  }),
+})
+
+export const ApprovalStatusBlocked = Schema.Struct({
+  status: Schema.Literal("blocked"),
+  resolved_at: Schema.String.annotations({
+    description: "ISO timestamp of when the action was blocked",
+  }),
+})
+
+export const ApprovalStatus = Schema.Union(
+  ApprovalStatusPending,
+  ApprovalStatusResolved,
+  ApprovalStatusRejected,
+  ApprovalStatusBlocked,
+)
+export type ApprovalStatus = typeof ApprovalStatus.Type

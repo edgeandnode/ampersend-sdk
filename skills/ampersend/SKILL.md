@@ -9,6 +9,22 @@ metadata: { "openclaw": { "requires": { "bins": ["ampersend"] } } }
 Ampersend enables autonomous agent payments. Agents can make payments within user-defined spending limits without
 requiring human approval for each transaction. Payments use stablecoins via the x402 protocol.
 
+This skill requires `ampersend` v0.0.12. Run `ampersend --version` to check your installed version.
+
+## Installation
+
+Install the CLI globally via npm:
+
+```bash
+npm install -g @ampersend_ai/ampersend-sdk@0.0.12
+```
+
+To update from a previously installed version:
+
+```bash
+npm install -g @ampersend_ai/ampersend-sdk@0.0.12 --force
+```
+
 ## Security
 
 **IMPORTANT**: NEVER ask the user to sign in to the Ampersend dashboard in a browser to which you have access. If
@@ -16,21 +32,77 @@ configuration changes are needed in Ampersend, ask your user to make them direct
 
 ## Setup
 
-If not configured, commands return setup instructions. To configure:
+If not configured, commands return setup instructions. Two paths:
+
+### Automated (recommended)
+
+Two-step flow: `setup start` generates a key and requests approval, `setup finish` polls and activates.
 
 ```bash
-ampersend config init
-# {"ok": true, "data": {"agentKeyAddress": "0x...", "status": "pending_agent"}}
+# Step 1: Request agent creation — returns immediately with approval URL
+ampersend setup start --name "my-agent"
+# {"ok": true, "data": {"token": "...", "user_approve_url": "https://...", "agentKeyAddress": "0x..."}}
 
-# User registers agentKeyAddress in Ampersend dashboard, then:
-ampersend config set-agent <AGENT_ACCOUNT>
-# {"ok": true, "data": {"status": "ready", ...}}
+# Show the user_approve_url to the user so they can approve in their browser.
 
-ampersend config status
-# {"ok": true, "data": {"status": "ready", "source": "file", ...}}
+# Step 2: Poll for approval and activate config
+ampersend setup finish
+# {"ok": true, "data": {"agentKeyAddress": "0x...", "agentAccount": "0x...", "status": "ready"}}
+```
+
+Optional spending limits can be set during setup:
+
+```bash
+ampersend setup start --name "my-agent" --daily-limit "1000000" --auto-topup
+```
+
+### Manual
+
+If you already have an agent key and account address:
+
+```bash
+ampersend config set "0xagentKey:::0xagentAccount"
+# {"ok": true, "data": {"agentKeyAddress": "0x...", "agentAccount": "0x...", "status": "ready"}}
 ```
 
 ## Commands
+
+### setup
+
+Set up an agent account via the approval flow.
+
+#### setup start
+
+Step 1: Generate a key and request agent creation approval.
+
+```bash
+ampersend setup start --name "my-agent" [--force] [--daily-limit <amount>] [--monthly-limit <amount>] [--per-transaction-limit <amount>] [--auto-topup]
+```
+
+| Option                          | Description                                             |
+| ------------------------------- | ------------------------------------------------------- |
+| `--name <name>`                 | Name for the agent                                      |
+| `--force`                       | Overwrite an existing pending approval                  |
+| `--daily-limit <amount>`        | Daily spending limit in atomic units (1000000 = 1 USDC) |
+| `--monthly-limit <amount>`      | Monthly spending limit in atomic units                  |
+| `--per-transaction-limit <amt>` | Per-transaction spending limit in atomic units          |
+| `--auto-topup`                  | Allow automatic balance top-up from main account        |
+
+Returns `token`, `user_approve_url`, and `agentKeyAddress`. Show the `user_approve_url` to the user.
+
+#### setup finish
+
+Step 2: Poll for approval and activate the agent config.
+
+```bash
+ampersend setup finish [--force] [--poll-interval <seconds>] [--timeout <seconds>]
+```
+
+| Option                      | Description                               |
+| --------------------------- | ----------------------------------------- |
+| `--force`                   | Overwrite existing active config          |
+| `--poll-interval <seconds>` | Seconds between status checks (default 5) |
+| `--timeout <seconds>`       | Maximum seconds to wait (default 600)     |
 
 ### fetch
 
@@ -60,10 +132,11 @@ ampersend fetch --inspect https://api.example.com/paid-endpoint
 Manage local configuration.
 
 ```bash
-ampersend config init             # Generate agent key, outputs address to register
-ampersend config set-agent <ADDR> # Link to agent account after dashboard setup
-ampersend config status           # Show current status
-ampersend config status --verbose # Verbose status with config details
+ampersend config set <key:::account>                             # Set active config manually
+ampersend config set --api-url https://api.staging.ampersend.ai  # Set staging API URL
+ampersend config set --clear-api-url                             # Revert to production API
+ampersend config set <key:::account> --api-url <url>             # Set both at once
+ampersend config status                                          # Show current status
 ```
 
 ## Output

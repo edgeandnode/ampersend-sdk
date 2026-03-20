@@ -1,6 +1,6 @@
 [project]
 name = "langchain-ampersend"
-version = "0.0.11"
+version = "0.0.12"
 description = "LangChain integration for Ampersend x402 payments"
 readme = "README.md"
 requires-python = ">=3.13"
