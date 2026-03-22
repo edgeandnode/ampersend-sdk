@@ -1,5 +1,6 @@
 import type { Address, Hex } from "viem"
 import { privateKeyToAccount } from "viem/accounts"
+import type { PaymentPayload, PaymentRequirements } from "x402/types"
 
 import type { PaymentEvent } from "../mcp/client/index.ts"
 import { OWNABLE_VALIDATOR } from "../smart-account/index.ts"
@@ -13,9 +14,6 @@ import {
   type X402Treasurer,
   type X402Wallet,
 } from "../x402/index.ts"
-import type { Address, Hex } from "viem"
-import type { PaymentPayload, PaymentRequirements } from "x402/types"
-
 import { ApiClient } from "./client.ts"
 import type { PaymentRequirements as AmpersendPaymentRequirements, ServerAuthorizationData } from "./types.ts"
 

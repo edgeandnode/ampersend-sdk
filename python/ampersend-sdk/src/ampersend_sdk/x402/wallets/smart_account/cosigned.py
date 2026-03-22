@@ -90,10 +90,23 @@ def smart_account_create_cosigned_payment(
             "requirements.extra must contain 'name' and 'version' for EIP-712 domain"
         )
 
+    # Construct authorization using model_validate (same as exact.py)
+    authorization = EIP3009Authorization.model_validate(
+        {
+            "from": auth_data.from_address,
+            "to": auth_data.to,
+            "value": auth_data.value,
+            "validAfter": auth_data.valid_after,
+            "validBefore": auth_data.valid_before,
+            "nonce": auth_data.nonce,
+        },
+        by_alias=True,
+    )
+
     # Create account from session key
     account = Account.from_key(config.session_key)
 
-    # Build EIP-712 typed data
+    # Build EIP-712 typed data using model_dump(by_alias=True) for correct field names
     typed_data = {
         "types": {
             "EIP712Domain": EIP712_DOMAIN_FIELDS,
@@ -106,14 +119,7 @@ def smart_account_create_cosigned_payment(
             "chainId": get_chain_id(requirements.network),
             "verifyingContract": requirements.asset,
         },
-        "message": {
-            "from": auth_data.from_address,
-            "to": auth_data.to,
-            "value": int(auth_data.value),
-            "validAfter": int(auth_data.valid_after),
-            "validBefore": int(auth_data.valid_before),
-            "nonce": auth_data.nonce,
-        },
+        "message": authorization.model_dump(by_alias=True),
     }
 
     # Sign with agent key
@@ -135,18 +141,6 @@ def smart_account_create_cosigned_payment(
         config.cosigner_validator_address,
         agent_sig,
         server_sig,
-    )
-
-    # Build authorization from server data
-    authorization = EIP3009Authorization(
-        **{
-            "from": auth_data.from_address,
-            "to": auth_data.to,
-            "value": auth_data.value,
-            "validAfter": auth_data.valid_after,
-            "validBefore": auth_data.valid_before,
-            "nonce": auth_data.nonce,
-        }
     )
 
     # Construct payload
