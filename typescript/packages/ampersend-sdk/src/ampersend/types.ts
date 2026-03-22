@@ -96,8 +96,8 @@ export class PaymentRequirements extends Schema.Class<PaymentRequirements>("Paym
   description: Schema.NonEmptyTrimmedString.annotations({
     description: "Human-readable payment description",
   }),
-  mimeType: Schema.NonEmptyTrimmedString.annotations({
-    description: "MIME type of the resource",
+  mimeType: Schema.String.annotations({
+    description: "MIME type of the resource (may be empty if not specified by the seller)",
   }),
   payTo: Address.annotations({
     description: "Seller address to receive payment",
