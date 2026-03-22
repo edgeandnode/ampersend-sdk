@@ -173,19 +173,19 @@ contract CoSignerValidator is ICoSignerValidator, ERC7579ValidatorBase {
 
     /**
      * @notice Validates a signature using ERC-1271
-     * @param sender The account address
      * @param hash The hash to validate
      * @param signature The signature to validate
      * @return Magic value (0x1626ba7e) if valid, 0xffffffff if invalid
      */
-    function isValidSignatureWithSender(address sender, bytes32 hash, bytes calldata signature)
+    function isValidSignatureWithSender(address, bytes32 hash, bytes calldata signature)
         external
         view
         override
         returns (bytes4)
     {
-        // Validate dual signature (NO Ethereum prefix for ERC-1271)
-        if (_validateDualSignature(sender, hash, signature)) {
+        // Use msg.sender (the Safe account) not the sender parameter (which may be
+        // address(0) when called via Safe7579's staticcall pattern for ERC-1271)
+        if (_validateDualSignature(msg.sender, hash, signature)) {
             return EIP1271_SUCCESS;
         }
         return EIP1271_FAILED;

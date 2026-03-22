@@ -507,8 +507,9 @@ contract CoSignerValidatorTest is Test {
         // Combine signatures
         bytes memory signature = abi.encode(agentSig, coSignerSig);
 
-        // Validate
-        bytes4 result = validator.isValidSignatureWithSender(account1, hash, signature);
+        // Validate (msg.sender must be the account)
+        vm.prank(account1);
+        bytes4 result = validator.isValidSignatureWithSender(address(0), hash, signature);
         assertEq(result, bytes4(0x1626ba7e)); // EIP1271_SUCCESS
     }
 
@@ -533,7 +534,8 @@ contract CoSignerValidatorTest is Test {
 
         bytes memory signature = abi.encode(agentSig, coSignerSig);
 
-        bytes4 result = validator.isValidSignatureWithSender(account1, hash, signature);
+        vm.prank(account1);
+        bytes4 result = validator.isValidSignatureWithSender(address(0), hash, signature);
         assertEq(result, bytes4(0xFFFFFFFF)); // EIP1271_FAILED
     }
 
@@ -558,7 +560,8 @@ contract CoSignerValidatorTest is Test {
 
         bytes memory signature = abi.encode(agentSig, coSignerSig);
 
-        bytes4 result = validator.isValidSignatureWithSender(account1, hash, signature);
+        vm.prank(account1);
+        bytes4 result = validator.isValidSignatureWithSender(address(0), hash, signature);
         assertEq(result, bytes4(0xFFFFFFFF)); // EIP1271_FAILED
     }
 
@@ -587,7 +590,8 @@ contract CoSignerValidatorTest is Test {
 
         bytes memory signature = abi.encode(agentSig, coSignerSig);
 
-        bytes4 result = validator.isValidSignatureWithSender(account1, hash, signature);
+        vm.prank(account1);
+        bytes4 result = validator.isValidSignatureWithSender(address(0), hash, signature);
         assertEq(result, bytes4(0xFFFFFFFF)); // Should fail - wrong admin's coSigner
     }
 
@@ -736,12 +740,14 @@ contract CoSignerValidatorTest is Test {
 
         // Test with OLD coSigner
         bytes memory signature1 = _createDualSignature(agentKey1Pk, coSigner1Pk, hash);
-        bytes4 result1 = validator.isValidSignatureWithSender(account1, hash, signature1);
+        vm.prank(account1);
+        bytes4 result1 = validator.isValidSignatureWithSender(address(0), hash, signature1);
         assertEq(result1, bytes4(0x1626ba7e)); // Should succeed
 
         // Test with NEW coSigner
         bytes memory signature2 = _createDualSignature(agentKey1Pk, coSigner2Pk, hash);
-        bytes4 result2 = validator.isValidSignatureWithSender(account1, hash, signature2);
+        vm.prank(account1);
+        bytes4 result2 = validator.isValidSignatureWithSender(address(0), hash, signature2);
         assertEq(result2, bytes4(0x1626ba7e)); // Should also succeed
     }
 
@@ -765,11 +771,13 @@ contract CoSignerValidatorTest is Test {
 
         // Test account1 with coSigner1
         bytes memory sig1 = _createDualSignature(agentKey1Pk, coSigner1Pk, hash);
-        assertEq(validator.isValidSignatureWithSender(account1, hash, sig1), bytes4(0x1626ba7e));
+        vm.prank(account1);
+        assertEq(validator.isValidSignatureWithSender(address(0), hash, sig1), bytes4(0x1626ba7e));
 
         // Test account2 with coSigner1
         bytes memory sig2 = _createDualSignature(agentKey2Pk, coSigner1Pk, hash);
-        assertEq(validator.isValidSignatureWithSender(account2, hash, sig2), bytes4(0x1626ba7e));
+        vm.prank(account2);
+        assertEq(validator.isValidSignatureWithSender(address(0), hash, sig2), bytes4(0x1626ba7e));
 
         // Admin rotates coSigner
         vm.prank(admin1);
@@ -779,18 +787,22 @@ contract CoSignerValidatorTest is Test {
 
         // Now both accounts should ONLY work with coSigner2
         // Old coSigner1 should fail for both
-        bytes4 result1Old = validator.isValidSignatureWithSender(account1, hash, sig1);
+        vm.prank(account1);
+        bytes4 result1Old = validator.isValidSignatureWithSender(address(0), hash, sig1);
         assertEq(result1Old, bytes4(0xFFFFFFFF)); // FAILED
 
-        bytes4 result2Old = validator.isValidSignatureWithSender(account2, hash, sig2);
+        vm.prank(account2);
+        bytes4 result2Old = validator.isValidSignatureWithSender(address(0), hash, sig2);
         assertEq(result2Old, bytes4(0xFFFFFFFF)); // FAILED
 
         // New coSigner2 should work for both
         bytes memory sig1New = _createDualSignature(agentKey1Pk, coSigner2Pk, hash);
-        assertEq(validator.isValidSignatureWithSender(account1, hash, sig1New), bytes4(0x1626ba7e));
+        vm.prank(account1);
+        assertEq(validator.isValidSignatureWithSender(address(0), hash, sig1New), bytes4(0x1626ba7e));
 
         bytes memory sig2New = _createDualSignature(agentKey2Pk, coSigner2Pk, hash);
-        assertEq(validator.isValidSignatureWithSender(account2, hash, sig2New), bytes4(0x1626ba7e));
+        vm.prank(account2);
+        assertEq(validator.isValidSignatureWithSender(address(0), hash, sig2New), bytes4(0x1626ba7e));
     }
 
     // ============ Helper Functions Tests ============
@@ -834,7 +846,8 @@ contract CoSignerValidatorTest is Test {
         bytes32 hash = keccak256("test");
         bytes memory sig = _createDualSignature(agentKey1Pk, coSigner1Pk, hash);
 
-        bytes4 result = validator.isValidSignatureWithSender(account1, hash, sig);
+        vm.prank(account1);
+        bytes4 result = validator.isValidSignatureWithSender(address(0), hash, sig);
         assertEq(result, bytes4(0xFFFFFFFF)); // Should fail
     }
 
@@ -849,7 +862,8 @@ contract CoSignerValidatorTest is Test {
         bytes32 hash = keccak256("test");
         bytes memory sig = _createDualSignature(agentKey1Pk, coSigner1Pk, hash);
 
-        bytes4 result = validator.isValidSignatureWithSender(account1, hash, sig);
+        vm.prank(account1);
+        bytes4 result = validator.isValidSignatureWithSender(address(0), hash, sig);
         assertEq(result, bytes4(0xFFFFFFFF)); // Should fail
     }
 
