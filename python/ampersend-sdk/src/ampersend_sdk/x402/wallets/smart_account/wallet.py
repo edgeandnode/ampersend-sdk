@@ -1,5 +1,3 @@
-from typing import Optional
-
 from x402_a2a import PaymentPayload, PaymentRequirements
 
 from ....smart_account.sign import SmartAccountConfig
@@ -15,7 +13,7 @@ class SmartAccountWallet:
     def create_payment(
         self,
         requirements: PaymentRequirements,
-        server_authorization: Optional[ServerAuthorizationData] = None,
+        server_authorization: ServerAuthorizationData | None = None,
     ) -> PaymentPayload:
         # If server authorization provided, use co-signed path
         if server_authorization:

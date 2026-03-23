@@ -2,8 +2,8 @@ import { encodeAbiParameters, encodePacked, type Address, type Hex, type TypedDa
 import { privateKeyToAccount } from "viem/accounts"
 import type { PaymentPayload, PaymentRequirements } from "x402/types"
 
-import type { ServerAuthorizationData } from "../../../ampersend/types.ts"
 import { TRANSFER_WITH_AUTHORIZATION_TYPE } from "../../../smart-account/eip712-types.ts"
+import type { ServerAuthorizationData } from "../../types.ts"
 
 /**
  * Configuration for creating a co-signed payment

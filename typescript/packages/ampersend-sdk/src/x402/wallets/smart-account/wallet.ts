@@ -1,8 +1,8 @@
 import { type Address, type Hex } from "viem"
 import type { PaymentPayload, PaymentRequirements } from "x402/types"
 
-import type { ServerAuthorizationData } from "../../../ampersend/types.ts"
 import { COSIGNER_VALIDATOR, OWNABLE_VALIDATOR } from "../../../smart-account/constants.ts"
+import type { ServerAuthorizationData } from "../../types.ts"
 import { WalletError, type X402Wallet } from "../../wallet.ts"
 import { createCoSignedPayment } from "./cosigned.ts"
 import { createExactPayment } from "./exact.ts"
