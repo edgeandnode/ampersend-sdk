@@ -1,8 +1,9 @@
-import type { Account, Hex } from "viem"
+import type { Hex, LocalAccount } from "viem"
 import { privateKeyToAccount } from "viem/accounts"
 import { createPaymentHeader } from "x402/client"
 import type { PaymentPayload, PaymentRequirements } from "x402/types"
 
+import type { ServerAuthorizationData } from "../../../ampersend/types.ts"
 import { WalletError, type X402Wallet } from "../../wallet.ts"
 
 /**
@@ -24,9 +25,9 @@ import { WalletError, type X402Wallet } from "../../wallet.ts"
  * ```
  */
 export class AccountWallet implements X402Wallet {
-  private account: Account
+  private account: LocalAccount
 
-  constructor(account: Account) {
+  constructor(account: LocalAccount) {
     this.account = account
   }
 
@@ -40,15 +41,19 @@ export class AccountWallet implements X402Wallet {
   /**
    * Creates a payment payload from requirements.
    * Only supports "exact" payment scheme.
+   * Note: serverAuthorization parameter is ignored for EOA wallets (only used by SmartAccountWallet)
    */
-  async createPayment(requirements: PaymentRequirements): Promise<PaymentPayload> {
+  async createPayment(
+    requirements: PaymentRequirements,
+    _serverAuthorization?: ServerAuthorizationData,
+  ): Promise<PaymentPayload> {
     if (requirements.scheme !== "exact") {
       throw new WalletError(`Unsupported payment scheme: ${requirements.scheme}. AccountWallet only supports "exact".`)
     }
 
     try {
       // Create payment header using x402 client utility
-      const paymentHeader = await createPaymentHeader(this.account as any, 1, requirements)
+      const paymentHeader = await createPaymentHeader(this.account, 1, requirements)
 
       // Decode base64 payment header to PaymentPayload
       const decoded = Buffer.from(paymentHeader, "base64").toString("utf-8")

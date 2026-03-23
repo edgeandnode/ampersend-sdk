@@ -8,6 +8,9 @@ from x402.types import (
     PaymentRequirements,
 )
 
+from ..x402.types import ERC3009AuthorizationData
+from ..x402.types import ServerAuthorizationData as ServerAuthorizationData
+
 
 class ApiClientOptions(BaseModel):
     """Configuration options for the API client."""
@@ -106,6 +109,25 @@ class AuthorizedResponse(BaseModel):
     )
 
 
+class PaymentData(BaseModel):
+    """Server-generated payment data and co-signature."""
+
+    authorization_data: ERC3009AuthorizationData = Field(
+        alias="authorizationData",
+        description="Server-generated ERC-3009 authorization data",
+    )
+    server_signature: str = Field(
+        alias="serverSignature", description="Server's co-signature (65 bytes as hex)"
+    )
+    requirement: PaymentRequirements = Field(
+        description="The payment requirement this authorization is for"
+    )
+
+    model_config = ConfigDict(
+        populate_by_name=True,
+    )
+
+
 class ApiResponseAgentPaymentAuthorization(BaseModel):
     """Agent payment authorization response."""
 
@@ -114,6 +136,10 @@ class ApiResponseAgentPaymentAuthorization(BaseModel):
     )
     rejected: List[RejectedRequirement] = Field(
         description="List of rejected payment requirements with reasons"
+    )
+    payment: Optional[PaymentData] = Field(
+        default=None,
+        description="Server-generated payment data and co-signature. Present only for co-signed keys when authorization passes.",
     )
 
 

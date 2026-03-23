@@ -8,6 +8,7 @@ from x402_a2a.types import (
 )
 
 from ampersend_sdk.x402 import X402Authorization, X402Treasurer, X402Wallet
+from ampersend_sdk.x402.types import ServerAuthorizationData
 
 from .client import ApiClient
 from .types import (
@@ -77,10 +78,22 @@ class AmpersendTreasurer(X402Treasurer):
 
         authorized_req = result.authorized.requirements[recommended_index]
 
-        # Create payment with wallet using the authorized requirement
-        payment = self._wallet.create_payment(
-            requirements=authorized_req.requirement,
-        )
+        # Check if server provided co-signature (for co-signed keys)
+        if result.payment:
+            # Co-signed path: use server-provided authorization
+            server_auth = ServerAuthorizationData(
+                authorizationData=result.payment.authorization_data,
+                serverSignature=result.payment.server_signature,
+            )
+            payment = self._wallet.create_payment(
+                requirements=result.payment.requirement,
+                server_authorization=server_auth,
+            )
+        else:
+            # Full-access path: sign independently
+            payment = self._wallet.create_payment(
+                requirements=authorized_req.requirement,
+            )
         authorization_id = uuid.uuid4().hex
 
         await self._api_client.report_payment_event(

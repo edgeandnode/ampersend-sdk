@@ -1,5 +1,6 @@
 import type { Address, Hex } from "viem"
 import { privateKeyToAccount } from "viem/accounts"
+import type { PaymentPayload, PaymentRequirements } from "x402/types"
 
 import type { PaymentEvent } from "../mcp/client/index.ts"
 import { OWNABLE_VALIDATOR } from "../smart-account/index.ts"
@@ -14,6 +15,7 @@ import {
   type X402Wallet,
 } from "../x402/index.ts"
 import { ApiClient } from "./client.ts"
+import type { PaymentRequirements as AmpersendPaymentRequirements, ServerAuthorizationData } from "./types.ts"
 
 /** Default Ampersend API URL */
 const DEFAULT_API_URL = "https://api.ampersend.ai"
@@ -103,10 +105,18 @@ export class AmpersendTreasurer implements X402Treasurer {
    * Requests payment authorization from API before creating payment.
    * Only creates payment if API authorizes it.
    */
-  async onPaymentRequired(requirements: Array<any>, context?: PaymentContext): Promise<Authorization | null> {
+  async onPaymentRequired(
+    requirements: ReadonlyArray<PaymentRequirements>,
+    context?: PaymentContext,
+  ): Promise<Authorization | null> {
     try {
       // Authorize payment with API
-      const response = await this.apiClient.authorizePayment(requirements as any, context)
+      // Cast needed: x402 PaymentRequirements (zod) → ampersend PaymentRequirements (Effect Schema)
+      // Structurally compatible at runtime, different type systems
+      const response = await this.apiClient.authorizePayment(
+        requirements as unknown as readonly [AmpersendPaymentRequirements, ...AmpersendPaymentRequirements[]],
+        context,
+      )
 
       // Check if any requirements were authorized
       if (response.authorized.requirements.length === 0) {
@@ -124,10 +134,19 @@ export class AmpersendTreasurer implements X402Treasurer {
         throw new Error("Recommended requirement index out of bounds")
       }
 
-      // Create payment with wallet using the authorized requirement
-      // Note: Type assertion needed because ampersend PaymentRequirements uses string for network,
-      // while x402 PaymentRequirements uses specific network literals. Runtime compatible.
-      const payment = await this.wallet.createPayment(authorizedReq.requirement as any)
+      // Check if server provided co-signature (for co-signed keys)
+      let payment: PaymentPayload
+      if (response.payment) {
+        // Co-signed path: use server-provided authorization data and signature
+        const serverAuth: ServerAuthorizationData = {
+          authorizationData: response.payment.authorizationData,
+          serverSignature: response.payment.serverSignature,
+        }
+        payment = await this.wallet.createPayment(response.payment.requirement as PaymentRequirements, serverAuth)
+      } else {
+        // Full-access path: sign independently
+        payment = await this.wallet.createPayment(authorizedReq.requirement as PaymentRequirements)
+      }
 
       return {
         payment,

@@ -96,8 +96,8 @@ export class PaymentRequirements extends Schema.Class<PaymentRequirements>("Paym
   description: Schema.NonEmptyTrimmedString.annotations({
     description: "Human-readable payment description",
   }),
-  mimeType: Schema.NonEmptyTrimmedString.annotations({
-    description: "MIME type of the resource",
+  mimeType: Schema.String.annotations({
+    description: "MIME type of the resource (may be empty if not specified by the seller)",
   }),
   payTo: Address.annotations({
     description: "Seller address to receive payment",
@@ -110,6 +110,38 @@ export class PaymentRequirements extends Schema.Class<PaymentRequirements>("Paym
   }),
   extra: Schema.optional(Schema.Record({ key: Schema.String, value: Schema.Unknown })).annotations({
     description: "Additional payment metadata",
+  }),
+}) {}
+
+// ============ ERC-3009 Authorization (for co-signed payments) ============
+
+export class ERC3009AuthorizationData extends Schema.Class<ERC3009AuthorizationData>("ERC3009AuthorizationData")({
+  from: Address.annotations({
+    description: "Sender address (agent smart account)",
+  }),
+  to: Address.annotations({
+    description: "Recipient address (seller)",
+  }),
+  value: Schema.String.annotations({
+    description: "Transfer amount in wei (stringified bigint)",
+  }),
+  validAfter: Schema.String.annotations({
+    description: "Unix timestamp after which the authorization is valid (stringified bigint)",
+  }),
+  validBefore: Schema.String.annotations({
+    description: "Unix timestamp before which the authorization expires (stringified bigint)",
+  }),
+  nonce: Schema.String.annotations({
+    description: "Random 32-byte nonce as hex string for replay protection",
+  }),
+}) {}
+
+export class ServerAuthorizationData extends Schema.Class<ServerAuthorizationData>("ServerAuthorizationData")({
+  authorizationData: ERC3009AuthorizationData.annotations({
+    description: "ERC-3009 TransferWithAuthorization data",
+  }),
+  serverSignature: Schema.String.annotations({
+    description: "Server's ECDSA signature (65 bytes as hex string)",
   }),
 }) {}
 
@@ -169,6 +201,22 @@ export class AgentPaymentAuthResponse extends Schema.Class<AgentPaymentAuthRespo
     }),
   ).annotations({
     description: "List of rejected payment requirements with reasons",
+  }),
+  payment: Schema.NullOr(
+    Schema.Struct({
+      authorizationData: ERC3009AuthorizationData.annotations({
+        description: "Server-generated ERC-3009 authorization data",
+      }),
+      serverSignature: Schema.String.annotations({
+        description: "Server's co-signature (65 bytes as hex string)",
+      }),
+      requirement: PaymentRequirements.annotations({
+        description: "The payment requirement this authorization is for",
+      }),
+    }),
+  ).annotations({
+    description:
+      "Server-generated payment data and co-signature. Present only for co-signed keys when authorization passes. Null for full-access keys or when authorization fails.",
   }),
 }) {}
 

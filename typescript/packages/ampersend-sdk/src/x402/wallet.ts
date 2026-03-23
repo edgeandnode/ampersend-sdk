@@ -1,5 +1,7 @@
 import type { PaymentPayload, PaymentRequirements } from "x402/types"
 
+import type { ServerAuthorizationData } from "./types.ts"
+
 /**
  * Error thrown when wallet cannot create a payment
  */
@@ -40,8 +42,12 @@ export interface X402Wallet {
    * Creates a payment payload from requirements.
    *
    * @param requirements - Payment requirements from seller
+   * @param serverAuthorization - Optional server co-signature data (for co-signed smart account keys)
    * @returns Signed payment payload ready for submission
    * @throws {WalletError} If unable to create payment (unsupported scheme, insufficient funds, etc.)
    */
-  createPayment(requirements: PaymentRequirements): Promise<PaymentPayload>
+  createPayment(
+    requirements: PaymentRequirements,
+    serverAuthorization?: ServerAuthorizationData,
+  ): Promise<PaymentPayload>
 }

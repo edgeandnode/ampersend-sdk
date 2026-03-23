@@ -18,6 +18,7 @@ from x402_a2a.types import (
 )
 
 from ....smart_account.sign import SmartAccountConfig, smart_account_sign_typed_data
+from .eip712_types import EIP712_DOMAIN_FIELDS, TRANSFER_WITH_AUTHORIZATION_FIELDS
 
 
 def sign_erc3009_authorization(
@@ -55,20 +56,8 @@ def sign_erc3009_authorization(
     }
 
     types = {
-        "EIP712Domain": [
-            {"name": "name", "type": "string"},
-            {"name": "version", "type": "string"},
-            {"name": "chainId", "type": "uint256"},
-            {"name": "verifyingContract", "type": "address"},
-        ],
-        "TransferWithAuthorization": [
-            {"name": "from", "type": "address"},
-            {"name": "to", "type": "address"},
-            {"name": "value", "type": "uint256"},
-            {"name": "validAfter", "type": "uint256"},
-            {"name": "validBefore", "type": "uint256"},
-            {"name": "nonce", "type": "bytes32"},
-        ],
+        "EIP712Domain": EIP712_DOMAIN_FIELDS,
+        "TransferWithAuthorization": TRANSFER_WITH_AUTHORIZATION_FIELDS,
     }
 
     return smart_account_sign_typed_data(

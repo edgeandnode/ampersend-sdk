@@ -1,8 +1,10 @@
 import { type Address, type Hex } from "viem"
 import type { PaymentPayload, PaymentRequirements } from "x402/types"
 
-import { OWNABLE_VALIDATOR } from "../../../smart-account/constants.ts"
+import { COSIGNER_VALIDATOR, OWNABLE_VALIDATOR } from "../../../smart-account/constants.ts"
+import type { ServerAuthorizationData } from "../../types.ts"
 import { WalletError, type X402Wallet } from "../../wallet.ts"
+import { createCoSignedPayment } from "./cosigned.ts"
 import { createExactPayment } from "./exact.ts"
 
 /**
@@ -17,6 +19,8 @@ export interface SmartAccountConfig {
   chainId: number
   /** OwnableValidator address (defaults to standard OwnableValidator) */
   validatorAddress?: Address
+  /** CoSignerValidator address (defaults to standard CoSignerValidator) */
+  coSignerValidatorAddress?: Address
 }
 
 /**
@@ -39,21 +43,29 @@ export interface SmartAccountConfig {
  * ```
  */
 export class SmartAccountWallet implements X402Wallet {
-  private readonly config: SmartAccountConfig & { validatorAddress: Address }
+  private readonly config: SmartAccountConfig & { validatorAddress: Address; coSignerValidatorAddress: Address }
 
   constructor(config: SmartAccountConfig) {
-    // Apply default validator address if not provided
+    // Apply default validator addresses if not provided
     this.config = {
       ...config,
       validatorAddress: config.validatorAddress ?? OWNABLE_VALIDATOR,
+      coSignerValidatorAddress: config.coSignerValidatorAddress ?? COSIGNER_VALIDATOR,
     }
   }
 
   /**
    * Creates a payment payload from requirements.
    * Only supports "exact" payment scheme with ERC-3009 authorizations.
+   *
+   * @param requirements Payment requirements from x402
+   * @param serverAuthorization Optional server co-signature data for co-signed keys
+   * @returns Payment payload ready to submit
    */
-  async createPayment(requirements: PaymentRequirements): Promise<PaymentPayload> {
+  async createPayment(
+    requirements: PaymentRequirements,
+    serverAuthorization?: ServerAuthorizationData,
+  ): Promise<PaymentPayload> {
     if (requirements.scheme !== "exact") {
       throw new WalletError(
         `Unsupported payment scheme: ${requirements.scheme}. SmartAccountWallet only supports "exact".`,
@@ -61,6 +73,12 @@ export class SmartAccountWallet implements X402Wallet {
     }
 
     try {
+      // If server authorization provided, use co-signed path
+      if (serverAuthorization) {
+        return await createCoSignedPayment(requirements, this.config, serverAuthorization)
+      }
+
+      // Otherwise use direct signing (full-access keys)
       return await createExactPayment(requirements, this.config)
     } catch (error) {
       throw new WalletError(
