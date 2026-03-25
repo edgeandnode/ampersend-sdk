@@ -202,21 +202,23 @@ export class AgentPaymentAuthResponse extends Schema.Class<AgentPaymentAuthRespo
   ).annotations({
     description: "List of rejected payment requirements with reasons",
   }),
-  payment: Schema.NullOr(
-    Schema.Struct({
-      authorizationData: ERC3009AuthorizationData.annotations({
-        description: "Server-generated ERC-3009 authorization data",
+  payment: Schema.optional(
+    Schema.NullOr(
+      Schema.Struct({
+        authorizationData: ERC3009AuthorizationData.annotations({
+          description: "Server-generated ERC-3009 authorization data",
+        }),
+        serverSignature: Schema.String.annotations({
+          description: "Server's co-signature (65 bytes as hex string)",
+        }),
+        requirement: PaymentRequirements.annotations({
+          description: "The payment requirement this authorization is for",
+        }),
       }),
-      serverSignature: Schema.String.annotations({
-        description: "Server's co-signature (65 bytes as hex string)",
-      }),
-      requirement: PaymentRequirements.annotations({
-        description: "The payment requirement this authorization is for",
-      }),
-    }),
+    ),
   ).annotations({
     description:
-      "Server-generated payment data and co-signature. Present only for co-signed keys when authorization passes. Null for full-access keys or when authorization fails.",
+      "Server-generated payment data and co-signature. Present only for co-signed keys when authorization passes. Null or absent for full-access keys or when authorization fails.",
   }),
 }) {}
 

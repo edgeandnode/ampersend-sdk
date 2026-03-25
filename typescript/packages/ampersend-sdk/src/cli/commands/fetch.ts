@@ -70,12 +70,13 @@ function loadConfig():
     if (fileConfig.status === "ready" && fileConfig.agentAccount && fileConfig.agentKey) {
       // Env var takes precedence over file config
       const apiUrl = process.env.AMPERSEND_API_URL ?? fileConfig.apiUrl
+      const network = process.env.AMPERSEND_NETWORK ?? fileConfig.network ?? "base"
       return {
         ok: true,
         config: {
           agentAccount: fileConfig.agentAccount,
           agentKey: fileConfig.agentKey,
-          network: process.env.AMPERSEND_NETWORK ?? "base",
+          network,
           ...(apiUrl ? { apiUrl } : {}),
         },
       }

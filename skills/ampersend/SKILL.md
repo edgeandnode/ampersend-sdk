@@ -9,20 +9,20 @@ metadata: { "openclaw": { "requires": { "bins": ["ampersend"] } } }
 Ampersend enables autonomous agent payments. Agents can make payments within user-defined spending limits without
 requiring human approval for each transaction. Payments use stablecoins via the x402 protocol.
 
-This skill requires `ampersend` v0.0.13. Run `ampersend --version` to check your installed version.
+This skill requires `ampersend` v0.0.14. Run `ampersend --version` to check your installed version.
 
 ## Installation
 
 Install the CLI globally via npm:
 
 ```bash
-npm install -g @ampersend_ai/ampersend-sdk@0.0.13
+npm install -g @ampersend_ai/ampersend-sdk@0.0.14
 ```
 
 To update from a previously installed version:
 
 ```bash
-npm install -g @ampersend_ai/ampersend-sdk@0.0.13 --force
+npm install -g @ampersend_ai/ampersend-sdk@0.0.14 --force
 ```
 
 ## Security
@@ -135,6 +135,8 @@ Manage local configuration.
 ampersend config set <key:::account>                             # Set active config manually
 ampersend config set --api-url https://api.staging.ampersend.ai  # Set staging API URL
 ampersend config set --clear-api-url                             # Revert to production API
+ampersend config set --network base-sepolia                      # Set network (base, base-sepolia)
+ampersend config set --clear-network                             # Revert to default network (base)
 ampersend config set <key:::account> --api-url <url>             # Set both at once
 ampersend config status                                          # Show current status
 ```
