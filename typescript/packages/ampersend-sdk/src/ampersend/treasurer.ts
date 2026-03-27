@@ -114,7 +114,7 @@ export class AmpersendTreasurer implements X402Treasurer {
       // Cast needed: x402 PaymentRequirements (zod) → ampersend PaymentRequirements (Effect Schema)
       // Structurally compatible at runtime, different type systems
       const response = await this.apiClient.authorizePayment(
-        requirements as unknown as readonly [AmpersendPaymentRequirements, ...AmpersendPaymentRequirements[]],
+        requirements as unknown as readonly [AmpersendPaymentRequirements, ...Array<AmpersendPaymentRequirements>],
         context,
       )
 

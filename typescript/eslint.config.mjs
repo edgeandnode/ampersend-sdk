@@ -59,7 +59,7 @@ export default defineConfig([
       "sort-destructure-keys/sort-destructure-keys": "error",
       "deprecation/deprecation": "off",
       "@typescript-eslint/array-type": [
-        "warn",
+        "error",
         {
           default: "generic",
           readonly: "generic",
@@ -69,7 +69,7 @@ export default defineConfig([
       "@typescript-eslint/ban-types": "off",
       "@typescript-eslint/camelcase": "off",
       "@typescript-eslint/explicit-module-boundary-types": "off",
-      "@typescript-eslint/consistent-type-imports": "warn",
+      "@typescript-eslint/consistent-type-imports": "error",
       "@typescript-eslint/explicit-function-return-type": "off",
       "@typescript-eslint/interface-name-prefix": "off",
       "@typescript-eslint/member-delimiter-style": 0,
