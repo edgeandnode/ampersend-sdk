@@ -8,7 +8,6 @@ dependencies = [
 
 [tool.uv.sources]
 ampersend-sdk = { workspace = true }
-x402-a2a = { git = "https://github.com/google-agentic-commerce/a2a-x402", subdirectory = "python/x402_a2a", rev = "a50b512a61880c180bc82c1332aee271f46942b6" }
 
 [tool.uv.workspace]
 members = ["python/*"]
