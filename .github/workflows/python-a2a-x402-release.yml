@@ -1,0 +1,47 @@
+name: Publish ampersend-a2a-x402 to PyPI
+
+on:
+  workflow_dispatch:
+    inputs:
+      commit:
+        description: "Commit hash from google-agentic-commerce/a2a-x402 to publish"
+        required: true
+        default: "6db2a0181dc290c0a0b009154586e1c1084ea827"
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  publish:
+    name: Build and publish to PyPI
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/p/ampersend-a2a-x402
+
+    steps:
+      - name: Clone a2a-x402
+        run: |
+          git clone https://github.com/google-agentic-commerce/a2a-x402.git a2a-x402
+          cd a2a-x402
+          git checkout ${{ github.event.inputs.commit }}
+
+      - name: Rename package
+        working-directory: a2a-x402/python/x402_a2a
+        run: sed -i 's/name = "x402-a2a"/name = "ampersend-a2a-x402"/' pyproject.toml
+
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v6
+
+      - name: Install Python 3.13
+        run: uv python install 3.13
+
+      - name: Build package
+        working-directory: a2a-x402/python/x402_a2a
+        run: uv build
+
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: a2a-x402/python/x402_a2a/dist/
