@@ -7,6 +7,10 @@ on:
         description: "Commit hash from google-agentic-commerce/a2a-x402 to publish"
         required: true
         default: "6db2a0181dc290c0a0b009154586e1c1084ea827"
+      version:
+        description: "Version to publish (e.g. 1.0.1)"
+        required: true
+        default: "1.0.0"
 
 permissions:
   contents: read
@@ -27,9 +31,11 @@ jobs:
           cd a2a-x402
           git checkout ${{ github.event.inputs.commit }}
 
-      - name: Rename package
+      - name: Rename package and set version
         working-directory: a2a-x402/python/x402_a2a
-        run: sed -i 's/name = "x402-a2a"/name = "ampersend-a2a-x402"/' pyproject.toml
+        run: |
+          sed -i 's/name = "x402-a2a"/name = "ampersend-a2a-x402"/' pyproject.toml
+          sed -i 's/version = ".*"/version = "${{ github.event.inputs.version }}"/' pyproject.toml
 
       - name: Setup uv
         uses: astral-sh/setup-uv@v6
