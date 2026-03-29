@@ -6,7 +6,7 @@ readme = "README.md"
 dependencies = [
     "a2a-sdk",
     "google-adk>=1.14.0,<=1.14.1",
-    "x402-a2a",
+    "ampersend-a2a-x402>=1.0.1",
     "x402>=0.1.4",
     "httpx>=0.27.0",
     "siwe>=4.0.0",

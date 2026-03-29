@@ -117,11 +117,30 @@ wheels = [
 ]
 
 [[package]]
+name = "ampersend-a2a-x402"
+version = "1.0.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "a2a-sdk" },
+    { name = "eth-account" },
+    { name = "httpx" },
+    { name = "pydantic" },
+    { name = "pytest" },
+    { name = "pytest-asyncio" },
+    { name = "x402" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/7e/f8/21ef2dcc5f06c09db3fa77365293e9630842ffcb410695a3f219ecd5ca33/ampersend_a2a_x402-1.0.1.tar.gz", hash = "sha256:739ba4ee6cf8d485c2763caaa10408bc6a6ce3521f66996ab47722c242324ffb", size = 167981, upload-time = "2026-03-28T23:10:16.827Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/07/f1/05022effbcdafe8ded93144862ee839f51759e64398a5c8be64584714ec7/ampersend_a2a_x402-1.0.1-py3-none-any.whl", hash = "sha256:e9e8e5d50dc442e26e79e66124d611efc26da85147de9a09502bfe381d83c9c8", size = 46076, upload-time = "2026-03-28T23:10:15.047Z" },
+]
+
+[[package]]
 name = "ampersend-sdk"
 version = "0.0.14"
 source = { editable = "python/ampersend-sdk" }
 dependencies = [
     { name = "a2a-sdk" },
+    { name = "ampersend-a2a-x402" },
     { name = "eth-account" },
     { name = "eth-utils" },
     { name = "google-adk" },
@@ -129,7 +148,6 @@ dependencies = [
     { name = "pydantic" },
     { name = "siwe" },
     { name = "x402" },
-    { name = "x402-a2a" },
 ]
 
 [package.dev-dependencies]
@@ -143,6 +161,7 @@ test = [
 [package.metadata]
 requires-dist = [
     { name = "a2a-sdk" },
+    { name = "ampersend-a2a-x402", specifier = ">=1.0.1" },
     { name = "eth-account", specifier = ">=0.11.0" },
     { name = "eth-utils", specifier = ">=2.0.0" },
     { name = "google-adk", specifier = ">=1.14.0,<=1.14.1" },
@@ -150,7 +169,6 @@ requires-dist = [
     { name = "pydantic", specifier = ">=2.0.0" },
     { name = "siwe", specifier = ">=4.0.0" },
     { name = "x402", specifier = ">=0.1.4" },
-    { name = "x402-a2a", git = "https://github.com/google-agentic-commerce/a2a-x402?subdirectory=python%2Fx402_a2a&rev=a50b512a61880c180bc82c1332aee271f46942b6" },
 ]
 
 [package.metadata.requires-dev]
@@ -3212,20 +3230,6 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/c9/73/7fa0d024dcde7d0af1bc0f627b2d4fc58ba2badaf6d66bba3174e839999e/x402-0.2.1.tar.gz", hash = "sha256:c8358692c8099057f944c1dccaa75b1bcb56dbeb335168a769e09f58d2b6156c", size = 1966814, upload-time = "2025-08-19T17:24:43.954Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/0d/c1/f56f7a5a774dbe07c258a60231e57659464166f452516ba36ab0d6d9b117/x402-0.2.1-py3-none-any.whl", hash = "sha256:3ed24972642701e47c91b27fabc2a0bfd83244e2b8a156706736b757c72262c0", size = 1839708, upload-time = "2025-08-19T17:24:42.699Z" },
-]
-
-[[package]]
-name = "x402-a2a"
-version = "1.0.0"
-source = { git = "https://github.com/google-agentic-commerce/a2a-x402?subdirectory=python%2Fx402_a2a&rev=a50b512a61880c180bc82c1332aee271f46942b6#a50b512a61880c180bc82c1332aee271f46942b6" }
-dependencies = [
-    { name = "a2a-sdk" },
-    { name = "eth-account" },
-    { name = "httpx" },
-    { name = "pydantic" },
-    { name = "pytest" },
-    { name = "pytest-asyncio" },
-    { name = "x402" },
 ]
 
 [[package]]
