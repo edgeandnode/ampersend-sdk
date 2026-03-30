@@ -1,6 +1,12 @@
 import { Schema } from "effect"
 
-import { ApiError, ApprovalResponse, ApprovalStatus, type CreateAgentApprovalRequest } from "./types.js"
+import {
+  ApiError,
+  ApprovalResponse,
+  ApprovalStatus,
+  type ConnectAgentKeyApprovalRequest,
+  type CreateAgentApprovalRequest,
+} from "./types.js"
 
 const DEFAULT_API_URL = "https://api.ampersend.ai"
 
@@ -61,6 +67,20 @@ export class ApprovalClient {
       payload.spend_config = request.spend_config
     }
     return this.fetch("POST", "/api/v1/approve-action/agent", payload, ApprovalResponse)
+  }
+
+  /**
+   * Request approval to connect a key to an existing agent account.
+   *
+   * Returns URLs for the user to approve the action and to poll for status.
+   */
+  async requestConnectAgentKey(request: typeof ConnectAgentKeyApprovalRequest.Encoded): Promise<ApprovalResponse> {
+    const payload: Record<string, unknown> = {
+      agent_address: request.agent_address,
+      session_key_address: request.agent_key_address,
+      key_name: request.key_name,
+    }
+    return this.fetch("POST", "/api/v1/approve-action/connect-agent-key", payload, ApprovalResponse)
   }
 
   /**

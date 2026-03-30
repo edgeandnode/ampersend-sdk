@@ -1,4 +1,5 @@
 import type { Command } from "commander"
+import { isAddress } from "viem"
 import { generatePrivateKey, privateKeyToAddress } from "viem/accounts"
 
 import { ApprovalClient } from "../../ampersend/approval.ts"
@@ -17,6 +18,7 @@ import { err, ok, type JsonEnvelope } from "../envelope.ts"
 
 export interface SetupStartOptions {
   name?: string
+  agent?: string
   force: boolean
   dailyLimit?: string
   monthlyLimit?: string
@@ -49,22 +51,6 @@ export async function executeSetupStart(options: SetupStartOptions): Promise<voi
   // Resolve API URL: env > config > default
   const apiUrl = process.env.AMPERSEND_API_URL ?? existing?.apiUrl ?? DEFAULT_API_URL
 
-  // Build spend_config if any limit flags were provided
-  const hasSpendConfig =
-    options.dailyLimit != null ||
-    options.monthlyLimit != null ||
-    options.perTransactionLimit != null ||
-    options.autoTopup
-
-  const spendConfig = hasSpendConfig
-    ? {
-        auto_topup_allowed: options.autoTopup,
-        daily_limit: options.dailyLimit ?? null,
-        monthly_limit: options.monthlyLimit ?? null,
-        per_transaction_limit: options.perTransactionLimit ?? null,
-      }
-    : undefined
-
   // Call the approval API
   const client = new ApprovalClient({ apiUrl })
 
@@ -75,11 +61,43 @@ export async function executeSetupStart(options: SetupStartOptions): Promise<voi
   }>
 
   try {
-    const response = await client.requestAgentCreation({
-      name: options.name ?? null,
-      agent_key_address: agentKeyAddress,
-      spend_config: spendConfig,
-    })
+    let response
+
+    if (options.agent) {
+      // Connect key to existing agent account
+      if (!isAddress(options.agent)) {
+        console.log(JSON.stringify(err("INVALID_ADDRESS", `Invalid agent address: ${options.agent}`), null, 2))
+        process.exit(1)
+      }
+
+      response = await client.requestConnectAgentKey({
+        agent_address: options.agent as `0x${string}`,
+        agent_key_address: agentKeyAddress,
+        key_name: options.name ?? null,
+      })
+    } else {
+      // Create new agent account (existing flow)
+      const hasSpendConfig =
+        options.dailyLimit != null ||
+        options.monthlyLimit != null ||
+        options.perTransactionLimit != null ||
+        options.autoTopup
+
+      const spendConfig = hasSpendConfig
+        ? {
+            auto_topup_allowed: options.autoTopup,
+            daily_limit: options.dailyLimit ?? null,
+            monthly_limit: options.monthlyLimit ?? null,
+            per_transaction_limit: options.perTransactionLimit ?? null,
+          }
+        : undefined
+
+      response = await client.requestAgentCreation({
+        name: options.name ?? null,
+        agent_key_address: agentKeyAddress,
+        spend_config: spendConfig,
+      })
+    }
 
     // Store pending approval in config
     storePendingApproval({
@@ -212,8 +230,9 @@ export function registerSetupCommand(program: Command): void {
 
   setup
     .command("start")
-    .description("Step 1: Generate a key and request agent creation approval")
-    .option("--name <name>", "Name for the agent")
+    .description("Step 1: Generate a key and request approval (create new agent or connect to existing)")
+    .option("--name <name>", "Name for the agent (or key name when using --agent)")
+    .option("--agent <address>", "Connect key to an existing agent account instead of creating a new one")
     .option("--force", "Overwrite an existing pending approval", false)
     .option("--daily-limit <amount>", "Daily spending limit in atomic units, e.g. 1000000 = 1 USDC")
     .option("--monthly-limit <amount>", "Monthly spending limit in atomic units")
