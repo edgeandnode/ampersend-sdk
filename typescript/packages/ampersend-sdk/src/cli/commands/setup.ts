@@ -19,6 +19,7 @@ import { err, ok, type JsonEnvelope } from "../envelope.ts"
 export interface SetupStartOptions {
   name?: string
   agent?: string
+  keyName?: string
   force: boolean
   dailyLimit?: string
   monthlyLimit?: string
@@ -73,7 +74,7 @@ export async function executeSetupStart(options: SetupStartOptions): Promise<voi
       response = await client.requestConnectAgentKey({
         agent_address: options.agent as `0x${string}`,
         agent_key_address: agentKeyAddress,
-        key_name: options.name ?? null,
+        key_name: options.keyName ?? null,
       })
     } else {
       // Create new agent account (existing flow)
@@ -231,8 +232,9 @@ export function registerSetupCommand(program: Command): void {
   setup
     .command("start")
     .description("Step 1: Generate a key and request approval (create new agent or connect to existing)")
-    .option("--name <name>", "Name for the agent (or key name when using --agent)")
+    .option("--name <name>", "Name for the agent")
     .option("--agent <address>", "Connect key to an existing agent account instead of creating a new one")
+    .option("--key-name <name>", "Name for the key (used with --agent)")
     .option("--force", "Overwrite an existing pending approval", false)
     .option("--daily-limit <amount>", "Daily spending limit in atomic units, e.g. 1000000 = 1 USDC")
     .option("--monthly-limit <amount>", "Monthly spending limit in atomic units")
