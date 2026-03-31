@@ -117,21 +117,21 @@ ampersend setup start --agent <address> [--key-name <name>] [--force]
 
 **Options for creating a new agent account:**
 
-| Option                          | Description                                                                   |
-| ------------------------------- | ----------------------------------------------------------------------------- |
-| `--name <name>`                 | Name for the agent account                                                    |
-| `--key-name <name>`             | Name for the key (defaults to "&lt;agent name&gt; Key 1" if omitted)          |
-| `--daily-limit <amount>`        | Daily spending limit in atomic units (1000000 = 1 USDC)                       |
-| `--monthly-limit <amount>`      | Monthly spending limit in atomic units                                        |
-| `--per-transaction-limit <amt>` | Per-transaction spending limit in atomic units                                |
-| `--auto-topup`                  | Allow automatic balance top-up from main account                              |
+| Option                          | Description                                                          |
+| ------------------------------- | -------------------------------------------------------------------- |
+| `--name <name>`                 | Name for the agent account                                           |
+| `--key-name <name>`             | Name for the key (defaults to "&lt;agent name&gt; Key 1" if omitted) |
+| `--daily-limit <amount>`        | Daily spending limit in atomic units (1000000 = 1 USDC)              |
+| `--monthly-limit <amount>`      | Monthly spending limit in atomic units                               |
+| `--per-transaction-limit <amt>` | Per-transaction spending limit in atomic units                       |
+| `--auto-topup`                  | Allow automatic balance top-up from main account                     |
 
 **Options for connecting to an existing agent account:**
 
-| Option               | Description                                                                   |
-| -------------------- | ----------------------------------------------------------------------------- |
-| `--agent <address>`  | Address of existing agent account to connect key to                           |
-| `--key-name <name>`  | Name for the key (defaults to "&lt;agent name&gt; Key &lt;N&gt;" if omitted)  |
+| Option              | Description                                                                  |
+| ------------------- | ---------------------------------------------------------------------------- |
+| `--agent <address>` | Address of existing agent account to connect key to                          |
+| `--key-name <name>` | Name for the key (defaults to "&lt;agent name&gt; Key &lt;N&gt;" if omitted) |
 
 **Common options:**
 
