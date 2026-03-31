@@ -372,6 +372,11 @@ export class CreateAgentApprovalRequest extends Schema.Class<CreateAgentApproval
       description: "The agent key address (session key) for the agent",
     }),
   ),
+  key_name: Schema.optional(
+    Schema.NullOr(Schema.String).annotations({
+      description: "Optional name for the key",
+    }),
+  ),
   spend_config: Schema.optional(Schema.NullOr(SpendConfigInput)),
 }) {}
 

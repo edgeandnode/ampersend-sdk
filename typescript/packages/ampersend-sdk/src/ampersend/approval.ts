@@ -63,6 +63,9 @@ export class ApprovalClient {
       name: request.name,
       session_key_address: request.agent_key_address,
     }
+    if (request.key_name !== undefined) {
+      payload.key_name = request.key_name
+    }
     if (request.spend_config !== undefined) {
       payload.spend_config = request.spend_config
     }

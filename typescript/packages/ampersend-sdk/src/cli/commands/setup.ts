@@ -96,6 +96,7 @@ export async function executeSetupStart(options: SetupStartOptions): Promise<voi
       response = await client.requestAgentCreation({
         name: options.name ?? null,
         agent_key_address: agentKeyAddress,
+        key_name: options.keyName ?? undefined,
         spend_config: spendConfig,
       })
     }
@@ -234,7 +235,7 @@ export function registerSetupCommand(program: Command): void {
     .description("Step 1: Generate a key and request approval (create new agent or connect to existing)")
     .option("--name <name>", "Name for the agent")
     .option("--agent <address>", "Connect key to an existing agent account instead of creating a new one")
-    .option("--key-name <name>", "Name for the key (used with --agent)")
+    .option("--key-name <name>", "Name for the agent key")
     .option("--force", "Overwrite an existing pending approval", false)
     .option("--daily-limit <amount>", "Daily spending limit in atomic units, e.g. 1000000 = 1 USDC")
     .option("--monthly-limit <amount>", "Monthly spending limit in atomic units")
