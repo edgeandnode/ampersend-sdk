@@ -52,9 +52,10 @@ this agent to it. The user approves the creation and configures spending limits 
 ```bash
 # Step 1: Request agent creation -- returns immediately with approval URL
 ampersend setup start --name "my-agent"
-# {"ok": true, "data": {"token": "...", "user_approve_url": "https://...", "agentKeyAddress": "0x..."}}
+# {"ok": true, "data": {"token": "...", "user_approve_url": "https://...", "agentKeyAddress": "0x...", "verificationCode": "123456"}}
 
-# Show the user_approve_url to the user so they can approve in their browser.
+# IMPORTANT: Show the user BOTH the user_approve_url AND the verificationCode.
+# The user will see the same code in the dashboard and should confirm they match before approving.
 
 # Step 2: Poll for approval and activate config
 ampersend setup finish
@@ -79,9 +80,10 @@ them in the dashboard.
 ```bash
 # Step 1: Request key connection -- returns immediately with approval URL
 ampersend setup start --agent 0xAgentAddress --key-name "my-key"
-# {"ok": true, "data": {"token": "...", "user_approve_url": "https://...", "agentKeyAddress": "0x..."}}
+# {"ok": true, "data": {"token": "...", "user_approve_url": "https://...", "agentKeyAddress": "0x...", "verificationCode": "123456"}}
 
-# Show the user_approve_url to the user so they can approve in their browser.
+# IMPORTANT: Show the user BOTH the user_approve_url AND the verificationCode.
+# The user will see the same code in the dashboard and should confirm they match before approving.
 
 # Step 2: Poll for approval and activate config (same as above)
 ampersend setup finish

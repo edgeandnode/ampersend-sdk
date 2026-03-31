@@ -1,5 +1,5 @@
 import type { Command } from "commander"
-import { isAddress } from "viem"
+import { isAddress, keccak256 } from "viem"
 import { generatePrivateKey, privateKeyToAddress } from "viem/accounts"
 
 import { ApprovalClient } from "../../ampersend/approval.ts"
@@ -55,10 +55,16 @@ export async function executeSetupStart(options: SetupStartOptions): Promise<voi
   // Call the approval API
   const client = new ApprovalClient({ apiUrl })
 
+  // Derive a 6-digit verification code from the key address.
+  // The user sees this code in the dashboard and can confirm it matches
+  // the one shown by the agent, preventing MITM key substitution.
+  const verificationCode = String(BigInt(keccak256(agentKeyAddress as `0x${string}`)) % 1000000n).padStart(6, "0")
+
   let result: JsonEnvelope<{
     token: string
     user_approve_url: string
     agentKeyAddress: string
+    verificationCode: string
   }>
 
   try {
@@ -112,6 +118,7 @@ export async function executeSetupStart(options: SetupStartOptions): Promise<voi
       token: response.token,
       user_approve_url: response.user_approve_url,
       agentKeyAddress,
+      verificationCode,
     })
   } catch (error) {
     result = err("API_ERROR", error instanceof Error ? error.message : String(error))
