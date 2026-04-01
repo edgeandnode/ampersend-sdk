@@ -1,13 +1,13 @@
 [project]
 name = "ampersend-sdk"
-version = "0.0.15"
+version = "0.0.16"
 description = "Python SDK for ampersend"
 readme = "README.md"
 dependencies = [
     "a2a-sdk",
     "google-adk>=1.14.0,<=1.14.1",
     "ampersend-a2a-x402>=1.0.1",
-    "x402>=0.1.4",
+    "x402>=0.1.4,<1",
     "httpx>=0.27.0",
     "siwe>=4.0.0",
     "eth-account>=0.11.0",
