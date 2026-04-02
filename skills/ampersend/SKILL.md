@@ -9,24 +9,20 @@ metadata: { "openclaw": { "requires": { "bins": ["ampersend"] } } }
 Ampersend enables autonomous agent payments. Agents can make payments within user-defined spending limits without
 requiring human approval for each transaction. Payments use stablecoins via the x402 protocol.
 
-An agent account is a smart wallet that holds funds the agent can use to pay for services. The user controls the wallet
-through the Ampersend dashboard at ampersend.ai, which provides guardrails such as daily and monthly spending limits,
-per-transaction caps, and seller allowlists that define what the agent is allowed to do with the wallet.
-
-This skill requires `ampersend` v0.0.16. Run `ampersend --version` to check your installed version.
+This skill requires `ampersend` v0.0.15. Run `ampersend --version` to check your installed version.
 
 ## Installation
 
 Install the CLI globally via npm:
 
 ```bash
-npm install -g @ampersend_ai/ampersend-sdk@0.0.16
+npm install -g @ampersend_ai/ampersend-sdk@0.0.15
 ```
 
 To update from a previously installed version:
 
 ```bash
-npm install -g @ampersend_ai/ampersend-sdk@0.0.16 --force
+npm install -g @ampersend_ai/ampersend-sdk@0.0.15 --force
 ```
 
 ## Security
@@ -42,20 +38,12 @@ If not configured, commands return setup instructions. Two paths:
 
 Two-step flow: `setup start` generates a key and requests approval, `setup finish` polls and activates.
 
-There are two modes depending on whether the user needs a new agent account or already has one:
-
-**Create a new agent account (default):**
-
-This is the usual flow for users who are new to Ampersend. It creates a new agent account (smart wallet) and connects
-this agent to it. The user approves the creation and configures spending limits in the Ampersend dashboard.
-
 ```bash
-# Step 1: Request agent creation -- returns immediately with approval URL
+# Step 1: Request agent creation — returns immediately with approval URL
 ampersend setup start --name "my-agent"
-# {"ok": true, "data": {"token": "...", "user_approve_url": "https://...", "agentKeyAddress": "0x...", "verificationCode": "123456"}}
+# {"ok": true, "data": {"token": "...", "user_approve_url": "https://...", "agentKeyAddress": "0x..."}}
 
-# IMPORTANT: Show the user BOTH the user_approve_url AND the verificationCode.
-# The user will see the same code in the dashboard and should confirm they match before approving.
+# Show the user_approve_url to the user so they can approve in their browser.
 
 # Step 2: Poll for approval and activate config
 ampersend setup finish
@@ -68,26 +56,18 @@ Optional spending limits can be set during setup:
 ampersend setup start --name "my-agent" --daily-limit "1000000" --auto-topup
 ```
 
-**Connect to an existing agent account:**
+### Connecting to an existing agent account
 
-Only use this when the user explicitly asks to connect to an agent account they already created in the Ampersend
-dashboard. This adds a key to the existing account without creating a new one.
-
-An agent account can have multiple keys. This is useful for key rotation, or for connecting multiple agent instances to
-the same account (in which case they share the same funds and spending limits). Keys have names so the user can identify
-them in the dashboard.
+To connect a new key to an existing agent account (user picks the agent in the dashboard):
 
 ```bash
-# Step 1: Request key connection -- returns immediately with approval URL
-ampersend setup start --agent 0xAgentAddress --key-name "my-key"
-# {"ok": true, "data": {"token": "...", "user_approve_url": "https://...", "agentKeyAddress": "0x...", "verificationCode": "123456"}}
+ampersend setup start --connect-to-existing --key-name "my-key"
+```
 
-# IMPORTANT: Show the user BOTH the user_approve_url AND the verificationCode.
-# The user will see the same code in the dashboard and should confirm they match before approving.
+To connect to a specific agent account by address:
 
-# Step 2: Poll for approval and activate config (same as above)
-ampersend setup finish
-# {"ok": true, "data": {"agentKeyAddress": "0x...", "agentAccount": "0x...", "status": "ready"}}
+```bash
+ampersend setup start --agent 0x1234...abcd --key-name "my-key"
 ```
 
 ### Manual
@@ -107,39 +87,23 @@ Set up an agent account via the approval flow.
 
 #### setup start
 
-Step 1: Generate a key and request approval (create new agent or connect to existing).
+Step 1: Generate a key and request agent creation approval.
 
 ```bash
-# Create a new agent account:
-ampersend setup start --name "my-agent" [--force] [--daily-limit <amount>] [--monthly-limit <amount>] [--per-transaction-limit <amount>] [--auto-topup]
-
-# Connect key to an existing agent account:
-ampersend setup start --agent <address> [--key-name <name>] [--force]
+ampersend setup start --name "my-agent" [--agent <address>] [--connect-to-existing] [--key-name <name>] [--force] [--daily-limit <amount>] [--monthly-limit <amount>] [--per-transaction-limit <amount>] [--auto-topup]
 ```
 
-**Options for creating a new agent account:**
-
-| Option                          | Description                                                          |
-| ------------------------------- | -------------------------------------------------------------------- |
-| `--name <name>`                 | Name for the agent account                                           |
-| `--key-name <name>`             | Name for the key (defaults to "&lt;agent name&gt; Key 1" if omitted) |
-| `--daily-limit <amount>`        | Daily spending limit in atomic units (1000000 = 1 USDC)              |
-| `--monthly-limit <amount>`      | Monthly spending limit in atomic units                               |
-| `--per-transaction-limit <amt>` | Per-transaction spending limit in atomic units                       |
-| `--auto-topup`                  | Allow automatic balance top-up from main account                     |
-
-**Options for connecting to an existing agent account:**
-
-| Option              | Description                                                                  |
-| ------------------- | ---------------------------------------------------------------------------- |
-| `--agent <address>` | Address of existing agent account to connect key to                          |
-| `--key-name <name>` | Name for the key (defaults to "&lt;agent name&gt; Key &lt;N&gt;" if omitted) |
-
-**Common options:**
-
-| Option    | Description                            |
-| --------- | -------------------------------------- |
-| `--force` | Overwrite an existing pending approval |
+| Option                          | Description                                                    |
+| ------------------------------- | -------------------------------------------------------------- |
+| `--name <name>`                 | Name for the agent                                             |
+| `--agent <address>`             | Address of existing agent account to connect to                |
+| `--connect-to-existing`         | Connect to an existing agent account (user picks in dashboard) |
+| `--key-name <name>`             | Name for the agent key                                         |
+| `--force`                       | Overwrite an existing pending approval                         |
+| `--daily-limit <amount>`        | Daily spending limit in atomic units (1000000 = 1 USDC)        |
+| `--monthly-limit <amount>`      | Monthly spending limit in atomic units                         |
+| `--per-transaction-limit <amt>` | Per-transaction spending limit in atomic units                 |
+| `--auto-topup`                  | Allow automatic balance top-up from main account               |
 
 Returns `token`, `user_approve_url`, and `agentKeyAddress`. Show the `user_approve_url` to the user.
 
