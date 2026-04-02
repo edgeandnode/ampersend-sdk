@@ -378,39 +378,14 @@ export class CreateAgentApprovalRequest extends Schema.Class<CreateAgentApproval
     }),
   ),
   spend_config: Schema.optional(Schema.NullOr(SpendConfigInput)),
-  agent_address: Schema.optional(Address).pipe(
-    Schema.annotations({
+  agent_address: Schema.optional(
+    Address.annotations({
       description: "Address of existing agent to connect to",
     }),
   ),
-  connect_to_existing: Schema.optional(Schema.Boolean).pipe(
-    Schema.annotations({
+  connect_to_existing: Schema.optional(
+    Schema.Boolean.annotations({
       description: "Start in connect-to-existing mode",
-    }),
-  ),
-  key_name: Schema.optional(Schema.String).pipe(
-    Schema.annotations({
-      description: "Name for the agent key",
-    }),
-  ),
-}) {}
-
-export class ConnectAgentKeyApprovalRequest extends Schema.Class<ConnectAgentKeyApprovalRequest>(
-  "ConnectAgentKeyApprovalRequest",
-)({
-  agent_address: Address.pipe(
-    Schema.annotations({
-      description: "The address of the existing agent account to connect the key to",
-    }),
-  ),
-  agent_key_address: Address.pipe(
-    Schema.annotations({
-      description: "The agent key address (session key) to add as a cosigned key",
-    }),
-  ),
-  key_name: Schema.NullOr(Schema.String).pipe(
-    Schema.annotations({
-      description: "Optional name for the key",
     }),
   ),
 }) {}
