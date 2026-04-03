@@ -525,6 +525,35 @@ describe("wrapWithAmpersend", () => {
       expect(result.payload).toEqual(payment.payload)
     })
 
+    it("handles v2 requirements that include maxAmountRequired for backward compatibility", async () => {
+      // Some servers include both 'amount' (v2) and 'maxAmountRequired' (v1) for backward compat
+      const hybridRequirements = {
+        ...createMockV2Requirements(),
+        maxAmountRequired: "1000000",
+      }
+      const payment = createMockPaymentPayload()
+      const authorization = createMockAuthorization(payment)
+
+      mockTreasurer.onPaymentRequired.mockResolvedValue(authorization)
+
+      wrapWithAmpersend(mockClient, mockTreasurer, ["base-sepolia"])
+
+      const context: PaymentCreationContext = {
+        paymentRequired: createMockV2PaymentRequired(),
+        selectedRequirements: hybridRequirements,
+      } as any
+
+      // Store authorization via hook
+      await mockClient._beforeHooks[0](context)
+
+      // Retrieve via v2 scheme client — this would fail before the fix
+      const schemeClient = mockClient._registeredSchemesV2.get("eip155:84532")
+      const result = await schemeClient.createPaymentPayload(2, hybridRequirements)
+
+      expect(result.x402Version).toBe(2)
+      expect(result.payload).toEqual(payment.payload)
+    })
+
     it("extracts resource URL from v2 format for status callbacks", async () => {
       const v2Requirements = createMockV2Requirements()
       const payment = createMockPaymentPayload()

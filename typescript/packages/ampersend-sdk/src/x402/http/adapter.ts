@@ -89,18 +89,6 @@ class TreasurerSchemeClientV2 {
 }
 
 /**
- * Detect if requirements are v2 format (has 'amount' field instead of 'maxAmountRequired').
- */
-function isV2Requirements(requirements: unknown): requirements is V2PaymentRequirements {
-  return (
-    typeof requirements === "object" &&
-    requirements !== null &&
-    "amount" in requirements &&
-    !("maxAmountRequired" in requirements)
-  )
-}
-
-/**
  * Wraps an x402Client to use an ampersend-sdk treasurer for payment decisions.
  *
  * This adapter integrates ampersend-sdk treasurers with Coinbase's x402 SDK,
@@ -161,11 +149,15 @@ export function wrapWithAmpersend(client: x402Client, treasurer: X402Treasurer, 
     const originalRequirements = context.selectedRequirements
     const paymentRequired = context.paymentRequired as V2PaymentRequired
 
+    if (paymentRequired.x402Version !== 1 && paymentRequired.x402Version !== 2) {
+      throw new Error(`Unsupported x402 version: ${paymentRequired.x402Version}`)
+    }
+
     // Convert v2 requirements to v1 for treasurer (which speaks v1 internally)
     let v1Requirements: PaymentRequirements
     let storeEntry: StoreEntry
 
-    if (isV2Requirements(originalRequirements)) {
+    if (paymentRequired.x402Version === 2) {
       // v2 path: convert to v1 for treasurer
       v1Requirements = v2RequirementsToV1(originalRequirements, paymentRequired.resource)
 
