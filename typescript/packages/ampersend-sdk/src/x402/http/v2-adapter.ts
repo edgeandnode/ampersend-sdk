@@ -79,6 +79,38 @@ export interface V2PaymentContext {
 }
 
 // ============================================================================
+// Resource Resolution
+// ============================================================================
+
+/**
+ * Resolve resource info from a v2 PaymentRequired response, falling back to
+ * the requirements-level `resource` string when the top-level field is missing.
+ *
+ * Some servers omit the top-level `resource` object and only include a
+ * `resource` URL string inside each `accepts` entry.
+ */
+export function resolveResourceInfo(
+  paymentRequired: V2PaymentRequired,
+  selectedRequirements?: V2PaymentRequirements,
+): V2PaymentRequired["resource"] {
+  if (paymentRequired.resource) {
+    return paymentRequired.resource
+  }
+
+  // Fallback: synthesize from requirements-level resource string
+  const resourceUrl =
+    (selectedRequirements as Record<string, unknown> | undefined)?.resource ??
+    (paymentRequired.accepts?.[0] as Record<string, unknown> | undefined)?.resource ??
+    "unknown"
+
+  return {
+    url: String(resourceUrl),
+    description: String(resourceUrl),
+    mimeType: "",
+  }
+}
+
+// ============================================================================
 // Inbound: v2 → v1 Conversion
 // ============================================================================
 

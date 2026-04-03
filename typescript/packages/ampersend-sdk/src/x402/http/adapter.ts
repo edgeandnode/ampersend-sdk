@@ -12,7 +12,13 @@ import type {
 import type { PaymentRequirements } from "x402/types"
 
 import type { Authorization, X402Treasurer } from "../treasurer.ts"
-import { v1NetworkToCaip2, v1PayloadToV2, v2RequirementsToV1, type V2PaymentContext } from "./v2-adapter.ts"
+import {
+  resolveResourceInfo,
+  v1NetworkToCaip2,
+  v1PayloadToV2,
+  v2RequirementsToV1,
+  type V2PaymentContext,
+} from "./v2-adapter.ts"
 
 /** Store entry for v1 payments */
 interface V1StoreEntry {
@@ -155,12 +161,13 @@ export function wrapWithAmpersend(client: x402Client, treasurer: X402Treasurer, 
 
     if (paymentRequired.x402Version >= 2) {
       // v2 path: convert to v1 for treasurer
-      v1Requirements = v2RequirementsToV1(originalRequirements, paymentRequired.resource)
+      const resource = resolveResourceInfo(paymentRequired, originalRequirements)
+      v1Requirements = v2RequirementsToV1(originalRequirements, resource)
 
       const authorization = await treasurer.onPaymentRequired([v1Requirements], {
         method: "http",
         params: {
-          resource: paymentRequired.resource.url,
+          resource: resource.url,
         },
       })
 
@@ -173,7 +180,7 @@ export function wrapWithAmpersend(client: x402Client, treasurer: X402Treasurer, 
         version: 2,
         authorization,
         context: {
-          resource: paymentRequired.resource,
+          resource,
           originalRequirements,
         },
       }
@@ -215,7 +222,9 @@ export function wrapWithAmpersend(client: x402Client, treasurer: X402Treasurer, 
     if (authorization) {
       // Extract resource URL (v2 has resource.url, v1 has resource as string)
       const resourceUrl =
-        typeof paymentRequired.resource === "object" ? paymentRequired.resource.url : paymentRequired.resource
+        typeof paymentRequired.resource === "object"
+          ? paymentRequired.resource.url
+          : (paymentRequired.resource ?? "unknown")
       await treasurer.onStatus("sending", authorization, {
         method: "http",
         params: {
@@ -232,7 +241,9 @@ export function wrapWithAmpersend(client: x402Client, treasurer: X402Treasurer, 
     if (authorization) {
       // Extract resource URL (v2 has resource.url, v1 has resource as string)
       const resourceUrl =
-        typeof paymentRequired.resource === "object" ? paymentRequired.resource.url : paymentRequired.resource
+        typeof paymentRequired.resource === "object"
+          ? paymentRequired.resource.url
+          : (paymentRequired.resource ?? "unknown")
       await treasurer.onStatus("error", authorization, {
         method: "http",
         params: {
