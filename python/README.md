@@ -16,11 +16,11 @@ uv sync --frozen --group dev
 
 ## Getting Started
 
-Create your first x402-enabled agent in minutes using Ampersend's staging environment (free testnet).
+Create your first x402-enabled agent in minutes using Ampersend's sandbox environment (free testnet).
 
 ### 1. Create Agent Account
 
-1. Visit https://app.staging.ampersend.ai
+1. Visit https://app.sandbox.ampersend.ai
 2. Create an agent account
 3. Get your Smart Account address and session key
 4. Fund with testnet USDC: https://faucet.circle.com/ (select Base Sepolia)
@@ -44,14 +44,14 @@ from ampersend_sdk.a2a.client import X402RemoteA2aAgent
 treasurer = create_ampersend_treasurer(
     smart_account_address=os.environ["SMART_ACCOUNT_ADDRESS"],  # From dashboard
     session_key_private_key=os.environ["SESSION_KEY_PRIVATE_KEY"],  # From dashboard
-    api_url="https://api.staging.ampersend.ai",
+    api_url="https://api.sandbox.ampersend.ai",
 )
 
-# Create agent pointing to staging service (testnet, rate-limited)
+# Create agent pointing to sandbox service (testnet, rate-limited)
 root_agent = X402RemoteA2aAgent(
     treasurer=treasurer,
     name="my_agent",
-    agent_card="https://subgraph-a2a.x402.staging.thegraph.com/.well-known/agent-card.json",
+    agent_card="https://subgraph-a2a.x402.sandbox.thegraph.com/.well-known/agent-card.json",
 )
 ```
 
