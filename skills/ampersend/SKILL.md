@@ -133,7 +133,7 @@ Manage local configuration.
 
 ```bash
 ampersend config set <key:::account>                             # Set active config manually
-ampersend config set --api-url https://api.staging.ampersend.ai  # Set staging API URL
+ampersend config set --api-url https://api.sandbox.ampersend.ai  # Set sandbox API URL
 ampersend config set --clear-api-url                             # Revert to production API
 ampersend config set --network base-sepolia                      # Set network (base, base-sepolia)
 ampersend config set --clear-network                             # Revert to default network (base)
