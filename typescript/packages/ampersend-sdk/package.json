@@ -1,7 +1,7 @@
 {
   "name": "@ampersend_ai/ampersend-sdk",
   "description": "Tooling for building applications with x402 payment capabilities. Supports buyer and seller roles.",
-  "version": "0.0.16",
+  "version": "0.0.17",
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
@@ -68,7 +68,7 @@
     "@x402/fetch": "^2.5.0",
     "async-mutex": "^0.5.0",
     "commander": "^12.1.0",
-    "effect": "^3.19.19",
+    "effect": "^3.21.0",
     "express": "^5.2.1",
     "fastmcp": "npm:@ampersend_ai/fastmcp@^1.0.0",
     "siwe": "^3.0.0",
