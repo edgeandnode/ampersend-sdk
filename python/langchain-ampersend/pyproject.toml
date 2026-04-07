@@ -3,6 +3,7 @@ name = "langchain-ampersend"
 version = "0.0.16"
 description = "LangChain integration for Ampersend x402 payments"
 readme = "README.md"
+license = "Apache-2.0"
 requires-python = ">=3.13"
 dependencies = [
     "langchain-core>=0.3.0",
