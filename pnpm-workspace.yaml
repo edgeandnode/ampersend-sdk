@@ -1,2 +1,27 @@
 packages:
   - typescript/packages/*
+
+allowBuilds:
+  esbuild: true
+  unrs-resolver: true
+
+# Block packages published <10 days ago
+minimumReleaseAge: 14400
+
+# Verify package integrity in content-addressable store
+verifyStoreIntegrity: true
+
+# Fail on incompatible Node version
+engineStrict: true
+
+# Error if deps are out of sync before running scripts
+verifyDepsBeforeRun: error
+
+# Use frozen lockfile when possible
+preferFrozenLockfile: true
+
+# Include tarball URLs in lockfile for auditing
+lockfileIncludeTarballUrl: true
+
+# Fail on missing or invalid peer dependencies
+strictPeerDependencies: true
