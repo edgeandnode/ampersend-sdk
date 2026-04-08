@@ -378,14 +378,15 @@ export class CreateAgentApprovalRequest extends Schema.Class<CreateAgentApproval
     }),
   ),
   spend_config: Schema.optional(Schema.NullOr(SpendConfigInput)),
-  agent_address: Schema.optional(
-    Address.annotations({
-      description: "Address of existing agent to connect to",
+  mode: Schema.optional(
+    Schema.Literal("create", "connect", "connect_choose").annotations({
+      description:
+        "Setup mode: 'create' = new agent (default), 'connect' = connect key to agent_address, 'connect_choose' = user picks agent in dashboard",
     }),
   ),
-  connect_to_existing: Schema.optional(
-    Schema.Boolean.annotations({
-      description: "Start in connect-to-existing mode",
+  agent_address: Schema.optional(
+    Address.annotations({
+      description: "Address of existing agent to connect to (required when mode is 'connect')",
     }),
   ),
 }) {}

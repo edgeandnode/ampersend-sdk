@@ -28,6 +28,12 @@ export interface SetupStartOptions {
   autoTopup: boolean
 }
 
+function resolveSetupMode(options: SetupStartOptions): "create" | "connect" | "connect_choose" {
+  if (options.agent != null) return "connect"
+  if (options.connectToExisting) return "connect_choose"
+  return "create"
+}
+
 export async function executeSetupStart(options: SetupStartOptions): Promise<void> {
   const existing = readConfig()
 
@@ -85,11 +91,12 @@ export async function executeSetupStart(options: SetupStartOptions): Promise<voi
   }>
 
   try {
+    const mode = resolveSetupMode(options)
     const response = await client.requestAgentCreation({
       name: options.name ?? null,
       agent_key_address: agentKeyAddress,
+      mode,
       agent_address: options.agent ?? undefined,
-      connect_to_existing: options.connectToExisting || undefined,
       key_name: options.keyName ?? undefined,
       spend_config: spendConfig,
     })

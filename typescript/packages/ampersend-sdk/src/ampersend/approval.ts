@@ -57,11 +57,11 @@ export class ApprovalClient {
       name: request.name,
       session_key_address: request.agent_key_address,
     }
+    if (request.mode !== undefined) {
+      payload.mode = request.mode
+    }
     if (request.agent_address !== undefined) {
       payload.agent_address = request.agent_address
-    }
-    if (request.connect_to_existing !== undefined) {
-      payload.connect_to_existing = request.connect_to_existing
     }
     if (request.key_name !== undefined) {
       payload.key_name = request.key_name
