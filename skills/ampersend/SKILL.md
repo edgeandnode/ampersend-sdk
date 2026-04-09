@@ -93,17 +93,17 @@ Step 1: Generate a key and request agent creation approval.
 ampersend setup start [--mode <create|connect>] [--name <name>] [--agent <address>] [--key-name <name>] [--force] [--daily-limit <amount>] [--monthly-limit <amount>] [--per-transaction-limit <amount>] [--auto-topup]
 ```
 
-| Option                          | Description                                                                      |
-| ------------------------------- | -------------------------------------------------------------------------------- |
-| `--mode <mode>`                 | `create` (new agent, default) or `connect` (key to existing agent)               |
-| `--name <name>`                 | Name for the agent (create mode only)                                            |
+| Option                          | Description                                                                         |
+| ------------------------------- | ----------------------------------------------------------------------------------- |
+| `--mode <mode>`                 | `create` (new agent, default) or `connect` (key to existing agent)                  |
+| `--name <name>`                 | Name for the agent (create mode only)                                               |
 | `--agent <address>`             | Address of existing agent to connect to (connect mode; omit to choose in dashboard) |
-| `--key-name <name>`             | Name for the agent key                                                           |
-| `--force`                       | Overwrite an existing pending approval                                           |
-| `--daily-limit <amount>`        | Daily spending limit in atomic units, 1000000 = 1 USDC (create mode only)        |
-| `--monthly-limit <amount>`      | Monthly spending limit in atomic units (create mode only)                        |
-| `--per-transaction-limit <amt>` | Per-transaction spending limit in atomic units (create mode only)                 |
-| `--auto-topup`                  | Allow automatic balance top-up from main account (create mode only)               |
+| `--key-name <name>`             | Name for the agent key                                                              |
+| `--force`                       | Overwrite an existing pending approval                                              |
+| `--daily-limit <amount>`        | Daily spending limit in atomic units, 1000000 = 1 USDC (create mode only)           |
+| `--monthly-limit <amount>`      | Monthly spending limit in atomic units (create mode only)                           |
+| `--per-transaction-limit <amt>` | Per-transaction spending limit in atomic units (create mode only)                   |
+| `--auto-topup`                  | Allow automatic balance top-up from main account (create mode only)                 |
 
 Returns `token`, `user_approve_url`, and `agentKeyAddress`. Show the `user_approve_url` to the user.
 
