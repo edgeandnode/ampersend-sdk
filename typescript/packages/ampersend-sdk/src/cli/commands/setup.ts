@@ -131,7 +131,7 @@ export async function executeSetupStart(options: SetupStartOptions): Promise<voi
 
   try {
     const mode = resolveSetupMode(options)
-    const response = await client.requestAgentCreation({
+    const response = await client.requestAgentApproval({
       name: options.name ?? null,
       agent_key_address: agentKeyAddress,
       mode,

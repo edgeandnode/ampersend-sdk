@@ -1,6 +1,6 @@
 import { Schema } from "effect"
 
-import { ApiError, ApprovalResponse, ApprovalStatus, type CreateAgentApprovalRequest } from "./types.js"
+import { ApiError, ApprovalResponse, ApprovalStatus, type AgentApprovalRequest } from "./types.js"
 
 const DEFAULT_API_URL = "https://api.ampersend.ai"
 
@@ -13,8 +13,8 @@ export interface ApprovalClientOptions {
  * Client for the approve-action flow.
  *
  * This client handles unauthenticated approval requests where an agent
- * programmatically requests creation and waits for user approval via
- * the Ampersend dashboard.
+ * programmatically requests setup (creation or key connection) and waits
+ * for user approval via the Ampersend dashboard.
  *
  * @example
  * ```typescript
@@ -22,8 +22,8 @@ export interface ApprovalClientOptions {
  *
  * const client = new ApprovalClient()
  *
- * // Request agent creation approval
- * const response = await client.requestAgentCreation({
+ * // Request agent setup approval
+ * const response = await client.requestAgentApproval({
  *   name: "my-agent",
  *   agent_key_address: "0x...",
  * })
@@ -33,7 +33,7 @@ export interface ApprovalClientOptions {
  * // Poll for status
  * const status = await client.getApprovalStatus(response.token)
  * if (status.status === "resolved" && "agent" in status) {
- *   console.log("Agent created at:", status.agent.address)
+ *   console.log("Agent ready at:", status.agent.address)
  * }
  * ```
  */
@@ -47,28 +47,16 @@ export class ApprovalClient {
   }
 
   /**
-   * Request approval to create a new agent.
+   * Request approval to set up an agent (create new or connect key to existing).
    *
    * Returns URLs for the user to approve the action and to poll for status.
    */
-  async requestAgentCreation(request: typeof CreateAgentApprovalRequest.Encoded): Promise<ApprovalResponse> {
-    // Map SDK field names to API wire format
-    const payload: Record<string, unknown> = {
-      name: request.name,
-      session_key_address: request.agent_key_address,
-    }
-    if (request.mode !== undefined) {
-      payload.mode = request.mode
-    }
-    if (request.agent_address !== undefined) {
-      payload.agent_address = request.agent_address
-    }
-    if (request.key_name !== undefined) {
-      payload.key_name = request.key_name
-    }
-    if (request.spend_config !== undefined) {
-      payload.spend_config = request.spend_config
-    }
+  async requestAgentApproval(request: typeof AgentApprovalRequest.Encoded): Promise<ApprovalResponse> {
+    const { agent_key_address, ...optional } = request
+    // Map SDK field name to API wire format and strip undefined values
+    const payload = Object.fromEntries(
+      Object.entries({ session_key_address: agent_key_address, ...optional }).filter(([, v]) => v !== undefined),
+    )
     return this.fetch("POST", "/api/v1/approve-action/agent", payload, ApprovalResponse)
   }
 

@@ -361,7 +361,7 @@ export const SpendConfigInput = Schema.Struct({
   ),
 })
 
-export class CreateAgentApprovalRequest extends Schema.Class<CreateAgentApprovalRequest>("CreateAgentApprovalRequest")({
+export class AgentApprovalRequest extends Schema.Class<AgentApprovalRequest>("AgentApprovalRequest")({
   name: Schema.NullOr(Schema.String).pipe(
     Schema.annotations({
       description: "Optional name for the agent",
@@ -373,7 +373,7 @@ export class CreateAgentApprovalRequest extends Schema.Class<CreateAgentApproval
     }),
   ),
   key_name: Schema.optional(
-    Schema.NullOr(Schema.String).annotations({
+    Schema.String.annotations({
       description: "Optional name for the key",
     }),
   ),
