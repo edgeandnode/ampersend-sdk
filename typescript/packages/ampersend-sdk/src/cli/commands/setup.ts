@@ -1,4 +1,5 @@
 import type { Command } from "commander"
+import { isAddress } from "viem"
 import { generatePrivateKey, privateKeyToAddress } from "viem/accounts"
 
 import { ApprovalClient } from "../../ampersend/approval.ts"
@@ -15,13 +16,25 @@ import { err, ok, type JsonEnvelope } from "../envelope.ts"
 
 // ─── setup start ───────────────────────────────────────────────────────────────
 
+export type SetupMode = "create" | "connect"
+
 export interface SetupStartOptions {
   name?: string
+  mode: SetupMode
+  agent?: string
+  keyName?: string
   force: boolean
   dailyLimit?: string
   monthlyLimit?: string
   perTransactionLimit?: string
   autoTopup: boolean
+}
+
+function resolveSetupMode(options: SetupStartOptions): "create" | "connect" | "connect_choose" {
+  if (options.mode === "connect") {
+    return options.agent != null ? "connect" : "connect_choose"
+  }
+  return "create"
 }
 
 export async function executeSetupStart(options: SetupStartOptions): Promise<void> {
@@ -49,6 +62,48 @@ export async function executeSetupStart(options: SetupStartOptions): Promise<voi
   // Resolve API URL: env > config > default
   const apiUrl = process.env.AMPERSEND_API_URL ?? existing?.apiUrl ?? DEFAULT_API_URL
 
+  // Validate --agent flag if provided
+  if (options.agent != null && !isAddress(options.agent, { strict: false })) {
+    console.log(JSON.stringify(err("INVALID_ADDRESS", `Invalid agent address: ${options.agent}`), null, 2))
+    process.exit(1)
+  }
+
+  // Cross-flag validation
+  if (options.mode === "connect") {
+    if (options.name != null) {
+      console.log(
+        JSON.stringify(err("INVALID_FLAGS", "--name is not valid in connect mode (agent already exists)"), null, 2),
+      )
+      process.exit(1)
+    }
+    const hasSpendFlags =
+      options.dailyLimit != null ||
+      options.monthlyLimit != null ||
+      options.perTransactionLimit != null ||
+      options.autoTopup
+    if (hasSpendFlags) {
+      console.log(
+        JSON.stringify(
+          err("INVALID_FLAGS", "Spend config flags are not valid in connect mode (agent already exists)"),
+          null,
+          2,
+        ),
+      )
+      process.exit(1)
+    }
+  } else {
+    if (options.agent != null) {
+      console.log(
+        JSON.stringify(
+          err("INVALID_FLAGS", "--agent is only valid in connect mode. Use --mode connect --agent <address>"),
+          null,
+          2,
+        ),
+      )
+      process.exit(1)
+    }
+  }
+
   // Build spend_config if any limit flags were provided
   const hasSpendConfig =
     options.dailyLimit != null ||
@@ -75,9 +130,13 @@ export async function executeSetupStart(options: SetupStartOptions): Promise<voi
   }>
 
   try {
-    const response = await client.requestAgentCreation({
+    const mode = resolveSetupMode(options)
+    const response = await client.requestAgentApproval({
       name: options.name ?? null,
       agent_key_address: agentKeyAddress,
+      mode,
+      agent_address: options.agent ?? undefined,
+      key_name: options.keyName ?? undefined,
       spend_config: spendConfig,
     })
 
@@ -212,13 +271,16 @@ export function registerSetupCommand(program: Command): void {
 
   setup
     .command("start")
-    .description("Step 1: Generate a key and request agent creation approval")
-    .option("--name <name>", "Name for the agent")
+    .description("Step 1: Generate a key and request agent creation/connection approval")
+    .option("--mode <mode>", "Setup mode: 'create' (new agent, default) or 'connect' (key to existing agent)", "create")
+    .option("--name <name>", "Name for the agent (create mode only)")
+    .option("--agent <address>", "Address of existing agent to connect to (connect mode; omit to choose in dashboard)")
+    .option("--key-name <name>", "Name for the agent key")
     .option("--force", "Overwrite an existing pending approval", false)
-    .option("--daily-limit <amount>", "Daily spending limit in atomic units, e.g. 1000000 = 1 USDC")
-    .option("--monthly-limit <amount>", "Monthly spending limit in atomic units")
-    .option("--per-transaction-limit <amount>", "Per-transaction spending limit in atomic units")
-    .option("--auto-topup", "Allow automatic balance top-up from main account", false)
+    .option("--daily-limit <amount>", "Daily spending limit in atomic units, e.g. 1000000 = 1 USDC (create mode only)")
+    .option("--monthly-limit <amount>", "Monthly spending limit in atomic units (create mode only)")
+    .option("--per-transaction-limit <amount>", "Per-transaction spending limit in atomic units (create mode only)")
+    .option("--auto-topup", "Allow automatic balance top-up from main account (create mode only)", false)
     .action(async (options: SetupStartOptions) => {
       await executeSetupStart(options)
     })

@@ -361,7 +361,7 @@ export const SpendConfigInput = Schema.Struct({
   ),
 })
 
-export class CreateAgentApprovalRequest extends Schema.Class<CreateAgentApprovalRequest>("CreateAgentApprovalRequest")({
+export class AgentApprovalRequest extends Schema.Class<AgentApprovalRequest>("AgentApprovalRequest")({
   name: Schema.NullOr(Schema.String).pipe(
     Schema.annotations({
       description: "Optional name for the agent",
@@ -372,7 +372,23 @@ export class CreateAgentApprovalRequest extends Schema.Class<CreateAgentApproval
       description: "The agent key address (session key) for the agent",
     }),
   ),
+  key_name: Schema.optional(
+    Schema.String.annotations({
+      description: "Optional name for the key",
+    }),
+  ),
   spend_config: Schema.optional(Schema.NullOr(SpendConfigInput)),
+  mode: Schema.optional(
+    Schema.Literal("create", "connect", "connect_choose").annotations({
+      description:
+        "Setup mode: 'create' = new agent (default), 'connect' = connect key to agent_address, 'connect_choose' = user picks agent in dashboard",
+    }),
+  ),
+  agent_address: Schema.optional(
+    Address.annotations({
+      description: "Address of existing agent to connect to (required when mode is 'connect')",
+    }),
+  ),
 }) {}
 
 export class ApprovalResponse extends Schema.Class<ApprovalResponse>("ApprovalResponse")({

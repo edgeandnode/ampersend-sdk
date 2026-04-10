@@ -56,6 +56,20 @@ Optional spending limits can be set during setup:
 ampersend setup start --name "my-agent" --daily-limit "1000000" --auto-topup
 ```
 
+### Connecting to an existing agent account
+
+To connect a new key to an existing agent account (user picks the agent in the dashboard):
+
+```bash
+ampersend setup start --mode connect --key-name "my-key"
+```
+
+To connect to a specific agent account by address:
+
+```bash
+ampersend setup start --mode connect --agent 0x1234...abcd --key-name "my-key"
+```
+
 ### Manual
 
 If you already have an agent key and account address:
@@ -76,17 +90,20 @@ Set up an agent account via the approval flow.
 Step 1: Generate a key and request agent creation approval.
 
 ```bash
-ampersend setup start --name "my-agent" [--force] [--daily-limit <amount>] [--monthly-limit <amount>] [--per-transaction-limit <amount>] [--auto-topup]
+ampersend setup start [--mode <create|connect>] [--name <name>] [--agent <address>] [--key-name <name>] [--force] [--daily-limit <amount>] [--monthly-limit <amount>] [--per-transaction-limit <amount>] [--auto-topup]
 ```
 
-| Option                          | Description                                             |
-| ------------------------------- | ------------------------------------------------------- |
-| `--name <name>`                 | Name for the agent                                      |
-| `--force`                       | Overwrite an existing pending approval                  |
-| `--daily-limit <amount>`        | Daily spending limit in atomic units (1000000 = 1 USDC) |
-| `--monthly-limit <amount>`      | Monthly spending limit in atomic units                  |
-| `--per-transaction-limit <amt>` | Per-transaction spending limit in atomic units          |
-| `--auto-topup`                  | Allow automatic balance top-up from main account        |
+| Option                          | Description                                                                         |
+| ------------------------------- | ----------------------------------------------------------------------------------- |
+| `--mode <mode>`                 | `create` (new agent, default) or `connect` (key to existing agent)                  |
+| `--name <name>`                 | Name for the agent (create mode only)                                               |
+| `--agent <address>`             | Address of existing agent to connect to (connect mode; omit to choose in dashboard) |
+| `--key-name <name>`             | Name for the agent key                                                              |
+| `--force`                       | Overwrite an existing pending approval                                              |
+| `--daily-limit <amount>`        | Daily spending limit in atomic units, 1000000 = 1 USDC (create mode only)           |
+| `--monthly-limit <amount>`      | Monthly spending limit in atomic units (create mode only)                           |
+| `--per-transaction-limit <amt>` | Per-transaction spending limit in atomic units (create mode only)                   |
+| `--auto-topup`                  | Allow automatic balance top-up from main account (create mode only)                 |
 
 Returns `token`, `user_approve_url`, and `agentKeyAddress`. Show the `user_approve_url` to the user.
 

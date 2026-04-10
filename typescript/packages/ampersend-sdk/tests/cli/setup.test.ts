@@ -15,12 +15,12 @@ vi.mock("node:os", () => ({
 }))
 
 // Mock ApprovalClient
-const mockRequestAgentCreation = vi.fn()
+const mockRequestAgentApproval = vi.fn()
 const mockGetApprovalStatus = vi.fn()
 
 vi.mock("@/ampersend/approval.ts", () => ({
   ApprovalClient: class {
-    requestAgentCreation = mockRequestAgentCreation
+    requestAgentApproval = mockRequestAgentApproval
     getApprovalStatus = mockGetApprovalStatus
   },
 }))
@@ -55,7 +55,7 @@ describe("CLI Setup Commands", () => {
       rmSync(configDir, { recursive: true })
     }
     consoleOutput = []
-    mockRequestAgentCreation.mockReset()
+    mockRequestAgentApproval.mockReset()
     mockGetApprovalStatus.mockReset()
     mockExit.mockClear()
     mockConsoleLog.mockClear()
@@ -70,13 +70,15 @@ describe("CLI Setup Commands", () => {
 
   describe("setup start", () => {
     it("should generate key, call API, and store pending approval", async () => {
-      mockRequestAgentCreation.mockResolvedValue({
+      mockRequestAgentApproval.mockResolvedValue({
         token: "test-token-123",
         status_url: "https://api.ampersend.ai/api/v1/approve-action/test-token-123/status",
         user_approve_url: "https://app.ampersend.ai/approvals/create-agent/test-token-123",
       })
 
-      await expect(executeSetupStart({ name: "test-agent", force: false, autoTopup: false })).rejects.toThrow(ExitError)
+      await expect(
+        executeSetupStart({ name: "test-agent", mode: "create", force: false, autoTopup: false }),
+      ).rejects.toThrow(ExitError)
 
       expect(mockExit).toHaveBeenCalledWith(0)
 
@@ -103,7 +105,9 @@ describe("CLI Setup Commands", () => {
         expiresAt: computeApprovalExpiry(),
       })
 
-      await expect(executeSetupStart({ name: "test", force: false, autoTopup: false })).rejects.toThrow(ExitError)
+      await expect(executeSetupStart({ name: "test", mode: "create", force: false, autoTopup: false })).rejects.toThrow(
+        ExitError,
+      )
 
       expect(mockExit).toHaveBeenCalledWith(1)
       const output = getLastOutput() as { ok: boolean; error: { code: string } }
@@ -111,7 +115,7 @@ describe("CLI Setup Commands", () => {
       expect(output.error.code).toBe("PENDING_EXISTS")
 
       // API should not have been called
-      expect(mockRequestAgentCreation).not.toHaveBeenCalled()
+      expect(mockRequestAgentApproval).not.toHaveBeenCalled()
     })
 
     it("should overwrite pending with --force", async () => {
@@ -122,13 +126,15 @@ describe("CLI Setup Commands", () => {
         expiresAt: computeApprovalExpiry(),
       })
 
-      mockRequestAgentCreation.mockResolvedValue({
+      mockRequestAgentApproval.mockResolvedValue({
         token: "new-token",
         status_url: "https://api.ampersend.ai/status",
         user_approve_url: "https://app.ampersend.ai/approve",
       })
 
-      await expect(executeSetupStart({ name: "test", force: true, autoTopup: false })).rejects.toThrow(ExitError)
+      await expect(executeSetupStart({ name: "test", mode: "create", force: true, autoTopup: false })).rejects.toThrow(
+        ExitError,
+      )
 
       expect(mockExit).toHaveBeenCalledWith(0)
 
@@ -143,13 +149,15 @@ describe("CLI Setup Commands", () => {
         expiresAt: new Date(Date.now() - 1000).toISOString(),
       })
 
-      mockRequestAgentCreation.mockResolvedValue({
+      mockRequestAgentApproval.mockResolvedValue({
         token: "fresh-token",
         status_url: "https://api.ampersend.ai/status",
         user_approve_url: "https://app.ampersend.ai/approve",
       })
 
-      await expect(executeSetupStart({ name: "test", force: false, autoTopup: false })).rejects.toThrow(ExitError)
+      await expect(executeSetupStart({ name: "test", mode: "create", force: false, autoTopup: false })).rejects.toThrow(
+        ExitError,
+      )
 
       expect(mockExit).toHaveBeenCalledWith(0)
       const config = readConfig()
@@ -157,9 +165,11 @@ describe("CLI Setup Commands", () => {
     })
 
     it("should handle API errors", async () => {
-      mockRequestAgentCreation.mockRejectedValue(new Error("Network timeout"))
+      mockRequestAgentApproval.mockRejectedValue(new Error("Network timeout"))
 
-      await expect(executeSetupStart({ name: "test", force: false, autoTopup: false })).rejects.toThrow(ExitError)
+      await expect(executeSetupStart({ name: "test", mode: "create", force: false, autoTopup: false })).rejects.toThrow(
+        ExitError,
+      )
 
       expect(mockExit).toHaveBeenCalledWith(1)
       const output = getLastOutput() as { ok: boolean; error: { code: string; message: string } }
@@ -169,7 +179,7 @@ describe("CLI Setup Commands", () => {
     })
 
     it("should pass spend_config with all flags", async () => {
-      mockRequestAgentCreation.mockResolvedValue({
+      mockRequestAgentApproval.mockResolvedValue({
         token: "token",
         status_url: "https://api.ampersend.ai/status",
         user_approve_url: "https://app.ampersend.ai/approve",
@@ -178,6 +188,7 @@ describe("CLI Setup Commands", () => {
       await expect(
         executeSetupStart({
           name: "test",
+          mode: "create",
           force: false,
           autoTopup: true,
           dailyLimit: "1000000",
@@ -186,7 +197,7 @@ describe("CLI Setup Commands", () => {
         }),
       ).rejects.toThrow(ExitError)
 
-      expect(mockRequestAgentCreation).toHaveBeenCalledWith(
+      expect(mockRequestAgentApproval).toHaveBeenCalledWith(
         expect.objectContaining({
           spend_config: {
             auto_topup_allowed: true,
@@ -199,7 +210,7 @@ describe("CLI Setup Commands", () => {
     })
 
     it("should pass spend_config with only daily_limit", async () => {
-      mockRequestAgentCreation.mockResolvedValue({
+      mockRequestAgentApproval.mockResolvedValue({
         token: "token",
         status_url: "https://api.ampersend.ai/status",
         user_approve_url: "https://app.ampersend.ai/approve",
@@ -208,13 +219,14 @@ describe("CLI Setup Commands", () => {
       await expect(
         executeSetupStart({
           name: "test",
+          mode: "create",
           force: false,
           autoTopup: false,
           dailyLimit: "1000000",
         }),
       ).rejects.toThrow(ExitError)
 
-      expect(mockRequestAgentCreation).toHaveBeenCalledWith(
+      expect(mockRequestAgentApproval).toHaveBeenCalledWith(
         expect.objectContaining({
           spend_config: {
             auto_topup_allowed: false,
@@ -227,15 +239,17 @@ describe("CLI Setup Commands", () => {
     })
 
     it("should not send spend_config when no limit flags provided", async () => {
-      mockRequestAgentCreation.mockResolvedValue({
+      mockRequestAgentApproval.mockResolvedValue({
         token: "token",
         status_url: "https://api.ampersend.ai/status",
         user_approve_url: "https://app.ampersend.ai/approve",
       })
 
-      await expect(executeSetupStart({ name: "test", force: false, autoTopup: false })).rejects.toThrow(ExitError)
+      await expect(executeSetupStart({ name: "test", mode: "create", force: false, autoTopup: false })).rejects.toThrow(
+        ExitError,
+      )
 
-      expect(mockRequestAgentCreation).toHaveBeenCalledWith(
+      expect(mockRequestAgentApproval).toHaveBeenCalledWith(
         expect.objectContaining({
           spend_config: undefined,
         }),
@@ -249,18 +263,185 @@ describe("CLI Setup Commands", () => {
         agentAccount: "0x1111111111111111111111111111111111111111",
       })
 
-      mockRequestAgentCreation.mockResolvedValue({
+      mockRequestAgentApproval.mockResolvedValue({
         token: "token",
         status_url: "https://api.ampersend.ai/status",
         user_approve_url: "https://app.ampersend.ai/approve",
       })
 
-      await expect(executeSetupStart({ name: "test", force: false, autoTopup: false })).rejects.toThrow(ExitError)
+      await expect(executeSetupStart({ name: "test", mode: "create", force: false, autoTopup: false })).rejects.toThrow(
+        ExitError,
+      )
 
       const config = readConfig()
       expect(config?.agentKey).toBe(activeKey)
       expect(config?.agentAccount).toBe("0x1111111111111111111111111111111111111111")
       expect(config?.pendingApproval?.token).toBe("token")
+    })
+
+    it("should send mode 'connect' with --agent", async () => {
+      mockRequestAgentApproval.mockResolvedValue({
+        token: "token",
+        status_url: "https://api.ampersend.ai/status",
+        user_approve_url: "https://app.ampersend.ai/approve",
+      })
+
+      await expect(
+        executeSetupStart({
+          mode: "connect",
+          agent: "0x1111111111111111111111111111111111111111",
+          keyName: "my-key",
+          force: false,
+          autoTopup: false,
+        }),
+      ).rejects.toThrow(ExitError)
+
+      expect(mockExit).toHaveBeenCalledWith(0)
+      expect(mockRequestAgentApproval).toHaveBeenCalledWith(
+        expect.objectContaining({
+          mode: "connect",
+          agent_address: "0x1111111111111111111111111111111111111111",
+          key_name: "my-key",
+        }),
+      )
+    })
+
+    it("should send mode 'connect_choose' without --agent", async () => {
+      mockRequestAgentApproval.mockResolvedValue({
+        token: "token",
+        status_url: "https://api.ampersend.ai/status",
+        user_approve_url: "https://app.ampersend.ai/approve",
+      })
+
+      await expect(
+        executeSetupStart({
+          mode: "connect",
+          keyName: "my-key",
+          force: false,
+          autoTopup: false,
+        }),
+      ).rejects.toThrow(ExitError)
+
+      expect(mockExit).toHaveBeenCalledWith(0)
+      expect(mockRequestAgentApproval).toHaveBeenCalledWith(
+        expect.objectContaining({
+          mode: "connect_choose",
+          key_name: "my-key",
+        }),
+      )
+    })
+
+    it("should pass --key-name in create mode", async () => {
+      mockRequestAgentApproval.mockResolvedValue({
+        token: "token",
+        status_url: "https://api.ampersend.ai/status",
+        user_approve_url: "https://app.ampersend.ai/approve",
+      })
+
+      await expect(
+        executeSetupStart({
+          name: "test",
+          mode: "create",
+          keyName: "my-key",
+          force: false,
+          autoTopup: false,
+        }),
+      ).rejects.toThrow(ExitError)
+
+      expect(mockExit).toHaveBeenCalledWith(0)
+      expect(mockRequestAgentApproval).toHaveBeenCalledWith(
+        expect.objectContaining({
+          mode: "create",
+          key_name: "my-key",
+        }),
+      )
+    })
+
+    it("should reject --name in connect mode", async () => {
+      await expect(
+        executeSetupStart({
+          name: "my-agent",
+          mode: "connect",
+          force: false,
+          autoTopup: false,
+        }),
+      ).rejects.toThrow(ExitError)
+
+      expect(mockExit).toHaveBeenCalledWith(1)
+      const output = getLastOutput() as { ok: boolean; error: { code: string } }
+      expect(output.ok).toBe(false)
+      expect(output.error.code).toBe("INVALID_FLAGS")
+      expect(mockRequestAgentApproval).not.toHaveBeenCalled()
+    })
+
+    it("should reject spend config flags in connect mode", async () => {
+      await expect(
+        executeSetupStart({
+          mode: "connect",
+          agent: "0x1111111111111111111111111111111111111111",
+          dailyLimit: "1000000",
+          force: false,
+          autoTopup: false,
+        }),
+      ).rejects.toThrow(ExitError)
+
+      expect(mockExit).toHaveBeenCalledWith(1)
+      const output = getLastOutput() as { ok: boolean; error: { code: string } }
+      expect(output.ok).toBe(false)
+      expect(output.error.code).toBe("INVALID_FLAGS")
+      expect(mockRequestAgentApproval).not.toHaveBeenCalled()
+    })
+
+    it("should reject --agent in create mode", async () => {
+      await expect(
+        executeSetupStart({
+          name: "test",
+          mode: "create",
+          agent: "0x1111111111111111111111111111111111111111",
+          force: false,
+          autoTopup: false,
+        }),
+      ).rejects.toThrow(ExitError)
+
+      expect(mockExit).toHaveBeenCalledWith(1)
+      const output = getLastOutput() as { ok: boolean; error: { code: string } }
+      expect(output.ok).toBe(false)
+      expect(output.error.code).toBe("INVALID_FLAGS")
+      expect(mockRequestAgentApproval).not.toHaveBeenCalled()
+    })
+
+    it("should reject invalid --agent address", async () => {
+      await expect(
+        executeSetupStart({
+          mode: "connect",
+          agent: "not-an-address",
+          force: false,
+          autoTopup: false,
+        }),
+      ).rejects.toThrow(ExitError)
+
+      expect(mockExit).toHaveBeenCalledWith(1)
+      const output = getLastOutput() as { ok: boolean; error: { code: string } }
+      expect(output.ok).toBe(false)
+      expect(output.error.code).toBe("INVALID_ADDRESS")
+      expect(mockRequestAgentApproval).not.toHaveBeenCalled()
+    })
+
+    it("should reject --auto-topup alone in connect mode", async () => {
+      await expect(
+        executeSetupStart({
+          mode: "connect",
+          agent: "0x1111111111111111111111111111111111111111",
+          force: false,
+          autoTopup: true,
+        }),
+      ).rejects.toThrow(ExitError)
+
+      expect(mockExit).toHaveBeenCalledWith(1)
+      const output = getLastOutput() as { ok: boolean; error: { code: string } }
+      expect(output.ok).toBe(false)
+      expect(output.error.code).toBe("INVALID_FLAGS")
+      expect(mockRequestAgentApproval).not.toHaveBeenCalled()
     })
   })
 
