@@ -12,7 +12,7 @@ permissions:
   id-token: write # Required for npm provenance
 
 env:
-  NODE_VERSION: "22.x"
+  NODE_VERSION: "22.22.1"
 
 jobs:
   verify-version:
@@ -70,6 +70,9 @@ jobs:
           cache: "pnpm"
           cache-dependency-path: pnpm-lock.yaml
 
+      - name: Update npm for trusted publishing
+        run: npm install -g npm@latest
+
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
@@ -92,5 +95,5 @@ jobs:
           fi
 
       - name: Publish to npm
-        run: npm publish --access public --tag ${{ steps.publish-tag.outputs.tag }}
+        run: npm publish --access public --provenance --tag ${{ steps.publish-tag.outputs.tag }}
         working-directory: typescript/packages/ampersend-sdk
