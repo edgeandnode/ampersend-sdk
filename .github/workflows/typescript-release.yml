@@ -70,9 +70,6 @@ jobs:
           cache: "pnpm"
           cache-dependency-path: pnpm-lock.yaml
 
-      - name: Update npm
-        run: npm install -g npm@latest
-
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
