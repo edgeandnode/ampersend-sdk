@@ -11,8 +11,10 @@ import {
   type ReadResourceRequest,
   type ReadResourceResult,
 } from "@modelcontextprotocol/sdk/types.js"
-import type { PaymentRequirements } from "x402/types"
+import type { PaymentRequirements as V1PaymentRequirements } from "x402/types"
 
+import type { PaymentOption } from "../../x402/canonical.ts"
+import { fromV1Requirements, toV1PaymentPayload } from "../../x402/http/conversions.ts"
 import type { Authorization, X402Treasurer } from "../../x402/treasurer.ts"
 import { asX402Response } from "./protocol.ts"
 import type { ClientOptions, X402Response } from "./types.ts"
@@ -132,29 +134,31 @@ export class Client extends McpClient {
   private async decidePayment(
     method: string,
     params: OpParams,
-    requirements: ReadonlyArray<PaymentRequirements>,
+    wireRequirements: ReadonlyArray<V1PaymentRequirements>,
   ): Promise<{ paramsWithPayment: OpParams; authorization: Authorization } | null> {
-    // Build payment context
+    // Translate MCP wire requirements to canonical payment options before
+    // hitting the treasurer.
+    const options: ReadonlyArray<PaymentOption> = wireRequirements.map(fromV1Requirements)
+
     const paymentContext = {
       method,
       params,
     }
 
-    // Get payment decision from treasurer
-    const authorization = await this.treasurer.onPaymentRequired(requirements, paymentContext)
+    const authorization = await this.treasurer.onPaymentRequired(options, paymentContext)
 
     if (!authorization) {
-      // Payment declined
       return null
     }
 
-    // Return modified params with payment (using spec-compliant field name)
+    // Embed the canonical authorization into the retry params as a v1 wire
+    // PaymentPayload (the MCP spec currently uses v1 shape).
     const baseMeta = params._meta || {}
     const paramsWithPayment = {
       ...params,
       _meta: {
         ...baseMeta,
-        "x402/payment": authorization.payment,
+        "x402/payment": toV1PaymentPayload(authorization.payment),
       },
     }
 

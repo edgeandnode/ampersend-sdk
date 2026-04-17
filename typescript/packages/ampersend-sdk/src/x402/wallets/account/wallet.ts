@@ -1,16 +1,18 @@
 import type { Hex, LocalAccount } from "viem"
 import { privateKeyToAccount } from "viem/accounts"
 import { createPaymentHeader } from "x402/client"
-import type { PaymentPayload, PaymentRequirements } from "x402/types"
+import type { PaymentPayload as V1PaymentPayload } from "x402/types"
 
 import type { ServerAuthorizationData } from "../../../ampersend/types.ts"
+import type { PaymentAuthorization, PaymentOption } from "../../canonical.ts"
+import { toV1Requirements } from "../../http/conversions.ts"
 import { WalletError, type X402Wallet } from "../../wallet.ts"
 
 /**
  * AccountWallet - EOA (Externally Owned Account) wallet implementation
  *
- * Creates payment payloads signed by an EOA private key.
- * Supports the "exact" payment scheme.
+ * Creates signed payment authorizations using an EOA private key. Supports
+ * only the "exact" payment scheme.
  *
  * @example
  * ```typescript
@@ -39,27 +41,31 @@ export class AccountWallet implements X402Wallet {
   }
 
   /**
-   * Creates a payment payload from requirements.
-   * Only supports "exact" payment scheme.
-   * Note: serverAuthorization parameter is ignored for EOA wallets (only used by SmartAccountWallet)
+   * Creates a signed payment authorization from a canonical payment option.
+   * Only supports the "exact" payment scheme. `serverAuthorization` is ignored
+   * for EOA wallets (only used by SmartAccountWallet).
    */
   async createPayment(
-    requirements: PaymentRequirements,
+    option: PaymentOption,
     _serverAuthorization?: ServerAuthorizationData,
-  ): Promise<PaymentPayload> {
-    if (requirements.scheme !== "exact") {
-      throw new WalletError(`Unsupported payment scheme: ${requirements.scheme}. AccountWallet only supports "exact".`)
+  ): Promise<PaymentAuthorization> {
+    if (option.scheme !== "exact") {
+      throw new WalletError(`Unsupported payment scheme: ${option.scheme}. AccountWallet only supports "exact".`)
     }
 
     try {
-      // Create payment header using x402 client utility
-      const paymentHeader = await createPaymentHeader(this.account, 1, requirements)
-
-      // Decode base64 payment header to PaymentPayload
+      // The x402 client helper still speaks v1 wire format; translate to v1
+      // shape for the call and then strip the v1 envelope back off.
+      const v1Requirements = toV1Requirements(option)
+      const paymentHeader = await createPaymentHeader(this.account, 1, v1Requirements)
       const decoded = Buffer.from(paymentHeader, "base64").toString("utf-8")
-      const payment = JSON.parse(decoded) as PaymentPayload
+      const v1Payment = JSON.parse(decoded) as V1PaymentPayload
 
-      return payment
+      return {
+        scheme: option.scheme,
+        network: option.network,
+        body: v1Payment.payload as Record<string, unknown>,
+      }
     } catch (error) {
       throw new WalletError(
         `Failed to create payment: ${error instanceof Error ? error.message : String(error)}`,

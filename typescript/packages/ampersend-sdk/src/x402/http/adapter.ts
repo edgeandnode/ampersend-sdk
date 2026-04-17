@@ -9,32 +9,42 @@ import type {
   PaymentRequired as V2PaymentRequired,
   PaymentRequirements as V2PaymentRequirements,
 } from "@x402/core/types"
-import type { PaymentRequirements } from "x402/types"
+import type { PaymentRequirements as V1PaymentRequirements } from "x402/types"
 
+import type { PaymentOption } from "../canonical.ts"
 import type { Authorization, X402Treasurer } from "../treasurer.ts"
-import { v1NetworkToCaip2, v1PayloadToV2, v2RequirementsToV1, type V2PaymentContext } from "./v2-adapter.ts"
+import {
+  fromV1Requirements,
+  fromV2Requirements,
+  toV1PaymentPayload,
+  toV2PaymentPayloadFragment,
+  v1NetworkToCaip2,
+} from "./conversions.ts"
 
-/** Store entry for v1 payments */
+/**
+ * Store entry holding a canonical authorization alongside the original x402
+ * wire-format requirements object it was produced for. The wire-format object
+ * is kept so the outbound scheme clients can rebuild a correctly-shaped
+ * envelope (v1 or v2) without needing a second round trip through the
+ * treasurer.
+ */
 interface V1StoreEntry {
   version: 1
   authorization: Authorization
 }
 
-/** Store entry for v2 payments (includes context for payload conversion) */
 interface V2StoreEntry {
   version: 2
   authorization: Authorization
-  context: V2PaymentContext
+  resource: V2PaymentRequired["resource"]
+  originalRequirements: V2PaymentRequirements
 }
 
 type StoreEntry = V1StoreEntry | V2StoreEntry
 
 /**
- * Scheme client that retrieves payments from the treasurer via a shared WeakMap.
- * Compatible with @x402/core's SchemeNetworkClient interface for v1 protocol.
- *
- * Note: We don't implement SchemeNetworkClient directly because @x402/core
- * exports v2 types, but registerV1() passes v1 types at runtime.
+ * Scheme client for x402 v1 protocol. Retrieves the canonical authorization
+ * from the shared store and wraps it in a v1 PaymentPayload envelope.
  */
 class TreasurerSchemeClientV1 {
   readonly scheme = "exact"
@@ -43,28 +53,29 @@ class TreasurerSchemeClientV1 {
 
   async createPaymentPayload(
     x402Version: number,
-    requirements: PaymentRequirements,
+    requirements: V1PaymentRequirements,
   ): Promise<{ x402Version: number; scheme: string; network: string; payload: Record<string, unknown> }> {
     const entry = this.paymentStore.get(requirements)
     if (!entry) {
       throw new Error("No payment authorization found for requirements")
     }
 
-    // Clean up after retrieval
     this.paymentStore.delete(requirements)
 
+    const v1Payload = toV1PaymentPayload(entry.authorization.payment)
     return {
       x402Version,
-      scheme: entry.authorization.payment.scheme,
-      network: entry.authorization.payment.network,
-      payload: entry.authorization.payment.payload,
+      scheme: v1Payload.scheme,
+      network: v1Payload.network,
+      payload: v1Payload.payload as Record<string, unknown>,
     }
   }
 }
 
 /**
- * Scheme client for v2 protocol.
- * Converts v1 payment payloads to v2 format using stored context.
+ * Scheme client for x402 v2 protocol. Retrieves the canonical authorization
+ * from the shared store and builds the v2 payload fragment expected by the
+ * v2 client library.
  */
 class TreasurerSchemeClientV2 {
   readonly scheme = "exact"
@@ -72,7 +83,7 @@ class TreasurerSchemeClientV2 {
   constructor(private readonly paymentStore: WeakMap<object, StoreEntry>) {}
 
   async createPaymentPayload(
-    x402Version: number,
+    _x402Version: number,
     requirements: V2PaymentRequirements,
   ): Promise<Pick<V2PaymentPayload, "x402Version" | "payload">> {
     const entry = this.paymentStore.get(requirements)
@@ -80,27 +91,26 @@ class TreasurerSchemeClientV2 {
       throw new Error("No v2 payment authorization found for requirements")
     }
 
-    // Clean up after retrieval
     this.paymentStore.delete(requirements)
 
-    // Convert v1 payment to v2 format
-    return v1PayloadToV2(entry.authorization.payment, entry.context)
+    return toV2PaymentPayloadFragment(entry.authorization.payment, entry.originalRequirements, entry.resource)
   }
 }
 
 /**
- * Wraps an x402Client to use an ampersend-sdk treasurer for payment decisions.
+ * Wraps an x402Client so payment decisions flow through an ampersend-sdk
+ * treasurer speaking ampersend's canonical payment types.
  *
- * This adapter integrates ampersend-sdk treasurers with Coinbase's x402 SDK,
- * allowing you to use sophisticated payment authorization logic (budgets, policies,
- * approvals) with the standard x402 HTTP client ecosystem.
- *
- * Supports both v1 and v2 x402 protocols. The underlying wallets produce v1 payment
- * payloads which are automatically converted to v2 format when needed.
+ * The wrapper registers per-network scheme clients for both x402 v1 and v2
+ * protocols. When a 402 arrives, the before-payment hook translates the
+ * seller's requirements into canonical form, consults the treasurer, and
+ * stashes the resulting authorization so the outbound scheme client can
+ * rebuild a correctly-shaped envelope without going through the treasurer
+ * again.
  *
  * @param client - The x402Client instance to wrap
  * @param treasurer - The X402Treasurer that handles payment authorization
- * @param networks - Array of v1 network names to register (e.g., 'base', 'base-sepolia')
+ * @param networks - Array of v1 network names to register (e.g. `'base'`, `'base-sepolia'`)
  * @returns The configured x402Client instance (same instance, mutated)
  *
  * @example
@@ -123,15 +133,13 @@ class TreasurerSchemeClientV2 {
  * ```
  */
 export function wrapWithAmpersend(client: x402Client, treasurer: X402Treasurer, networks: Array<string>): x402Client {
-  // Shared store for correlating payments between hooks and scheme clients
-  // Keyed by the original requirements object (v1 or v2)
+  // Shared store for correlating payments between hooks and scheme clients.
+  // Keyed by the original wire-format requirements object (v1 or v2).
   const paymentStore = new WeakMap<object, StoreEntry>()
 
-  // Create scheme clients for both v1 and v2
   const schemeClientV1 = new TreasurerSchemeClientV1(paymentStore)
   const schemeClientV2 = new TreasurerSchemeClientV2(paymentStore)
 
-  // Register for both v1 and v2 protocols on each network
   for (const network of networks) {
     // v1: uses network names like "base-sepolia"
     client.registerV1(network, schemeClientV1 as any)
@@ -141,10 +149,10 @@ export function wrapWithAmpersend(client: x402Client, treasurer: X402Treasurer, 
     client.register(caip2Network, schemeClientV2 as any)
   }
 
-  // Track authorization for status updates (keyed by original requirements)
+  // Track authorization for status updates, keyed by the wire-format
+  // requirements object.
   const authorizationByRequirements = new WeakMap<object, Authorization>()
 
-  // beforePaymentCreation: Consult treasurer for payment authorization
   client.onBeforePaymentCreation(async (context: PaymentCreationContext) => {
     const originalRequirements = context.selectedRequirements
     const paymentRequired = context.paymentRequired as V2PaymentRequired
@@ -153,71 +161,50 @@ export function wrapWithAmpersend(client: x402Client, treasurer: X402Treasurer, 
       throw new Error(`Unsupported x402 version: ${paymentRequired.x402Version}`)
     }
 
-    // Convert v2 requirements to v1 for treasurer (which speaks v1 internally)
-    let v1Requirements: PaymentRequirements
+    let canonicalOption: PaymentOption
     let storeEntry: StoreEntry
+    let statusResource: string
 
     if (paymentRequired.x402Version === 2) {
-      // v2 path: convert to v1 for treasurer
-      v1Requirements = v2RequirementsToV1(originalRequirements, paymentRequired.resource)
+      canonicalOption = fromV2Requirements(originalRequirements as V2PaymentRequirements, paymentRequired.resource)
+      statusResource = paymentRequired.resource.url
+    } else {
+      canonicalOption = fromV1Requirements(originalRequirements as unknown as V1PaymentRequirements)
+      statusResource = canonicalOption.resource.url
+    }
 
-      const authorization = await treasurer.onPaymentRequired([v1Requirements], {
-        method: "http",
-        params: {
-          resource: paymentRequired.resource.url,
-        },
-      })
+    const authorization = await treasurer.onPaymentRequired([canonicalOption], {
+      method: "http",
+      params: {
+        resource: statusResource,
+      },
+    })
 
-      if (!authorization) {
-        return { abort: true, reason: "Payment declined by treasurer" }
-      }
+    if (!authorization) {
+      return { abort: true, reason: "Payment declined by treasurer" }
+    }
 
-      // Store v2 entry with context for payload conversion
+    if (paymentRequired.x402Version === 2) {
       storeEntry = {
         version: 2,
         authorization,
-        context: {
-          resource: paymentRequired.resource,
-          originalRequirements,
-        },
+        resource: paymentRequired.resource,
+        originalRequirements: originalRequirements as V2PaymentRequirements,
       }
-
-      paymentStore.set(originalRequirements, storeEntry)
-      authorizationByRequirements.set(originalRequirements, authorization)
     } else {
-      // v1 path: pass directly to treasurer
-      v1Requirements = originalRequirements as unknown as PaymentRequirements
-
-      const authorization = await treasurer.onPaymentRequired([v1Requirements], {
-        method: "http",
-        params: {
-          resource: paymentRequired.resource,
-        },
-      })
-
-      if (!authorization) {
-        return { abort: true, reason: "Payment declined by treasurer" }
-      }
-
-      // Store v1 entry
-      storeEntry = {
-        version: 1,
-        authorization,
-      }
-
-      paymentStore.set(originalRequirements, storeEntry)
-      authorizationByRequirements.set(originalRequirements, authorization)
+      storeEntry = { version: 1, authorization }
     }
+
+    paymentStore.set(originalRequirements, storeEntry)
+    authorizationByRequirements.set(originalRequirements, authorization)
 
     return
   })
 
-  // afterPaymentCreation: Notify treasurer payment is being sent
   client.onAfterPaymentCreation(async (context: PaymentCreatedContext) => {
     const paymentRequired = context.paymentRequired as V2PaymentRequired
     const authorization = authorizationByRequirements.get(context.selectedRequirements)
     if (authorization) {
-      // Extract resource URL (v2 has resource.url, v1 has resource as string)
       const resourceUrl =
         typeof paymentRequired.resource === "object" ? paymentRequired.resource.url : paymentRequired.resource
       await treasurer.onStatus("sending", authorization, {
@@ -229,12 +216,10 @@ export function wrapWithAmpersend(client: x402Client, treasurer: X402Treasurer, 
     }
   })
 
-  // onPaymentCreationFailure: Notify treasurer of error
   client.onPaymentCreationFailure(async (context: PaymentCreationFailureContext) => {
     const paymentRequired = context.paymentRequired as V2PaymentRequired
     const authorization = authorizationByRequirements.get(context.selectedRequirements)
     if (authorization) {
-      // Extract resource URL (v2 has resource.url, v1 has resource as string)
       const resourceUrl =
         typeof paymentRequired.resource === "object" ? paymentRequired.resource.url : paymentRequired.resource
       await treasurer.onStatus("error", authorization, {

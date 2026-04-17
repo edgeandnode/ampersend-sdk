@@ -1,5 +1,4 @@
-import type { PaymentPayload, PaymentRequirements } from "x402/types"
-
+import type { PaymentAuthorization, PaymentOption } from "./canonical.ts"
 import type { ServerAuthorizationData } from "./types.ts"
 
 /**
@@ -16,38 +15,37 @@ export class WalletError extends Error {
 }
 
 /**
- * X402Wallet interface - Creates payment payloads from requirements
+ * X402Wallet interface - creates signed payment authorizations from payment options.
  *
- * An X402Wallet is responsible for creating cryptographically signed payment payloads
- * that can be submitted to sellers. Different wallet implementations support
- * different account types (EOA, smart accounts, etc.).
+ * An X402Wallet is responsible for producing cryptographically signed payment
+ * authorizations that can be submitted to sellers. Different wallet
+ * implementations support different account types (EOA, smart accounts, etc.).
+ *
+ * Both the input option and the output authorization are in ampersend's
+ * canonical form. Adapters at the HTTP/MCP boundary translate to x402 wire
+ * format before the payment hits the network.
  *
  * @example
  * ```typescript
- * class AccountWallet implements X402Wallet {
- *   constructor(private account: Account) {}
- *
- *   async createPayment(requirements: PaymentRequirements): Promise<PaymentPayload> {
- *     if (requirements.scheme !== "exact") {
- *       throw new WalletError(`Unsupported scheme: ${requirements.scheme}`)
+ * class MyWallet implements X402Wallet {
+ *   async createPayment(option: PaymentOption): Promise<PaymentAuthorization> {
+ *     if (option.scheme !== "exact") {
+ *       throw new WalletError(`Unsupported scheme: ${option.scheme}`)
  *     }
- *     // Create and sign payment
- *     return signedPayment
+ *     // Sign and return { scheme, network, body }
+ *     return signedAuthorization
  *   }
  * }
  * ```
  */
 export interface X402Wallet {
   /**
-   * Creates a payment payload from requirements.
+   * Creates a signed payment authorization from a canonical payment option.
    *
-   * @param requirements - Payment requirements from seller
+   * @param option - Canonical payment option
    * @param serverAuthorization - Optional server co-signature data (for co-signed smart account keys)
-   * @returns Signed payment payload ready for submission
+   * @returns Signed canonical payment authorization ready for adapter wrapping
    * @throws {WalletError} If unable to create payment (unsupported scheme, insufficient funds, etc.)
    */
-  createPayment(
-    requirements: PaymentRequirements,
-    serverAuthorization?: ServerAuthorizationData,
-  ): Promise<PaymentPayload>
+  createPayment(option: PaymentOption, serverAuthorization?: ServerAuthorizationData): Promise<PaymentAuthorization>
 }

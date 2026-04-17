@@ -1,8 +1,8 @@
 import { encodeAbiParameters, encodePacked, type Address, type Hex, type TypedDataDefinition } from "viem"
 import { privateKeyToAccount } from "viem/accounts"
-import type { PaymentPayload, PaymentRequirements } from "x402/types"
 
 import { TRANSFER_WITH_AUTHORIZATION_TYPE } from "../../../smart-account/eip712-types.ts"
+import type { PaymentAuthorization, PaymentOption } from "../../canonical.ts"
 import type { ServerAuthorizationData } from "../../types.ts"
 
 /**
@@ -54,31 +54,30 @@ export async function encodeCoSignedERC1271Signature(
 }
 
 /**
- * Creates a payment payload using server co-signature
+ * Creates a canonical signed payment authorization using server co-signature.
  *
- * This is used for co-signed agent keys where the server provides the ERC-3009
- * authorization data and co-signature. The agent key adds its signature and
- * combines them for ERC-1271 validation via CoSignerValidator.
+ * Used for co-signed agent keys where the server provides the ERC-3009
+ * authorization data and its own signature. The agent key adds its signature
+ * and the two are combined for ERC-1271 validation via CoSignerValidator.
  *
- * @param requirements - Payment requirements from the x402 server
- * @param config - Configuration for the smart account wallet
+ * @param option - Canonical payment option
+ * @param config - Smart account signing configuration
  * @param serverAuthorization - Server-provided authorization data and co-signature
- * @returns Payment payload ready to send to x402 server
- * @throws Error if requirements are invalid or signing fails
+ * @returns Canonical signed payment authorization
  */
 export async function createCoSignedPayment(
-  requirements: PaymentRequirements,
+  option: PaymentOption,
   config: CoSignedPaymentConfig,
   serverAuthorization: ServerAuthorizationData,
-): Promise<PaymentPayload> {
+): Promise<PaymentAuthorization> {
   const { authorizationData, serverSignature } = serverAuthorization
 
-  // Get domain params from requirements.extra
-  const domainName = requirements.extra?.name as string | undefined
-  const domainVersion = requirements.extra?.version as string | undefined
+  // Get EIP-712 domain params from the option's scheme-specific metadata
+  const domainName = option.extra?.name as string | undefined
+  const domainVersion = option.extra?.version as string | undefined
 
   if (!domainName || !domainVersion) {
-    throw new Error("requirements.extra must contain 'name' and 'version' for EIP-712 domain")
+    throw new Error("option.extra must contain 'name' and 'version' for EIP-712 domain")
   }
 
   // Construct EIP-712 typed data from server-provided authorization data
@@ -87,7 +86,7 @@ export async function createCoSignedPayment(
       name: domainName,
       version: domainVersion,
       chainId: config.chainId,
-      verifyingContract: requirements.asset as Address,
+      verifyingContract: option.asset as Address,
     },
     types: {
       TransferWithAuthorization: TRANSFER_WITH_AUTHORIZATION_TYPE,
@@ -111,12 +110,10 @@ export async function createCoSignedPayment(
     config.coSignerValidatorAddress,
   )
 
-  // Construct payment payload matching x402 exact scheme format
-  const paymentPayload: PaymentPayload = {
-    x402Version: 1,
-    scheme: "exact" as const,
-    network: requirements.network,
-    payload: {
+  return {
+    scheme: option.scheme,
+    network: option.network,
+    body: {
       signature: signature as string,
       authorization: {
         from: authorizationData.from,
@@ -128,6 +125,4 @@ export async function createCoSignedPayment(
       },
     },
   }
-
-  return paymentPayload
 }

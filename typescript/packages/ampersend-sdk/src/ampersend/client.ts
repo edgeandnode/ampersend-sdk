@@ -4,19 +4,22 @@ import { SiweMessage } from "siwe"
 import { privateKeyToAccount } from "viem/accounts"
 
 import {
-  AgentPaymentAuthResponse,
+  AgentAuthorizeRequest,
+  AgentAuthorizeRequestWire,
+  AgentAuthorizeResponseWire,
+  AgentPaymentEventReport,
+  AgentPaymentEventReportWire,
   AgentPaymentEventResponse,
   ApiError,
   SIWELoginResponse,
   SIWENonceResponse,
   type Address,
-  type AgentPaymentAuthRequest,
-  type AgentPaymentEventReport,
+  type AgentAuthorizeResponse,
   type ApiClientOptions,
   type AuthenticationState,
+  type PaymentAuthorization,
   type PaymentEvent,
-  type PaymentPayload,
-  type PaymentRequirements,
+  type PaymentOption,
   type SIWELoginRequest,
 } from "./types.js"
 
@@ -120,15 +123,15 @@ export class ApiClient {
    * Request authorization for a payment
    */
   async authorizePayment(
-    requirements: readonly [PaymentRequirements, ...Array<PaymentRequirements>],
-    context?: AgentPaymentAuthRequest["context"],
-  ): Promise<AgentPaymentAuthResponse> {
+    options: readonly [PaymentOption, ...Array<PaymentOption>],
+    context?: AgentAuthorizeRequest["context"],
+  ): Promise<AgentAuthorizeResponse> {
     await this.ensureAuthenticated()
 
-    const request: AgentPaymentAuthRequest = {
-      requirements,
-      context,
-    }
+    const request = new AgentAuthorizeRequest({ options, context, _wireDialect: "envelope" })
+    // Encode through the wire transform so the body is emitted as the new
+    // envelope shape `{ options: [{ protocol, data }, ...], context? }`.
+    const wireBody = Schema.encodeSync(AgentAuthorizeRequestWire)(request)
 
     return this.fetch(
       `/api/v1/agents/${this.agentAddress}/payment/authorize`,
@@ -138,9 +141,9 @@ export class ApiClient {
           "Content-Type": "application/json",
           Authorization: `Bearer ${this.auth.token}`,
         },
-        body: JSON.stringify(request),
+        body: JSON.stringify(wireBody),
       },
-      AgentPaymentAuthResponse,
+      AgentAuthorizeResponseWire,
     )
   }
 
@@ -149,16 +152,15 @@ export class ApiClient {
    */
   async reportPaymentEvent(
     eventId: string,
-    payment: PaymentPayload,
+    payment: PaymentAuthorization,
     event: PaymentEvent,
   ): Promise<AgentPaymentEventResponse> {
     await this.ensureAuthenticated()
 
-    const report: AgentPaymentEventReport = {
-      id: eventId,
-      payment,
-      event,
-    }
+    const report = new AgentPaymentEventReport({ id: eventId, payment, event, _wireDialect: "envelope" })
+    // Encode through the wire transform so `payment` is emitted as the new
+    // envelope shape `{ protocol, data }`.
+    const wireBody = Schema.encodeSync(AgentPaymentEventReportWire)(report)
 
     return this.fetch(
       `/api/v1/agents/${this.agentAddress}/payment/events`,
@@ -168,7 +170,7 @@ export class ApiClient {
           "Content-Type": "application/json",
           Authorization: `Bearer ${this.auth.token}`,
         },
-        body: JSON.stringify(report),
+        body: JSON.stringify(wireBody),
       },
       AgentPaymentEventResponse,
     )

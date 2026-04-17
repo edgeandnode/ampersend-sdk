@@ -1,11 +1,13 @@
 import { withX402Payment } from "@/mcp/server/fastmcp/index.ts"
+import type { PaymentOption, SettlementResult } from "@/x402/canonical.ts"
+import { toV1Requirements, toV1SettleResponse } from "@/x402/http/conversions.ts"
 import { Client } from "@modelcontextprotocol/sdk/client/index.js"
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js"
 import { McpError } from "@modelcontextprotocol/sdk/types.js"
 import { FastMCP } from "fastmcp"
 import { describe, expect, it } from "vitest"
 import { exact } from "x402/schemes"
-import type { PaymentPayload, PaymentRequirements, SettleResponse } from "x402/types"
+import type { PaymentPayload } from "x402/types"
 
 function stubPaymentPayload(): PaymentPayload {
   return exact.evm.decodePayment(
@@ -29,6 +31,23 @@ function stubPaymentPayload(): PaymentPayload {
   )
 }
 
+const canonicalOption: PaymentOption = {
+  scheme: "exact",
+  network: "eip155:84532",
+  amount: "0.001",
+  asset: "USDC",
+  payTo: "0x0000000000000000000000000000000000000000",
+  maxTimeoutSeconds: 300,
+  resource: {
+    url: "test-operation",
+    description: "test",
+    mimeType: "application/json",
+  },
+  extra: {},
+}
+
+const expectedWireRequirements = toV1Requirements(canonicalOption)
+
 describe("FastMCP x402 Integration", () => {
   it("should handle client tool calls without payment", async () => {
     const server = new FastMCP({
@@ -37,34 +56,18 @@ describe("FastMCP x402 Integration", () => {
       version: "0.0.1",
     })
 
-    // Add a tool that requires payment
-    const paymentRequirements: PaymentRequirements = {
-      asset: "USDC",
-      scheme: "exact",
-      description: "test",
-      network: "base-sepolia",
-      maxAmountRequired: "0.001",
-      resource: "test-operation",
-      mimeType: "application/json",
-      payTo: "0x0000000000000000000000000000000000000000",
-      maxTimeoutSeconds: 300,
-    }
-
-    const execute = async () => {
-      return `ok`
-    }
+    const execute = async () => `ok`
     server.addTool({
       name: "paid-tool",
       description: "A tool that requires payment",
       execute: withX402Payment({
-        onExecute: async () => paymentRequirements,
+        onExecute: async () => canonicalOption,
         onPayment: async ({ payment: _payment }) => {
           // accept
         },
       })(execute),
     })
 
-    // Connect server
     await server.start({
       transportType: "httpStream",
       httpStream: {
@@ -78,7 +81,6 @@ describe("FastMCP x402 Integration", () => {
     const transport = new StreamableHTTPClientTransport(new URL(serverUrl))
     await client.connect(transport)
 
-    // Should throw McpError with payment requirements
     await expect(
       client.callTool({
         name: "paid-tool",
@@ -95,13 +97,12 @@ describe("FastMCP x402 Integration", () => {
       const mcpError = error as McpError
       expect(mcpError.code).toBe(402)
 
-      // Extract x402 data (supports workaround for FastMCP not propagating error.data)
       const x402Data = mcpError.data
       expect(x402Data).toMatchObject({
         message: "Payment required for tool execution",
         code: 402,
         x402Version: 1,
-        accepts: [paymentRequirements],
+        accepts: [expectedWireRequirements],
       })
     }
 
@@ -116,35 +117,19 @@ describe("FastMCP x402 Integration", () => {
       version: "0.0.1",
     })
 
-    // Add a tool that requires payment
-    const paymentRequirements: PaymentRequirements = {
-      asset: "USDC",
-      scheme: "exact",
-      description: "test",
-      network: "base-sepolia",
-      maxAmountRequired: "0.001",
-      resource: "test-operation",
-      mimeType: "application/json",
-      payTo: "0x0000000000000000000000000000000000000000",
-      maxTimeoutSeconds: 300,
-    }
-
-    const execute = async () => {
-      return `ok`
-    }
+    const execute = async () => `ok`
 
     server.addTool({
       name: "paid-tool-that-fails",
       description: "A tool that requires payment but fails",
       execute: withX402Payment({
-        onExecute: async () => paymentRequirements,
+        onExecute: async () => canonicalOption,
         onPayment: async ({ payment: _payment }) => {
           throw new Error("This tool will always throw")
         },
       })(execute),
     })
 
-    // Connect server
     await server.start({
       transportType: "httpStream",
       httpStream: {
@@ -158,7 +143,6 @@ describe("FastMCP x402 Integration", () => {
     const transport = new StreamableHTTPClientTransport(new URL(serverUrl))
     await client.connect(transport)
 
-    // Should throw McpError with payment validation failure
     try {
       await client.callTool({
         name: "paid-tool-that-fails",
@@ -173,13 +157,12 @@ describe("FastMCP x402 Integration", () => {
       const mcpError = error as McpError
       expect(mcpError.code).toBe(402)
 
-      // Extract x402 data (supports workaround for FastMCP not propagating error.data)
       const x402Data = mcpError.data
       expect(x402Data).toMatchObject({
         message: "Payment required for tool execution",
         code: 402,
         x402Version: 1,
-        accepts: [paymentRequirements],
+        accepts: [expectedWireRequirements],
         error: "This tool will always throw",
       })
     }
@@ -195,40 +178,25 @@ describe("FastMCP x402 Integration", () => {
       version: "0.0.1",
     })
 
-    // Add a tool that requires payment
-    const paymentRequirements: PaymentRequirements = {
-      asset: "USDC",
-      scheme: "exact",
-      description: "test",
-      network: "base-sepolia",
-      maxAmountRequired: "0.001",
-      resource: "test-operation",
-      mimeType: "application/json",
-      payTo: "0x0000000000000000000000000000000000000000",
-      maxTimeoutSeconds: 300,
-    }
+    const execute = async () => ({ content: [{ type: "text", text: "success" }] })
 
-    const execute = async () => {
-      return { content: [{ type: "text", text: "success" }] }
-    }
-
-    const settleResponse: SettleResponse = {
+    const settlement: SettlementResult = {
       success: true,
       transaction: "0xsettletransactionhash",
+      network: "eip155:84532",
     }
 
     server.addTool({
       name: "paid-tool-success",
       description: "A tool that requires payment and succeeds",
       execute: withX402Payment({
-        onExecute: async () => paymentRequirements,
+        onExecute: async () => canonicalOption,
         onPayment: async ({ payment: _payment }) => {
-          return settleResponse
+          return settlement
         },
       })(execute),
     })
 
-    // Connect server
     await server.start({
       transportType: "httpStream",
       httpStream: {
@@ -254,9 +222,9 @@ describe("FastMCP x402 Integration", () => {
     expect(result.content[0].type).toBe("text")
     expect(result.content[0].text).toBe("success")
 
-    // Verify settlement response is in result._meta per MCP x402 spec
+    // Verify settlement response is in result._meta per MCP x402 spec (v1 wire shape)
     expect(result._meta).toBeDefined()
-    expect(result._meta?.["x402/payment-response"]).toMatchObject(settleResponse)
+    expect(result._meta?.["x402/payment-response"]).toMatchObject(toV1SettleResponse(settlement))
 
     await client.close()
     await server.stop()

@@ -6,7 +6,7 @@
 
 import { x402Client } from "@x402/core/client"
 import type { Address, Hex } from "viem"
-import { EvmNetworkToChainId, type Network } from "x402/types"
+import { EvmNetworkToChainId } from "x402/types"
 
 import { createAmpersendTreasurer } from "../../ampersend/treasurer.ts"
 import { wrapWithAmpersend } from "./adapter.ts"
@@ -15,7 +15,7 @@ import { wrapWithAmpersend } from "./adapter.ts"
 const DEFAULT_API_URL = "https://api.ampersend.ai"
 
 /** Default network (Base mainnet for production) */
-const DEFAULT_NETWORK: Network = "base"
+const DEFAULT_NETWORK = "base"
 
 /**
  * Simplified options for Ampersend HTTP client wrapper.
@@ -29,8 +29,11 @@ export interface SimpleHttpClientOptions {
   client?: x402Client
   /** Ampersend API URL (defaults to production) */
   apiUrl?: string
-  /** Network to use (defaults to "base"). Chain ID is inferred from this. */
-  network?: Network
+  /**
+   * Network to use (defaults to `"base"`). Chain ID is inferred from this.
+   * Accepts v1 x402 network names such as `"base"`, `"base-sepolia"`, etc.
+   */
+  network?: string
 }
 
 /**
@@ -58,7 +61,7 @@ export interface SimpleHttpClientOptions {
  */
 export function createAmpersendHttpClient(options: SimpleHttpClientOptions): x402Client {
   const network = options.network ?? DEFAULT_NETWORK
-  const chainId = EvmNetworkToChainId.get(network)
+  const chainId = EvmNetworkToChainId.get(network as Parameters<typeof EvmNetworkToChainId.get>[0])
 
   if (chainId === undefined) {
     throw new Error(`Unknown network: ${network}`)

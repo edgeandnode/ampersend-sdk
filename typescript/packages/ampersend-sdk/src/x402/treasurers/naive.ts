@@ -1,5 +1,4 @@
-import type { PaymentRequirements } from "x402/types"
-
+import type { PaymentOption } from "../canonical.ts"
 import type { Authorization, PaymentContext, PaymentStatus, X402Treasurer } from "../treasurer.ts"
 import type { X402Wallet } from "../wallet.ts"
 import { createWalletFromConfig, type WalletConfig } from "../wallets/index.ts"
@@ -26,19 +25,18 @@ export class NaiveTreasurer implements X402Treasurer {
   constructor(private wallet: X402Wallet) {}
 
   /**
-   * Always approves payment by creating payment with the wallet.
-   * Uses the first requirement from the array.
+   * Always approves payment by creating a payment with the wallet.
+   * Uses the first option from the array.
    */
   async onPaymentRequired(
-    requirements: Array<PaymentRequirements>,
+    options: ReadonlyArray<PaymentOption>,
     _context?: PaymentContext,
   ): Promise<Authorization | null> {
-    if (requirements.length === 0) {
+    if (options.length === 0) {
       return null
     }
 
-    // Create payment using the wallet
-    const payment = await this.wallet.createPayment(requirements[0])
+    const payment = await this.wallet.createPayment(options[0])
 
     return {
       payment,

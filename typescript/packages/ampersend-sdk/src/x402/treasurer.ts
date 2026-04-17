@@ -1,4 +1,4 @@
-import type { PaymentPayload, PaymentRequirements } from "x402/types"
+import type { PaymentAuthorization, PaymentOption } from "./canonical.ts"
 
 /**
  * Context information for payment decisions
@@ -10,10 +10,10 @@ export interface PaymentContext {
 }
 
 /**
- * Authorization linking a payment with a tracking ID
+ * Authorization linking a signed payment with a tracking ID
  */
 export interface Authorization {
-  payment: PaymentPayload
+  payment: PaymentAuthorization
   authorizationId: string
 }
 
@@ -28,21 +28,26 @@ export type PaymentStatus =
   | "error" // Error during payment processing
 
 /**
- * X402Treasurer interface - Separates payment decision logic from payment creation
+ * X402Treasurer interface - separates payment decision logic from payment creation.
  *
  * An X402Treasurer decides whether to approve or reject payment requests,
  * tracks payment status, and delegates actual payment creation to an X402Wallet.
+ *
+ * All payment data crosses this interface in ampersend's canonical form —
+ * the SDK's HTTP/MCP adapters translate to and from x402 wire formats at the
+ * boundary so treasurer implementations never need to know which x402 version
+ * a seller is speaking.
  *
  * @example
  * ```typescript
  * class BudgetTreasurer implements X402Treasurer {
  *   constructor(private wallet: X402Wallet, private dailyLimit: number) {}
  *
- *   async onPaymentRequired(requirements, context) {
- *     if (this.wouldExceedBudget(requirements[0])) {
+ *   async onPaymentRequired(options, context) {
+ *     if (this.wouldExceedBudget(options[0])) {
  *       return null // Decline
  *     }
- *     const payment = await this.wallet.createPayment(requirements[0])
+ *     const payment = await this.wallet.createPayment(options[0])
  *     return { payment, authorizationId: crypto.randomUUID() }
  *   }
  *
@@ -56,14 +61,11 @@ export interface X402Treasurer {
   /**
    * Called when payment is required.
    *
-   * @param requirements - Array of payment requirements from seller (typically use first)
+   * @param options - Array of payment options from seller (typically use the first)
    * @param context - Optional context about the request requiring payment
    * @returns Authorization to proceed with payment, or null to decline
    */
-  onPaymentRequired(
-    requirements: ReadonlyArray<PaymentRequirements>,
-    context?: PaymentContext,
-  ): Promise<Authorization | null>
+  onPaymentRequired(options: ReadonlyArray<PaymentOption>, context?: PaymentContext): Promise<Authorization | null>
 
   /**
    * Called with payment status updates throughout the payment lifecycle.
