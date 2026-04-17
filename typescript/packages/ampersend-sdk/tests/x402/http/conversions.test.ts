@@ -1,4 +1,4 @@
-import type { PaymentAuthorization, PaymentRequirements, SettlementResult } from "@/x402/canonical.ts"
+import type { PaymentAuthorization, PaymentOption, SettlementResult } from "@/ampersend/types.ts"
 import {
   caip2ToV1Network,
   fromV1PaymentPayload,
@@ -121,7 +121,7 @@ describe("conversions", () => {
   })
 
   describe("toV1Requirements", () => {
-    const canonical: PaymentRequirements = {
+    const canonical: PaymentOption = {
       scheme: "exact",
       network: "eip155:84532",
       amount: "1000000",

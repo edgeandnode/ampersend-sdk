@@ -11,7 +11,7 @@ import type {
 } from "@x402/core/types"
 import type { PaymentRequirements as V1PaymentRequirements } from "x402/types"
 
-import type { PaymentOption } from "../canonical.ts"
+import type { PaymentOption } from "../../ampersend/types.ts"
 import type { Authorization, X402Treasurer } from "../treasurer.ts"
 import {
   fromV1Requirements,

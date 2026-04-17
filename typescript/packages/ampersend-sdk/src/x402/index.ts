@@ -1,9 +1,9 @@
-// Canonical payment types - ampersend's protocol-version-agnostic payment model.
-// These are the types you'll see on treasurer/wallet interfaces and in MCP
-// callbacks. Adapters at the HTTP/MCP boundary translate to/from x402 wire
-// formats so the rest of the SDK never needs to know which protocol version a
-// seller is speaking.
-export type { PaymentAuthorization, PaymentOption, ResourceInfo, SettlementResult } from "./canonical.ts"
+// Payment types - ampersend's protocol-version-agnostic payment model.
+// Defined as Effect-Schema classes in `ampersend/types.ts` (alongside the API
+// wire surface) and re-exported here as plain types. Adapters at the HTTP/MCP
+// boundary translate to/from x402 wire formats so the rest of the SDK never
+// needs to know which protocol version a seller is speaking.
+export type { PaymentAuthorization, PaymentOption, ResourceInfo, SettlementResult } from "../ampersend/types.ts"
 
 // Core abstractions
 export type { Authorization, PaymentContext, PaymentStatus, X402Treasurer } from "./treasurer.ts"

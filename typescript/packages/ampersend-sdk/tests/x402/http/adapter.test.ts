@@ -1,4 +1,4 @@
-import type { PaymentAuthorization, PaymentOption } from "@/x402/canonical.ts"
+import type { PaymentAuthorization, PaymentOption } from "@/ampersend/types.ts"
 import { wrapWithAmpersend } from "@/x402/http/adapter.ts"
 import type { Authorization, PaymentContext, X402Treasurer } from "@/x402/treasurer.ts"
 import type {

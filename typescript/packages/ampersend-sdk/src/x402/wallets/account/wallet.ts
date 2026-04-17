@@ -3,8 +3,7 @@ import { privateKeyToAccount } from "viem/accounts"
 import { createPaymentHeader } from "x402/client"
 import type { PaymentPayload as V1PaymentPayload } from "x402/types"
 
-import type { ServerAuthorizationData } from "../../../ampersend/types.ts"
-import type { PaymentAuthorization, PaymentOption } from "../../canonical.ts"
+import type { PaymentAuthorization, PaymentOption, ServerAuthorizationData } from "../../../ampersend/types.ts"
 import { toV1Requirements } from "../../http/conversions.ts"
 import { WalletError, type X402Wallet } from "../../wallet.ts"
 

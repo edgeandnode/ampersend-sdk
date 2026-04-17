@@ -1,5 +1,5 @@
+import type { PaymentAuthorization, PaymentOption } from "@/ampersend/types.ts"
 import { Client } from "@/mcp/client/index.ts"
-import type { PaymentAuthorization, PaymentOption } from "@/x402/canonical.ts"
 import { fromV1Requirements, toV1PaymentPayload } from "@/x402/http/conversions.ts"
 import type { Authorization, X402Treasurer } from "@/x402/treasurer.ts"
 import { McpError } from "@modelcontextprotocol/sdk/types.js"

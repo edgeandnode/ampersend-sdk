@@ -1,7 +1,7 @@
 import { toHex, type Address, type Hex } from "viem"
 
+import type { PaymentAuthorization, PaymentOption } from "../../../ampersend/types.ts"
 import { signERC3009Authorization } from "../../../smart-account/index.ts"
-import type { PaymentAuthorization, PaymentOption } from "../../canonical.ts"
 
 /**
  * Generates a random 32-byte nonce for use in authorization signatures

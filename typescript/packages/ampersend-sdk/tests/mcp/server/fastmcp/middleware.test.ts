@@ -1,5 +1,5 @@
+import type { PaymentOption, SettlementResult } from "@/ampersend/types.ts"
 import { withX402Payment } from "@/mcp/server/fastmcp/index.ts"
-import type { PaymentOption, SettlementResult } from "@/x402/canonical.ts"
 import { toV1Requirements, toV1SettleResponse } from "@/x402/http/conversions.ts"
 import { Client } from "@modelcontextprotocol/sdk/client/index.js"
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js"

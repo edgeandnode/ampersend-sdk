@@ -1,4 +1,4 @@
-import type { PaymentAuthorization, PaymentOption } from "./canonical.ts"
+import type { PaymentAuthorization, PaymentOption } from "../ampersend/types.ts"
 import type { ServerAuthorizationData } from "./types.ts"
 
 /**

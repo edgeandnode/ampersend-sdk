@@ -1,8 +1,8 @@
 import { encodeAbiParameters, encodePacked, type Address, type Hex, type TypedDataDefinition } from "viem"
 import { privateKeyToAccount } from "viem/accounts"
 
+import type { PaymentAuthorization, PaymentOption } from "../../../ampersend/types.ts"
 import { TRANSFER_WITH_AUTHORIZATION_TYPE } from "../../../smart-account/eip712-types.ts"
-import type { PaymentAuthorization, PaymentOption } from "../../canonical.ts"
 import type { ServerAuthorizationData } from "../../types.ts"
 
 /**

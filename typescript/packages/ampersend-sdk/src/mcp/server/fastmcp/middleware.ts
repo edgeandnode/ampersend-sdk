@@ -9,7 +9,7 @@ import {
 } from "fastmcp"
 import type { PaymentPayload as V1PaymentPayload } from "x402/types"
 
-import type { PaymentAuthorization, PaymentOption, SettlementResult } from "../../../x402/canonical.ts"
+import type { PaymentAuthorization, PaymentOption, SettlementResult } from "../../../ampersend/types.ts"
 import { fromV1PaymentPayload, toV1Requirements, toV1SettleResponse } from "../../../x402/http/conversions.ts"
 
 /**

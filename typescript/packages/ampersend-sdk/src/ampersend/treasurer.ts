@@ -2,7 +2,6 @@ import type { Address, Hex } from "viem"
 import { privateKeyToAccount } from "viem/accounts"
 
 import { OWNABLE_VALIDATOR } from "../smart-account/index.ts"
-import type { PaymentAuthorization, PaymentOption } from "../x402/canonical.ts"
 import {
   createWalletFromConfig,
   type Authorization,
@@ -14,12 +13,7 @@ import {
   type X402Wallet,
 } from "../x402/index.ts"
 import { ApiClient } from "./client.ts"
-import type {
-  PaymentAuthorization as ApiPaymentAuthorization,
-  PaymentOption as ApiPaymentOption,
-  PaymentEvent,
-  ServerAuthorizationData,
-} from "./types.ts"
+import type { PaymentAuthorization, PaymentEvent, PaymentOption, ServerAuthorizationData } from "./types.ts"
 
 /** Default Ampersend API URL */
 const DEFAULT_API_URL = "https://api.ampersend.ai"
@@ -73,12 +67,11 @@ function isSimpleConfig(config: AmpersendTreasurerConfig): config is SimpleAmper
 }
 
 /**
- * AmpersendTreasurer - Ampersend API-based payment authorization
+ * AmpersendTreasurer - Ampersend API-based payment authorization.
  *
- * Both the SDK's canonical types and the ampersend API's Effect Schema types
- * now use the same canonical field names. The casts here bridge the nominal
- * boundary between `x402/canonical.PaymentOption` (interface) and
- * `ampersend/types.PaymentOption` (Effect Schema class).
+ * Canonical payment types and the API's Effect-Schema classes share one
+ * definition (in `ampersend/types.ts`), so this file needs no casts at the
+ * canonical/API boundary.
  */
 export class AmpersendTreasurer implements X402Treasurer {
   constructor(
@@ -95,9 +88,8 @@ export class AmpersendTreasurer implements X402Treasurer {
         return null
       }
 
-      const apiOptions = options as unknown as readonly [ApiPaymentOption, ...Array<ApiPaymentOption>]
-
-      const response = await this.apiClient.authorizePayment(apiOptions, context)
+      const [head, ...tail] = options
+      const response = await this.apiClient.authorizePayment([head, ...tail], context)
 
       const selected = response.authorized.selected
       if (!selected) {
@@ -112,9 +104,9 @@ export class AmpersendTreasurer implements X402Treasurer {
           authorizationData: selected.coSignature.authorizationData,
           serverSignature: selected.coSignature.serverSignature,
         }
-        payment = await this.wallet.createPayment(selected.option as unknown as PaymentOption, serverAuth)
+        payment = await this.wallet.createPayment(selected.option, serverAuth)
       } else {
-        payment = await this.wallet.createPayment(selected.option as unknown as PaymentOption)
+        payment = await this.wallet.createPayment(selected.option)
       }
 
       return {
@@ -130,9 +122,7 @@ export class AmpersendTreasurer implements X402Treasurer {
   async onStatus(status: PaymentStatus, authorization: Authorization, _context?: PaymentContext): Promise<void> {
     try {
       const event = this.mapStatusToEvent(status)
-      // Structural cast: x402/canonical.PaymentAuthorization → ampersend/types.PaymentAuthorization.
-      const apiPayment = authorization.payment as unknown as ApiPaymentAuthorization
-      await this.apiClient.reportPaymentEvent(authorization.authorizationId, apiPayment, event)
+      await this.apiClient.reportPaymentEvent(authorization.authorizationId, authorization.payment, event)
     } catch (error) {
       console.error(`[AmpersendTreasurer] Failed to report status ${status}:`, error)
     }

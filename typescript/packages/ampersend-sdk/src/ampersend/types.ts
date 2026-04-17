@@ -126,6 +126,28 @@ export class PaymentOption extends Schema.Class<PaymentOption>("PaymentOption")(
   }),
 }) {}
 
+/**
+ * Result of settling a payment with a facilitator.
+ *
+ * Not an Effect Schema class because the ampersend API doesn't currently
+ * model settlements on its own wire surface — this is a seller-side SDK
+ * type used by MCP/HTTP middleware. Adapters translate to/from the x402
+ * v1 `SettleResponse` shape at the boundary.
+ */
+export interface SettlementResult {
+  readonly success: boolean
+  /** Address that paid */
+  readonly payer?: string
+  /** On-chain transaction hash (empty or omitted on failure) */
+  readonly transaction?: string
+  /** CAIP-2 network identifier */
+  readonly network: string
+  /** Machine-readable error code, if settlement failed */
+  readonly errorReason?: string
+  /** Human-readable error message, if settlement failed */
+  readonly errorMessage?: string
+}
+
 // ============ ERC-3009 Authorization (for co-signed payments) ============
 
 export class ERC3009AuthorizationData extends Schema.Class<ERC3009AuthorizationData>("ERC3009AuthorizationData")({

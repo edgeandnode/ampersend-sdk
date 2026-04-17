@@ -1,4 +1,4 @@
-import type { PaymentOption } from "../canonical.ts"
+import type { PaymentOption } from "../../ampersend/types.ts"
 import type { Authorization, PaymentContext, PaymentStatus, X402Treasurer } from "../treasurer.ts"
 import type { X402Wallet } from "../wallet.ts"
 import { createWalletFromConfig, type WalletConfig } from "../wallets/index.ts"

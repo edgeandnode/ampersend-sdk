@@ -20,9 +20,20 @@ import {
   type SettleResponse as V1SettleResponse,
 } from "x402/types"
 
-import type * as Canonical from "../canonical.ts"
+import type { PaymentAuthorization, PaymentOption, ResourceInfo, SettlementResult } from "../../ampersend/types.ts"
 
 const DEFAULT_MAX_TIMEOUT_SECONDS = 300
+
+/**
+ * Narrow an inbound wire-format scheme string to the schemes canonical accepts.
+ * Every SDK wallet today only signs "exact"; expand when a second scheme lands.
+ */
+function narrowScheme(scheme: string): "exact" {
+  if (scheme !== "exact") {
+    throw new Error(`Unsupported x402 scheme: "${scheme}". SDK only supports "exact".`)
+  }
+  return scheme
+}
 
 // ============================================================================
 // Network identifier translation
@@ -77,14 +88,14 @@ export function caip2ToV1Network(network: string): string {
  * uses `maxAmountRequired` for the amount. We lift them out so the rest of the
  * SDK can read one consistent shape.
  */
-export function fromV1Requirements(v1Req: V1PaymentRequirements): Canonical.PaymentOption {
-  const resource: Canonical.ResourceInfo = {
+export function fromV1Requirements(v1Req: V1PaymentRequirements): PaymentOption {
+  const resource: ResourceInfo = {
     url: v1Req.resource,
     ...(v1Req.description ? { description: v1Req.description } : {}),
     ...(v1Req.mimeType ? { mimeType: v1Req.mimeType } : {}),
   }
   return {
-    scheme: v1Req.scheme,
+    scheme: narrowScheme(v1Req.scheme),
     network: v1NetworkToCaip2(v1Req.network),
     amount: v1Req.maxAmountRequired,
     asset: v1Req.asset,
@@ -104,14 +115,14 @@ export function fromV1Requirements(v1Req: V1PaymentRequirements): Canonical.Paym
 export function fromV2Requirements(
   v2Req: V2PaymentRequirements,
   resource: V2PaymentRequired["resource"],
-): Canonical.PaymentOption {
-  const resourceInfo: Canonical.ResourceInfo = {
+): PaymentOption {
+  const resourceInfo: ResourceInfo = {
     url: resource.url,
     ...(resource.description ? { description: resource.description } : {}),
     ...(resource.mimeType ? { mimeType: resource.mimeType } : {}),
   }
   return {
-    scheme: v2Req.scheme,
+    scheme: narrowScheme(v2Req.scheme),
     network: v2Req.network,
     amount: v2Req.amount,
     asset: v2Req.asset,
@@ -133,7 +144,7 @@ export function fromV2Requirements(
  * `createPaymentHeader` helper from `x402/client`) and we need to hand it
  * something it understands.
  */
-export function toV1Requirements(option: Canonical.PaymentOption): V1PaymentRequirements {
+export function toV1Requirements(option: PaymentOption): V1PaymentRequirements {
   return {
     scheme: option.scheme as V1PaymentRequirements["scheme"],
     network: caip2ToV1Network(option.network) as V1PaymentRequirements["network"],
@@ -156,7 +167,7 @@ export function toV1Requirements(option: Canonical.PaymentOption): V1PaymentRequ
  * and protocol-version-agnostic (e.g. `{ signature, authorization }` for
  * exact EVM) — it maps directly to v1's `payload` field.
  */
-export function toV1PaymentPayload(auth: Canonical.PaymentAuthorization): V1PaymentPayload {
+export function toV1PaymentPayload(auth: PaymentAuthorization): V1PaymentPayload {
   return {
     x402Version: 1,
     scheme: auth.scheme as V1PaymentPayload["scheme"],
@@ -172,7 +183,7 @@ export function toV1PaymentPayload(auth: Canonical.PaymentAuthorization): V1Paym
  * return `{ x402Version, payload }` plus optional resource/accepted echoes.
  */
 export function toV2PaymentPayloadFragment(
-  auth: Canonical.PaymentAuthorization,
+  auth: PaymentAuthorization,
   originalV2Requirements: V2PaymentRequirements,
   resource: V2PaymentRequired["resource"],
 ): Pick<V2PaymentPayload, "x402Version" | "payload"> & Partial<V2PaymentPayload> {
@@ -191,7 +202,7 @@ export function toV2PaymentPayloadFragment(
  * Used on the seller side where the server receives a v1 payment from the
  * wire and wants to hand it to canonical-speaking business logic.
  */
-export function fromV1PaymentPayload(v1: V1PaymentPayload): Canonical.PaymentAuthorization {
+export function fromV1PaymentPayload(v1: V1PaymentPayload): PaymentAuthorization {
   return {
     scheme: v1.scheme,
     network: v1NetworkToCaip2(v1.network),
@@ -203,7 +214,7 @@ export function fromV1PaymentPayload(v1: V1PaymentPayload): Canonical.PaymentAut
  * Translate a canonical SettlementResult into the v1 SettleResponse wire shape
  * (for embedding into MCP or HTTP responses that still speak v1).
  */
-export function toV1SettleResponse(result: Canonical.SettlementResult): V1SettleResponse {
+export function toV1SettleResponse(result: SettlementResult): V1SettleResponse {
   return {
     success: result.success,
     transaction: (result.transaction ?? "") as V1SettleResponse["transaction"],
@@ -219,7 +230,7 @@ export function toV1SettleResponse(result: Canonical.SettlementResult): V1Settle
  * Convenience helper for seller-side code that still talks to a v1
  * facilitator (e.g. `useFacilitator` from `x402/verify`).
  */
-export function fromV1SettleResponse(v1: V1SettleResponse): Canonical.SettlementResult {
+export function fromV1SettleResponse(v1: V1SettleResponse): SettlementResult {
   return {
     success: v1.success,
     network: v1NetworkToCaip2(v1.network),

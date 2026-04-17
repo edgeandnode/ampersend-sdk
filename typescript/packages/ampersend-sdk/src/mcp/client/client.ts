@@ -13,7 +13,7 @@ import {
 } from "@modelcontextprotocol/sdk/types.js"
 import type { PaymentRequirements as V1PaymentRequirements } from "x402/types"
 
-import type { PaymentOption } from "../../x402/canonical.ts"
+import type { PaymentOption } from "../../ampersend/types.ts"
 import { fromV1Requirements, toV1PaymentPayload } from "../../x402/http/conversions.ts"
 import type { Authorization, X402Treasurer } from "../../x402/treasurer.ts"
 import { asX402Response } from "./protocol.ts"

@@ -12,7 +12,7 @@ import {
 } from "x402/types"
 import { z } from "zod"
 
-import type { PaymentAuthorization } from "../../x402/canonical.ts"
+import type { PaymentAuthorization } from "../../ampersend/types.ts"
 import { toV1PaymentPayload } from "../../x402/http/conversions.ts"
 import type { X402Response } from "./types.ts"
 

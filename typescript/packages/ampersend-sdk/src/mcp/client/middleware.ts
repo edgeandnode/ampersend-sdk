@@ -1,7 +1,7 @@
 import { type JSONRPCMessage, type JSONRPCRequest } from "@modelcontextprotocol/sdk/types.js"
 import type { PaymentRequirements as V1PaymentRequirements } from "x402/types"
 
-import type { PaymentOption } from "../../x402/canonical.ts"
+import type { PaymentOption } from "../../ampersend/types.ts"
 import { fromV1Requirements } from "../../x402/http/conversions.ts"
 import type { Authorization, PaymentStatus, X402Treasurer } from "../../x402/treasurer.ts"
 import {
