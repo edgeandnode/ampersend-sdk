@@ -1,65 +1,66 @@
+import type { PaymentRequirements as UpstreamPaymentRequirements } from "@x402/core/types"
+import { ExactEvmScheme, toClientEvmSigner, type ClientEvmSigner } from "@x402/evm"
+import { ExactEvmSchemeV1 } from "@x402/evm/v1"
 import type { Hex, LocalAccount } from "viem"
 import { privateKeyToAccount } from "viem/accounts"
-import { createPaymentHeader } from "x402/client"
-import type { PaymentPayload, PaymentRequirements } from "x402/types"
 
-import type { ServerAuthorizationData } from "../../../ampersend/types.ts"
+import { acceptedOf, buildAuthorization, type PaymentAuthorization, type PaymentInstruction } from "../../envelopes.ts"
+import type { ServerAuthorizationData } from "../../types.ts"
 import { WalletError, type X402Wallet } from "../../wallet.ts"
 
 /**
- * AccountWallet - EOA (Externally Owned Account) wallet implementation
- *
- * Creates payment payloads signed by an EOA private key.
- * Supports the "exact" payment scheme.
- *
- * @example
- * ```typescript
- * import { privateKeyToAccount } from "viem/accounts"
- *
- * // From viem Account
- * const account = privateKeyToAccount("0x...")
- * const wallet = new AccountWallet(account)
- *
- * // From private key directly
- * const wallet = AccountWallet.fromPrivateKey("0x...")
- * ```
+ * EOA wallet for x402 `exact` on EVM. A `LocalAccount` is sufficient for
+ * EIP-3009 and base Permit2; EIP-2612 permit enrichment is skipped because it
+ * needs `readContract`, which `LocalAccount` lacks.
  */
 export class AccountWallet implements X402Wallet {
   private account: LocalAccount
+  private signer: ClientEvmSigner
+  private schemeV1: ExactEvmSchemeV1
+  private schemeV2: ExactEvmScheme
 
   constructor(account: LocalAccount) {
     this.account = account
+    this.signer = toClientEvmSigner({
+      address: account.address,
+      signTypedData: (msg) => account.signTypedData(msg),
+    })
+    this.schemeV1 = new ExactEvmSchemeV1(this.signer)
+    this.schemeV2 = new ExactEvmScheme(this.signer)
   }
 
-  /**
-   * Creates an AccountWallet from a private key
-   */
   static fromPrivateKey(privateKey: Hex): AccountWallet {
     return new AccountWallet(privateKeyToAccount(privateKey))
   }
 
-  /**
-   * Creates a payment payload from requirements.
-   * Only supports "exact" payment scheme.
-   * Note: serverAuthorization parameter is ignored for EOA wallets (only used by SmartAccountWallet)
-   */
   async createPayment(
-    requirements: PaymentRequirements,
-    _serverAuthorization?: ServerAuthorizationData,
-  ): Promise<PaymentPayload> {
-    if (requirements.scheme !== "exact") {
-      throw new WalletError(`Unsupported payment scheme: ${requirements.scheme}. AccountWallet only supports "exact".`)
+    instruction: PaymentInstruction,
+    serverAuthorization?: ServerAuthorizationData,
+  ): Promise<PaymentAuthorization> {
+    if (serverAuthorization) {
+      throw new WalletError(
+        "AccountWallet received a co-signed authorization from the server, but EOA accounts " +
+          "cannot produce ERC-1271 co-signed payments. Use SmartAccountWallet for co-signed agent keys.",
+      )
+    }
+    const accepted = acceptedOf(instruction)
+    if (accepted.scheme !== "exact") {
+      throw new WalletError(`Unsupported payment scheme: ${accepted.scheme}. AccountWallet only supports "exact".`)
     }
 
+    // Zod-inferred shape → upstream v2-surface shape. Nominal mismatch only;
+    // each scheme re-narrows to the version it needs at runtime.
+    const requirements = accepted as UpstreamPaymentRequirements
     try {
-      // Create payment header using x402 client utility
-      const paymentHeader = await createPaymentHeader(this.account, 1, requirements)
-
-      // Decode base64 payment header to PaymentPayload
-      const decoded = Buffer.from(paymentHeader, "base64").toString("utf-8")
-      const payment = JSON.parse(decoded) as PaymentPayload
-
-      return payment
+      const result =
+        instruction.protocol === "x402-v1"
+          ? await this.schemeV1.createPaymentPayload(1, requirements)
+          : await this.schemeV2.createPaymentPayload(
+              2,
+              requirements,
+              instruction.request.extensions ? { extensions: instruction.request.extensions } : undefined,
+            )
+      return buildAuthorization(instruction, result.payload)
     } catch (error) {
       throw new WalletError(
         `Failed to create payment: ${error instanceof Error ? error.message : String(error)}`,
@@ -68,9 +69,6 @@ export class AccountWallet implements X402Wallet {
     }
   }
 
-  /**
-   * Returns the account address
-   */
   get address(): Hex {
     return this.account.address
   }

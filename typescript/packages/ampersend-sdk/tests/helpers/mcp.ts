@@ -1,5 +1,4 @@
 import { vi } from "vitest"
-import type { PaymentRequirements } from "x402/types"
 
 export interface CapturedRequest {
   url: string | URL
@@ -101,7 +100,7 @@ export function createJsonRpcError(id: number | string, code: number, message: s
 /**
  * Creates x402 payment requirements for 402 errors
  */
-export function createX402Requirements(): { x402Version: number; accepts: Array<PaymentRequirements> } {
+export function createX402Requirements(): { x402Version: number; accepts: Array<Record<string, unknown>> } {
   return {
     x402Version: 1,
     accepts: [

@@ -13,9 +13,6 @@ import type { ProxyServer } from "./server/server.ts"
 /** Default Ampersend API URL */
 const DEFAULT_API_URL = "https://api.ampersend.ai"
 
-/** Default chain ID (Base Sepolia) */
-const DEFAULT_CHAIN_ID = 84532
-
 /**
  * Simplified options for Ampersend MCP proxy.
  * Only requires smart account credentials and port.
@@ -29,8 +26,6 @@ export interface SimpleProxyOptions {
   sessionKeyPrivateKey: Hex
   /** Ampersend API URL (defaults to production) */
   apiUrl?: string
-  /** Chain ID (defaults to Base Sepolia 84532) */
-  chainId?: number
 }
 
 /**
@@ -61,7 +56,6 @@ export async function createAmpersendProxy(options: SimpleProxyOptions): Promise
     smartAccountAddress: options.smartAccountAddress,
     sessionKeyPrivateKey: options.sessionKeyPrivateKey,
     apiUrl: options.apiUrl ?? DEFAULT_API_URL,
-    chainId: options.chainId ?? DEFAULT_CHAIN_ID,
   })
 
   return initializeProxyServerInternal({

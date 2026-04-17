@@ -4,10 +4,24 @@ import {
   type JSONRPCMessage,
   type JSONRPCRequest,
 } from "@modelcontextprotocol/sdk/types.js"
-import { SettleResponseSchema, x402ResponseSchema, type PaymentPayload, type PaymentRequirements } from "x402/types"
+import {
+  PaymentRequiredV1Schema,
+  type PaymentPayloadV1 as V1PaymentPayload,
+  type PaymentRequirementsV1 as V1PaymentRequirements,
+} from "@x402/core/schemas"
 import { z } from "zod"
 
+import type { PaymentAuthorization } from "../../x402/envelopes.ts"
 import type { X402Response } from "./types.ts"
+
+/** Local replica — `@x402/core` exports `SettleResponse` as a type only. */
+const SettleResponseSchema = z.object({
+  success: z.boolean(),
+  transaction: z.string(),
+  network: z.string(),
+  errorReason: z.string().optional(),
+  payer: z.string().optional(),
+})
 
 export const McpX402PaymentResponseSchema = z.object({
   "x402/payment-response": SettleResponseSchema,
@@ -15,18 +29,23 @@ export const McpX402PaymentResponseSchema = z.object({
 
 export type McpX402PaymentResponse = z.infer<typeof McpX402PaymentResponseSchema>
 
-export const McpX402PaymentRequiredSchema = x402ResponseSchema.extend({
+/** 402 body embedded in the JSON-RPC `error.data`, optionally with a settle response. */
+export const McpX402PaymentRequiredSchema = PaymentRequiredV1Schema.extend({
   "x402/payment-response": SettleResponseSchema.optional(),
 })
 
 export type McpX402PaymentRequired = z.infer<typeof McpX402PaymentRequiredSchema>
 
+/** Embed a payment into a JSON-RPC request's `_meta`. MCP is v1-only; throws otherwise. */
 export function buildMessageWithPayment(
   message: JSONRPCRequest,
-  payment: PaymentPayload,
+  payment: PaymentAuthorization,
   paymentId: string,
 ): { messageWithPayment: JSONRPCRequest } {
-  // Return modified message with payment (using spec-compliant field name)
+  if (payment.protocol !== "x402-v1") {
+    throw new Error(`MCP meta requires an x402-v1 authorization; got ${payment.protocol}`)
+  }
+  const v1Payment = payment.data
   const base = message
   const baseParams = base.params || { _meta: {} }
   const baseParamsMeta = baseParams._meta || {}
@@ -36,7 +55,7 @@ export function buildMessageWithPayment(
       ...baseParams,
       _meta: {
         ...baseParamsMeta,
-        "x402/payment": payment,
+        "x402/payment": v1Payment,
         "ampersend/paymentId": paymentId,
       },
     },
@@ -45,7 +64,7 @@ export function buildMessageWithPayment(
 }
 
 export function paymentFromRequest(request: JSONRPCRequest): {
-  payment: PaymentPayload | null
+  payment: V1PaymentPayload | null
   paymentId: string | null
 } {
   const meta = request.params?._meta
@@ -53,7 +72,7 @@ export function paymentFromRequest(request: JSONRPCRequest): {
     return { payment: null, paymentId: null }
   }
 
-  const payment = (meta["x402/payment"] as PaymentPayload) || null
+  const payment = (meta["x402/payment"] as V1PaymentPayload) || null
   const paymentId = (meta["ampersend/paymentId"] as string) || null
 
   return { payment, paymentId }
@@ -99,30 +118,17 @@ export function isMcpX402PaymentRequired(data: unknown): data is McpX402PaymentR
   return result.success
 }
 
-// Type guards and validators
-
-/**
- * Type guard to check if a value is a valid PaymentRequirements array
- */
-function isPaymentRequirementsArray(arr: unknown): arr is Array<PaymentRequirements> {
+function isPaymentRequirementsArray(arr: unknown): arr is Array<V1PaymentRequirements> {
   return Array.isArray(arr) && arr.length > 0 && arr.every((req) => req && typeof req === "object" && "scheme" in req)
 }
 
-/**
- * Type guard to check if a value is a valid X402Response structure
- */
 function isX402Response(obj: unknown): obj is X402Response {
   if (!obj || typeof obj !== "object") return false
   if (!("x402Version" in obj) || !("accepts" in obj)) return false
-
   const candidate = obj as Record<string, unknown>
   return typeof candidate.x402Version === "number" && isPaymentRequirementsArray(candidate.accepts)
 }
 
-/**
- * Type assertion for X402Response with runtime validation.
- * Returns null if the data doesn't match the expected structure.
- */
 export function asX402Response(obj: unknown): X402Response | null {
   return isX402Response(obj) ? obj : null
 }
