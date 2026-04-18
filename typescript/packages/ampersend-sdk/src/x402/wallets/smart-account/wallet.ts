@@ -1,7 +1,7 @@
 import { type Address, type Hex } from "viem"
 
-import type { PaymentAuthorization, PaymentOption } from "../../../ampersend/types.ts"
 import { COSIGNER_VALIDATOR, OWNABLE_VALIDATOR } from "../../../smart-account/constants.ts"
+import type { PaymentAuthorization, PaymentOption } from "../../envelopes.ts"
 import type { ServerAuthorizationData } from "../../types.ts"
 import { WalletError, type X402Wallet } from "../../wallet.ts"
 import { createCoSignedPayment } from "./cosigned.ts"
@@ -66,8 +66,10 @@ export class SmartAccountWallet implements X402Wallet {
     option: PaymentOption,
     serverAuthorization?: ServerAuthorizationData,
   ): Promise<PaymentAuthorization> {
-    if (option.scheme !== "exact") {
-      throw new WalletError(`Unsupported payment scheme: ${option.scheme}. SmartAccountWallet only supports "exact".`)
+    if (option.data.scheme !== "exact") {
+      throw new WalletError(
+        `Unsupported payment scheme: ${option.data.scheme}. SmartAccountWallet only supports "exact".`,
+      )
     }
 
     try {

@@ -33,14 +33,17 @@ describe("SmartAccountWallet", () => {
     const wallet = new SmartAccountWallet(baseConfig)
     await expect(
       wallet.createPayment({
-        scheme: "deferred",
-        network: "eip155:84532",
-        amount: "1000000",
-        asset: "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
-        payTo: "0x2222222222222222222222222222222222222222",
-        maxTimeoutSeconds: 300,
+        protocol: "x402-v2",
+        data: {
+          scheme: "deferred",
+          network: "eip155:84532",
+          amount: "1000000",
+          asset: "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
+          payTo: "0x2222222222222222222222222222222222222222",
+          maxTimeoutSeconds: 300,
+          extra: {},
+        },
         resource: { url: "test", description: "test", mimeType: "application/json" },
-        extra: {},
       }),
     ).rejects.toThrow("Unsupported payment scheme")
   })

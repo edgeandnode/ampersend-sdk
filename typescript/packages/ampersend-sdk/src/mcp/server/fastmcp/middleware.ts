@@ -7,24 +7,27 @@ import {
   type ResourceLink,
   type TextContent,
 } from "fastmcp"
-import type { PaymentPayload as V1PaymentPayload } from "x402/types"
+import type {
+  PaymentPayload as V1PaymentPayload,
+  PaymentRequirements as V1PaymentRequirements,
+  SettleResponse as V1SettleResponse,
+} from "x402/types"
 
-import type { PaymentAuthorization, PaymentOption, SettlementResult } from "../../../ampersend/types.ts"
-import { fromV1PaymentPayload, toV1Requirements, toV1SettleResponse } from "../../../x402/http/conversions.ts"
+import type { PaymentAuthorization, PaymentOption, SettlementResult } from "../../../x402/envelopes.ts"
 
 /**
  * Callback to determine if payment is required for a tool execution. Returns
- * the seller's payment option or null if no payment is required.
+ * the seller's payment option (envelope) or null if no payment is required.
+ * The MCP spec currently uses x402-v1, so this middleware expects v1-tagged
+ * envelopes.
  */
 export type OnExecute = (context: { args: unknown }) => Promise<PaymentOption | null>
 
 /**
  * Callback invoked when a payment has been attached to a tool call.
  *
- * Both `payment` and `option` are in ampersend's canonical form.
- * Implementations that need to call a v1 facilitator can use
- * `toV1Requirements`/`toV1PaymentPayload`/`fromV1SettleResponse` from
- * `@ampersend_ai/ampersend-sdk/x402/conversions` to bridge.
+ * Inputs and outputs are ampersend envelopes. Because the MCP spec is v1,
+ * implementations return v1-tagged settlement envelopes (or void).
  */
 export type OnPayment = (context: {
   payment: PaymentAuthorization
@@ -46,9 +49,9 @@ interface PaymentErrorData {
   message: string
   code: number
   x402Version: number
-  accepts: Array<ReturnType<typeof toV1Requirements>>
+  accepts: Array<V1PaymentRequirements>
   error?: string
-  "x402/payment-response"?: ReturnType<typeof toV1SettleResponse>
+  "x402/payment-response"?: V1SettleResponse
 }
 
 /**
@@ -67,14 +70,21 @@ interface FastMCPContext {
  */
 type ExecuteFunction<TArgs = any, TResult = any> = (args: TArgs, context: FastMCPContext) => Promise<TResult>
 
-/**
- * Creates a payment error with the seller's payment option (serialised to v1
- * wire shape).
- *
- * Workaround: embeds x402 data as JSON in the error message for when FastMCP
- * doesn't properly propagate the data field. This allows the client to fall
- * back to parsing the data from the message.
- */
+/** Require MCP-flavoured envelope (x402-v1); otherwise error. */
+function requireV1Option(option: PaymentOption): V1PaymentRequirements {
+  if (option.protocol !== "x402-v1") {
+    throw new Error(`MCP x402 middleware only supports x402-v1 options (got ${option.protocol}).`)
+  }
+  return option.data
+}
+
+function requireV1Settlement(settlement: SettlementResult): V1SettleResponse {
+  if (settlement.protocol !== "x402-v1") {
+    throw new Error(`MCP x402 middleware only supports x402-v1 settlements (got ${settlement.protocol}).`)
+  }
+  return settlement.data
+}
+
 function createPaymentError(
   option: PaymentOption,
   errorReason: string | null = null,
@@ -84,15 +94,14 @@ function createPaymentError(
     message: "Payment required for tool execution",
     code: 402,
     x402Version: 1,
-    accepts: [toV1Requirements(option)],
+    accepts: [requireV1Option(option)],
   }
   if (errorReason) {
     data.error = errorReason
   }
   if (settlement) {
-    data["x402/payment-response"] = toV1SettleResponse(settlement)
+    data["x402/payment-response"] = requireV1Settlement(settlement)
   }
-
   return new CustomMcpError(402, data.message, data)
 }
 
@@ -115,62 +124,54 @@ function normalizeToolResult(result: ToolExecuteReturn): ContentResult {
     return { content: [{ text: result, type: "text" }] }
   }
 
-  // Check if it's an individual content type (has 'type' property)
   if ("type" in result) {
     return { content: [result] }
   }
 
-  // Already a ContentResult
   return result
 }
 
 /**
- * Middleware that wraps a FastMCP execute function to handle x402 payments
+ * Wraps a FastMCP `execute` function with x402 payment handling.
  *
- * Extracts payment from requestMetadata["x402/payment"] field and adds settlement
- * response to result _meta["x402/payment-response"] according to the official
- * MCP x402 spec. Both `onExecute` and `onPayment` callbacks receive canonical
- * ampersend types; the middleware translates to/from the x402 v1 wire shapes
- * used on the MCP layer at the boundary.
+ * Extracts the wire-format x402-v1 payment from `requestMetadata["x402/payment"]`,
+ * hands it to `onPayment` as an ampersend envelope, and writes the settlement
+ * envelope back as v1 wire shape in `result._meta["x402/payment-response"]`
+ * per the MCP x402 spec.
  */
 export function withX402Payment<TArgs = any, TResult = any>(
   options: WithX402PaymentOptions,
 ): (execute: ExecuteFunction<TArgs, TResult>) => ExecuteFunction<TArgs, TResult> {
   return (execute: ExecuteFunction<TArgs, TResult>) => {
     return async (args: TArgs, context: FastMCPContext): Promise<TResult> => {
-      // Extract wire-format payment from MCP request metadata
       const wirePayment = context.requestMetadata?.["x402/payment"]
 
-      // Check if payment is required
       const option = await options.onExecute({ args })
-      // No payment required - execute normally
       if (!option) {
         return execute(args, context)
       }
 
-      // Payment is required
       if (!wirePayment) {
         throw createPaymentError(option)
       }
 
-      // Translate wire payment to canonical for the user's onPayment callback
-      const canonicalPayment = fromV1PaymentPayload(wirePayment)
+      // MCP spec is v1-only; wrap the wire payment back into a v1 envelope.
+      const payment: PaymentAuthorization = { protocol: "x402-v1", data: wirePayment }
 
       let settlement: SettlementResult | void
       try {
-        settlement = await options.onPayment({
-          payment: canonicalPayment,
-          option,
-        })
+        settlement = await options.onPayment({ payment, option })
       } catch (error) {
         const reason = error instanceof Error ? error.message : String(error)
         throw createPaymentError(option, reason)
       }
-      if (settlement && !settlement.success) {
-        throw createPaymentError(option, settlement.errorReason ?? null, settlement)
+      if (settlement) {
+        const v1 = requireV1Settlement(settlement)
+        if (!v1.success) {
+          throw createPaymentError(option, v1.errorReason ?? null, settlement)
+        }
       }
 
-      // Payment valid - proceed with execution
       const result = await execute(args, context)
 
       if (!settlement) {
@@ -178,13 +179,10 @@ export function withX402Payment<TArgs = any, TResult = any>(
       }
 
       const normalizedResult = normalizeToolResult(result as ToolExecuteReturn)
-
-      // Add settlement response to result _meta (v1 wire shape)
       normalizedResult._meta = {
         ...normalizedResult._meta,
-        "x402/payment-response": toV1SettleResponse(settlement),
+        "x402/payment-response": requireV1Settlement(settlement),
       }
-
       return normalizedResult as TResult
     }
   }

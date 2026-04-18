@@ -1,4 +1,4 @@
-import type { PaymentAuthorization, PaymentOption } from "../ampersend/types.ts"
+import type { PaymentAuthorization, PaymentOption } from "./envelopes.ts"
 
 /**
  * Context information for payment decisions
@@ -33,10 +33,11 @@ export type PaymentStatus =
  * An X402Treasurer decides whether to approve or reject payment requests,
  * tracks payment status, and delegates actual payment creation to an X402Wallet.
  *
- * All payment data crosses this interface in ampersend's canonical form —
- * the SDK's HTTP/MCP adapters translate to and from x402 wire formats at the
- * boundary so treasurer implementations never need to know which x402 version
- * a seller is speaking.
+ * Payments cross this interface as ampersend protocol envelopes — each option
+ * and authorization carries a `protocol` tag with byte-exact protocol data
+ * inside `data`. Treasurer implementations narrow on `option.protocol` when
+ * they need protocol-specific fields; the `accessors` helpers (`getAmount`,
+ * `getNetworkCaip2`, `getResourceUrl`) cover the cross-protocol reads.
  *
  * @example
  * ```typescript

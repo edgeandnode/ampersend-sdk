@@ -1,4 +1,4 @@
-import type { PaymentAuthorization, PaymentOption } from "../ampersend/types.ts"
+import type { PaymentAuthorization, PaymentOption } from "./envelopes.ts"
 import type { ServerAuthorizationData } from "./types.ts"
 
 /**
@@ -15,36 +15,32 @@ export class WalletError extends Error {
 }
 
 /**
- * X402Wallet interface - creates signed payment authorizations from payment options.
+ * X402Wallet interface - signs payment options into payment authorizations.
  *
- * An X402Wallet is responsible for producing cryptographically signed payment
- * authorizations that can be submitted to sellers. Different wallet
- * implementations support different account types (EOA, smart accounts, etc.).
- *
- * Both the input option and the output authorization are in ampersend's
- * canonical form. Adapters at the HTTP/MCP boundary translate to x402 wire
- * format before the payment hits the network.
+ * Input and output are ampersend protocol envelopes. The wallet narrows on
+ * `option.protocol` to read protocol-specific fields and emits an
+ * authorization tagged with the same protocol.
  *
  * @example
  * ```typescript
  * class MyWallet implements X402Wallet {
  *   async createPayment(option: PaymentOption): Promise<PaymentAuthorization> {
- *     if (option.scheme !== "exact") {
- *       throw new WalletError(`Unsupported scheme: ${option.scheme}`)
+ *     if (option.data.scheme !== "exact") {
+ *       throw new WalletError(`Unsupported scheme: ${option.data.scheme}`)
  *     }
- *     // Sign and return { scheme, network, body }
- *     return signedAuthorization
+ *     // Sign, then return an envelope matching `option.protocol`
+ *     return { protocol: option.protocol, data: signedPayload } as PaymentAuthorization
  *   }
  * }
  * ```
  */
 export interface X402Wallet {
   /**
-   * Creates a signed payment authorization from a canonical payment option.
+   * Sign a payment option into a payment authorization.
    *
-   * @param option - Canonical payment option
+   * @param option - Ampersend envelope wrapping a seller-provided x402 option
    * @param serverAuthorization - Optional server co-signature data (for co-signed smart account keys)
-   * @returns Signed canonical payment authorization ready for adapter wrapping
+   * @returns Ampersend envelope wrapping the signed payment, tagged with the same protocol
    * @throws {WalletError} If unable to create payment (unsupported scheme, insufficient funds, etc.)
    */
   createPayment(option: PaymentOption, serverAuthorization?: ServerAuthorizationData): Promise<PaymentAuthorization>

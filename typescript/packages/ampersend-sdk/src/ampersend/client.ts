@@ -3,23 +3,19 @@ import { DateTime, Schema } from "effect"
 import { SiweMessage } from "siwe"
 import { privateKeyToAccount } from "viem/accounts"
 
+import type { PaymentAuthorization, PaymentOption } from "../x402/envelopes.ts"
 import {
   AgentAuthorizeRequest,
-  AgentAuthorizeRequestWire,
-  AgentAuthorizeResponseWire,
+  AgentAuthorizeResponse,
   AgentPaymentEventReport,
-  AgentPaymentEventReportWire,
   AgentPaymentEventResponse,
   ApiError,
   SIWELoginResponse,
   SIWENonceResponse,
   type Address,
-  type AgentAuthorizeResponse,
   type ApiClientOptions,
   type AuthenticationState,
-  type PaymentAuthorization,
   type PaymentEvent,
-  type PaymentOption,
   type SIWELoginRequest,
 } from "./types.js"
 
@@ -125,13 +121,16 @@ export class ApiClient {
   async authorizePayment(
     options: readonly [PaymentOption, ...Array<PaymentOption>],
     context?: AgentAuthorizeRequest["context"],
-  ): Promise<AgentAuthorizeResponse> {
+  ): Promise<typeof AgentAuthorizeResponse.Type> {
     await this.ensureAuthenticated()
 
-    const request = new AgentAuthorizeRequest({ options, context, _wireDialect: "envelope" })
-    // Encode through the wire transform so the body is emitted as the new
-    // envelope shape `{ options: [{ protocol, data }, ...], context? }`.
-    const wireBody = Schema.encodeSync(AgentAuthorizeRequestWire)(request)
+    // Envelopes are already byte-exact; the Effect schema shapes them for
+    // transport directly without an intermediate canonical form.
+    const request: AgentAuthorizeRequest = {
+      options: options as unknown as AgentAuthorizeRequest["options"],
+      context,
+    }
+    const wireBody = Schema.encodeSync(AgentAuthorizeRequest)(request)
 
     return this.fetch(
       `/api/v1/agents/${this.agentAddress}/payment/authorize`,
@@ -143,7 +142,7 @@ export class ApiClient {
         },
         body: JSON.stringify(wireBody),
       },
-      AgentAuthorizeResponseWire,
+      AgentAuthorizeResponse,
     )
   }
 
@@ -157,10 +156,12 @@ export class ApiClient {
   ): Promise<AgentPaymentEventResponse> {
     await this.ensureAuthenticated()
 
-    const report = new AgentPaymentEventReport({ id: eventId, payment, event, _wireDialect: "envelope" })
-    // Encode through the wire transform so `payment` is emitted as the new
-    // envelope shape `{ protocol, data }`.
-    const wireBody = Schema.encodeSync(AgentPaymentEventReportWire)(report)
+    const report: AgentPaymentEventReport = {
+      id: eventId,
+      payment: payment as unknown as AgentPaymentEventReport["payment"],
+      event,
+    }
+    const wireBody = Schema.encodeSync(AgentPaymentEventReport)(report)
 
     return this.fetch(
       `/api/v1/agents/${this.agentAddress}/payment/events`,

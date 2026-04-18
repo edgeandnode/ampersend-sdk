@@ -1,7 +1,8 @@
 import { toHex, type Address, type Hex } from "viem"
 
-import type { PaymentAuthorization, PaymentOption } from "../../../ampersend/types.ts"
 import { signERC3009Authorization } from "../../../smart-account/index.ts"
+import { getAmount, getNetworkCaip2 } from "../../accessors.ts"
+import type { PaymentAuthorization, PaymentOption } from "../../envelopes.ts"
 
 /**
  * Generates a random 32-byte nonce for use in authorization signatures
@@ -31,42 +32,41 @@ export interface ExactPaymentConfig {
 }
 
 /**
- * Creates a canonical signed payment authorization using the "exact" scheme
- * with ERC-3009 USDC transfer authorization.
+ * Sign an "exact" scheme option into a PaymentAuthorization envelope.
  *
- * The scheme uses USDC's `transferWithAuthorization` (ERC-3009) to create a
- * signed off-chain authorization. The signature is produced via ERC-1271 from
- * a smart account using the OwnableValidator module. The resulting
- * authorization is returned in ampersend's canonical form; HTTP/MCP adapters
- * wrap it in an x402 v1 or v2 envelope on the way out.
- *
- * @param option - Canonical payment option
- * @param config - Smart account signing configuration
- * @returns Canonical signed payment authorization
+ * Uses USDC's `transferWithAuthorization` (ERC-3009) via ERC-1271 with the
+ * OwnableValidator module. The same signed body is wrapped in a v1 or v2
+ * envelope depending on the input option's protocol.
  */
 export async function createExactPayment(
   option: PaymentOption,
   config: ExactPaymentConfig,
 ): Promise<PaymentAuthorization> {
+  const maxTimeoutSeconds = option.data.maxTimeoutSeconds
+  const payTo = option.data.payTo as Address
+  const asset = option.data.asset as Address
+  const amount = getAmount(option)
+
   const nonce = createNonce()
   const validAfter = BigInt(Math.floor(Date.now() / 1000) - 600) // 10 minutes before
-  const validBefore = BigInt(Math.floor(Date.now() / 1000) + option.maxTimeoutSeconds)
+  const validBefore = BigInt(Math.floor(Date.now() / 1000) + maxTimeoutSeconds)
 
   const authData = {
     from: config.smartAccountAddress,
-    to: option.payTo as Address,
-    value: BigInt(option.amount),
+    to: payTo,
+    value: BigInt(amount),
     validAfter,
     validBefore,
     nonce,
   }
 
-  // EIP-712 domain params come from the option's scheme-specific metadata.
-  const domainName = option.extra?.name as string | undefined
-  const domainVersion = option.extra?.version as string | undefined
+  // EIP-712 domain params come from the seller's scheme-specific metadata.
+  const extra = option.data.extra
+  const domainName = extra?.name as string | undefined
+  const domainVersion = extra?.version as string | undefined
 
   if (!domainName || !domainVersion) {
-    throw new Error("option.extra must contain 'name' and 'version' for EIP-712 domain")
+    throw new Error("option.data.extra must contain 'name' and 'version' for EIP-712 domain")
   }
 
   // Sign using ERC-1271 with OwnableValidator
@@ -74,26 +74,54 @@ export async function createExactPayment(
     config.sessionKeyPrivateKey,
     config.smartAccountAddress,
     authData,
-    option.asset as Address,
+    asset,
     config.chainId,
     config.validatorAddress,
     domainName,
     domainVersion,
   )
 
-  return {
-    scheme: option.scheme,
-    network: option.network,
-    body: {
-      signature: signature as string,
-      authorization: {
-        from: config.smartAccountAddress as string,
-        to: option.payTo,
-        value: option.amount,
-        validAfter: validAfter.toString(),
-        validBefore: validBefore.toString(),
-        nonce: nonce as string,
+  const signedPayload = {
+    signature: signature as string,
+    authorization: {
+      from: config.smartAccountAddress as string,
+      to: payTo as string,
+      value: amount,
+      validAfter: validAfter.toString(),
+      validBefore: validBefore.toString(),
+      nonce: nonce as string,
+    },
+  }
+
+  if (option.protocol === "x402-v1") {
+    return {
+      protocol: "x402-v1",
+      data: {
+        x402Version: 1,
+        scheme: "exact",
+        network: option.data.network,
+        payload: signedPayload,
       },
+    }
+  }
+
+  // v2: the PaymentPayloadV2 carries `resource` (from the 402 response) and
+  // `accepted` (echo of the requirement we signed), alongside the signed body.
+  return {
+    protocol: "x402-v2",
+    data: {
+      x402Version: 2,
+      resource: option.resource,
+      accepted: {
+        scheme: option.data.scheme,
+        network: getNetworkCaip2(option),
+        amount: option.data.amount,
+        asset: option.data.asset,
+        payTo: option.data.payTo,
+        maxTimeoutSeconds: option.data.maxTimeoutSeconds,
+        extra: option.data.extra,
+      },
+      payload: signedPayload,
     },
   }
 }

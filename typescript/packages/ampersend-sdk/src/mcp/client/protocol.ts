@@ -12,8 +12,7 @@ import {
 } from "x402/types"
 import { z } from "zod"
 
-import type { PaymentAuthorization } from "../../ampersend/types.ts"
-import { toV1PaymentPayload } from "../../x402/http/conversions.ts"
+import type { PaymentAuthorization } from "../../x402/envelopes.ts"
 import type { X402Response } from "./types.ts"
 
 export const McpX402PaymentResponseSchema = z.object({
@@ -29,15 +28,20 @@ export const McpX402PaymentRequiredSchema = x402ResponseSchema.extend({
 export type McpX402PaymentRequired = z.infer<typeof McpX402PaymentRequiredSchema>
 
 /**
- * Embed a canonical payment authorization into a JSON-RPC request's `_meta`
- * field in the MCP wire format (x402 v1 PaymentPayload shape).
+ * Embed a payment authorization into a JSON-RPC request's `_meta` field.
+ *
+ * The MCP spec uses the x402-v1 PaymentPayload shape, so this helper requires
+ * an x402-v1 authorization envelope and throws otherwise.
  */
 export function buildMessageWithPayment(
   message: JSONRPCRequest,
   payment: PaymentAuthorization,
   paymentId: string,
 ): { messageWithPayment: JSONRPCRequest } {
-  const v1Payment = toV1PaymentPayload(payment)
+  if (payment.protocol !== "x402-v1") {
+    throw new Error(`MCP meta requires an x402-v1 authorization; got ${payment.protocol}`)
+  }
+  const v1Payment = payment.data
   const base = message
   const baseParams = base.params || { _meta: {} }
   const baseParamsMeta = baseParams._meta || {}

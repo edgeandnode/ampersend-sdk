@@ -13,8 +13,7 @@ import {
 } from "@modelcontextprotocol/sdk/types.js"
 import type { PaymentRequirements as V1PaymentRequirements } from "x402/types"
 
-import type { PaymentOption } from "../../ampersend/types.ts"
-import { fromV1Requirements, toV1PaymentPayload } from "../../x402/http/conversions.ts"
+import type { PaymentOption } from "../../x402/envelopes.ts"
 import type { Authorization, X402Treasurer } from "../../x402/treasurer.ts"
 import { asX402Response } from "./protocol.ts"
 import type { ClientOptions, X402Response } from "./types.ts"
@@ -136,29 +135,28 @@ export class Client extends McpClient {
     params: OpParams,
     wireRequirements: ReadonlyArray<V1PaymentRequirements>,
   ): Promise<{ paramsWithPayment: OpParams; authorization: Authorization } | null> {
-    // Translate MCP wire requirements to canonical payment options before
-    // hitting the treasurer.
-    const options: ReadonlyArray<PaymentOption> = wireRequirements.map(fromV1Requirements)
+    // MCP spec currently uses the x402-v1 wire shape; tag each requirement
+    // as an x402-v1 envelope before passing to the treasurer.
+    const options: ReadonlyArray<PaymentOption> = wireRequirements.map((req) => ({
+      protocol: "x402-v1",
+      data: req,
+    }))
 
-    const paymentContext = {
-      method,
-      params,
-    }
-
-    const authorization = await this.treasurer.onPaymentRequired(options, paymentContext)
-
+    const authorization = await this.treasurer.onPaymentRequired(options, { method, params })
     if (!authorization) {
       return null
     }
+    if (authorization.payment.protocol !== "x402-v1") {
+      throw new Error(`MCP retry requires an x402-v1 authorization; got ${authorization.payment.protocol}`)
+    }
 
-    // Embed the canonical authorization into the retry params as a v1 wire
-    // PaymentPayload (the MCP spec currently uses v1 shape).
+    // Embed the byte-exact x402-v1 PaymentPayload into _meta per the MCP spec.
     const baseMeta = params._meta || {}
     const paramsWithPayment = {
       ...params,
       _meta: {
         ...baseMeta,
-        "x402/payment": toV1PaymentPayload(authorization.payment),
+        "x402/payment": authorization.payment.data,
       },
     }
 

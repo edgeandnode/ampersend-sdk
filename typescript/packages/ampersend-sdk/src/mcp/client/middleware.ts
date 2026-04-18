@@ -1,8 +1,7 @@
 import { type JSONRPCMessage, type JSONRPCRequest } from "@modelcontextprotocol/sdk/types.js"
 import type { PaymentRequirements as V1PaymentRequirements } from "x402/types"
 
-import type { PaymentOption } from "../../ampersend/types.ts"
-import { fromV1Requirements } from "../../x402/http/conversions.ts"
+import type { PaymentOption } from "../../x402/envelopes.ts"
 import type { Authorization, PaymentStatus, X402Treasurer } from "../../x402/treasurer.ts"
 import {
   buildMessageWithPayment,
@@ -78,9 +77,11 @@ export class X402Middleware {
     request: JSONRPCRequest,
     wireRequirements: ReadonlyArray<V1PaymentRequirements>,
   ): Promise<{ messageWithPayment: JSONRPCRequest; authorization: Authorization } | null> {
-    // Translate MCP wire requirements to canonical payment options before
-    // hitting the treasurer.
-    const options: ReadonlyArray<PaymentOption> = wireRequirements.map(fromV1Requirements)
+    // MCP spec uses x402-v1 wire shapes; tag each requirement accordingly.
+    const options: ReadonlyArray<PaymentOption> = wireRequirements.map((req) => ({
+      protocol: "x402-v1",
+      data: req,
+    }))
 
     const paymentContext = {
       method: request.method,

@@ -1,12 +1,10 @@
-import type { PaymentAuthorization, PaymentOption } from "@/ampersend/types.ts"
 import { Client } from "@/mcp/client/index.ts"
-import { fromV1Requirements, toV1PaymentPayload } from "@/x402/http/conversions.ts"
+import type { PaymentAuthorization, PaymentOption } from "@/x402/envelopes.ts"
 import type { Authorization, X402Treasurer } from "@/x402/treasurer.ts"
 import { McpError } from "@modelcontextprotocol/sdk/types.js"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 
-// Wire-format 402 response embedded in the MCP error — still v1-shaped, since
-// that's the current MCP spec.
+// Wire-format 402 response embedded in the MCP error — v1-shaped per the MCP spec.
 const mockX402Response = {
   x402Version: 1,
   accepts: [
@@ -24,14 +22,14 @@ const mockX402Response = {
   ],
 }
 
-// Canonical payment option the treasurer should see after the client translates.
-const expectedCanonicalOption: PaymentOption = fromV1Requirements(mockX402Response.accepts[0] as any)
+// The envelope the treasurer should see after the client tags the wire data.
+const expectedOption: PaymentOption = { protocol: "x402-v1", data: mockX402Response.accepts[0] as any }
 
-// Canonical payment returned by the treasurer.
-const mockCanonicalPayment: PaymentAuthorization = {
+const v1WirePayment = {
+  x402Version: 1 as const,
   scheme: "exact",
-  network: "eip155:84532",
-  body: {
+  network: "base-sepolia",
+  payload: {
     signature: "0x" + "a".repeat(130),
     authorization: {
       from: "0x" + "1".repeat(40),
@@ -44,11 +42,11 @@ const mockCanonicalPayment: PaymentAuthorization = {
   },
 }
 
-// Wire-format payment the client should embed in the retry `_meta`.
-const expectedWirePayment = toV1PaymentPayload(mockCanonicalPayment)
+const mockPayment: PaymentAuthorization = { protocol: "x402-v1", data: v1WirePayment }
+const expectedWirePayment = v1WirePayment
 
 const mockAuthorization: Authorization = {
-  payment: mockCanonicalPayment,
+  payment: mockPayment,
   authorizationId: "test-auth-id",
 }
 
@@ -81,7 +79,7 @@ function setupClient(treasurer?: X402Treasurer) {
 }
 
 function expectPaymentRequired(treasurer: X402Treasurer, method: string, params: unknown) {
-  expect(treasurer.onPaymentRequired).toHaveBeenCalledWith([expectedCanonicalOption], { method, params })
+  expect(treasurer.onPaymentRequired).toHaveBeenCalledWith([expectedOption], { method, params })
 }
 
 function expectRetryWithPayment(

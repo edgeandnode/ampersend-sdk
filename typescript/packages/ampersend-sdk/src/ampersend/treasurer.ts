@@ -2,6 +2,8 @@ import type { Address, Hex } from "viem"
 import { privateKeyToAccount } from "viem/accounts"
 
 import { OWNABLE_VALIDATOR } from "../smart-account/index.ts"
+import { getResourceUrl } from "../x402/accessors.ts"
+import type { PaymentAuthorization, PaymentOption } from "../x402/envelopes.ts"
 import {
   createWalletFromConfig,
   type Authorization,
@@ -13,7 +15,7 @@ import {
   type X402Wallet,
 } from "../x402/index.ts"
 import { ApiClient } from "./client.ts"
-import type { PaymentAuthorization, PaymentEvent, PaymentOption, ServerAuthorizationData } from "./types.ts"
+import type { PaymentEvent, ServerAuthorizationData } from "./types.ts"
 
 /** Default Ampersend API URL */
 const DEFAULT_API_URL = "https://api.ampersend.ai"
@@ -93,10 +95,15 @@ export class AmpersendTreasurer implements X402Treasurer {
 
       const selected = response.authorized.selected
       if (!selected) {
-        const reasons = response.rejected.map((r) => `${r.option.resource.url}: ${r.reason}`).join(", ")
+        const reasons = response.rejected
+          .map((r) => `${getResourceUrl(r.option as PaymentOption)}: ${r.reason}`)
+          .join(", ")
         console.log(`[AmpersendTreasurer] No options authorized. Reasons: ${reasons || "None provided"}`)
         return null
       }
+
+      // The API echoes back the envelope shape we sent; re-cast at the boundary.
+      const selectedOption = selected.option as PaymentOption
 
       let payment: PaymentAuthorization
       if (selected.coSignature) {
@@ -104,9 +111,9 @@ export class AmpersendTreasurer implements X402Treasurer {
           authorizationData: selected.coSignature.authorizationData,
           serverSignature: selected.coSignature.serverSignature,
         }
-        payment = await this.wallet.createPayment(selected.option, serverAuth)
+        payment = await this.wallet.createPayment(selectedOption, serverAuth)
       } else {
-        payment = await this.wallet.createPayment(selected.option)
+        payment = await this.wallet.createPayment(selectedOption)
       }
 
       return {
