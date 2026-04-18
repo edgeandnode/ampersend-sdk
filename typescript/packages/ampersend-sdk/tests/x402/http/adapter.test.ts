@@ -1,4 +1,4 @@
-import type { PaymentOption } from "@/x402/envelopes.ts"
+import type { PaymentRequest } from "@/x402/envelopes.ts"
 import { wrapWithAmpersend } from "@/x402/http/adapter.ts"
 import type { Authorization, PaymentContext, X402Treasurer } from "@/x402/treasurer.ts"
 import type {
@@ -184,28 +184,28 @@ describe("wrapWithAmpersend", () => {
   })
 
   describe("happy path - v1 wire", () => {
-    it("passes a v1-tagged envelope to the treasurer", async () => {
+    it("passes a v1-tagged PaymentRequest to the treasurer", async () => {
       const v1Requirements = createMockV1Requirements()
       const authorization = createMockV1Authorization()
       mockTreasurer.onPaymentRequired.mockResolvedValue(authorization)
 
       wrapWithAmpersend(mockClient, mockTreasurer, ["base-sepolia"])
 
+      const v1Body = {
+        x402Version: 1,
+        accepts: [v1Requirements],
+      }
       const context: PaymentCreationContext = {
-        paymentRequired: {
-          x402Version: 1,
-          accepts: [v1Requirements],
-          resource: "https://api.example.com/resource",
-        },
+        paymentRequired: v1Body,
         selectedRequirements: v1Requirements,
       } as any
 
       await mockClient._beforeHooks[0](context)
 
-      const [passedRequirements, passedContext] = mockTreasurer.onPaymentRequired.mock.calls[0]
-      const option = passedRequirements[0] as PaymentOption
-      expect(option.protocol).toBe("x402-v1")
-      expect(option.data).toBe(v1Requirements) // byte-exact: same reference
+      const [passedRequest, passedContext] = mockTreasurer.onPaymentRequired.mock.calls[0]
+      const request = passedRequest as PaymentRequest
+      expect(request.protocol).toBe("x402-v1")
+      expect(request.data).toBe(v1Body) // byte-exact: same reference
 
       expect(passedContext).toEqual({
         method: "http",
@@ -426,29 +426,31 @@ describe("wrapWithAmpersend", () => {
   })
 
   describe("v2 protocol support", () => {
-    it("passes a v2-tagged envelope (with resource) to the treasurer", async () => {
+    it("passes a v2-tagged PaymentRequest (with top-level resource) to the treasurer", async () => {
       const v2Requirements = createMockV2Requirements()
+      const v2PaymentRequired = createMockV2PaymentRequired()
       const authorization = createMockV2Authorization()
       mockTreasurer.onPaymentRequired.mockResolvedValue(authorization)
 
       wrapWithAmpersend(mockClient, mockTreasurer, ["base-sepolia"])
 
       const context: PaymentCreationContext = {
-        paymentRequired: createMockV2PaymentRequired(),
+        paymentRequired: v2PaymentRequired,
         selectedRequirements: v2Requirements,
       } as any
       await mockClient._beforeHooks[0](context)
 
-      const [requirements] = mockTreasurer.onPaymentRequired.mock.calls[0]
-      const option = requirements[0] as PaymentOption
-      expect(option.protocol).toBe("x402-v2")
-      expect(option.data).toBe(v2Requirements) // byte-exact passthrough
-      if (option.protocol === "x402-v2") {
-        expect(option.resource).toEqual({
+      const [passedRequest] = mockTreasurer.onPaymentRequired.mock.calls[0]
+      const request = passedRequest as PaymentRequest
+      expect(request.protocol).toBe("x402-v2")
+      expect(request.data).toBe(v2PaymentRequired) // byte-exact passthrough
+      if (request.protocol === "x402-v2") {
+        expect(request.data.resource).toEqual({
           url: "https://api.example.com/resource",
           description: "Test resource",
           mimeType: "application/json",
         })
+        expect(request.data.accepts).toEqual([v2Requirements])
       }
     })
 

@@ -3,7 +3,7 @@ import { DateTime, Schema } from "effect"
 import { SiweMessage } from "siwe"
 import { privateKeyToAccount } from "viem/accounts"
 
-import type { PaymentAuthorization, PaymentOption } from "../x402/envelopes.ts"
+import type { PaymentAuthorization, PaymentRequest } from "../x402/envelopes.ts"
 import {
   AgentAuthorizeRequest,
   AgentAuthorizeResponse,
@@ -119,15 +119,15 @@ export class ApiClient {
    * Request authorization for a payment
    */
   async authorizePayment(
-    options: readonly [PaymentOption, ...Array<PaymentOption>],
+    paymentRequest: PaymentRequest,
     context?: AgentAuthorizeRequest["context"],
   ): Promise<typeof AgentAuthorizeResponse.Type> {
     await this.ensureAuthenticated()
 
-    // Envelopes are already byte-exact; the Effect schema shapes them for
+    // Envelope is byte-exact upstream; the Effect schema shapes it for
     // transport directly without an intermediate canonical form.
     const request: AgentAuthorizeRequest = {
-      options: options as unknown as AgentAuthorizeRequest["options"],
+      paymentRequest: paymentRequest as unknown as AgentAuthorizeRequest["paymentRequest"],
       context,
     }
     const wireBody = Schema.encodeSync(AgentAuthorizeRequest)(request)

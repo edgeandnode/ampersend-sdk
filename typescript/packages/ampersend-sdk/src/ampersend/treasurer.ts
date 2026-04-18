@@ -2,8 +2,7 @@ import type { Address, Hex } from "viem"
 import { privateKeyToAccount } from "viem/accounts"
 
 import { OWNABLE_VALIDATOR } from "../smart-account/index.ts"
-import { getResourceUrl } from "../x402/accessors.ts"
-import type { PaymentAuthorization, PaymentOption } from "../x402/envelopes.ts"
+import type { PaymentAuthorization, PaymentInstruction, PaymentRequest } from "../x402/envelopes.ts"
 import {
   createWalletFromConfig,
   type Authorization,
@@ -71,9 +70,9 @@ function isSimpleConfig(config: AmpersendTreasurerConfig): config is SimpleAmper
 /**
  * AmpersendTreasurer - Ampersend API-based payment authorization.
  *
- * Canonical payment types and the API's Effect-Schema classes share one
- * definition (in `ampersend/types.ts`), so this file needs no casts at the
- * canonical/API boundary.
+ * Forwards the seller's {@link PaymentRequest} to the Ampersend API, which
+ * applies budget/policy and returns a selected instruction (plus optional
+ * co-signature). The treasurer then has the wallet sign that instruction.
  */
 export class AmpersendTreasurer implements X402Treasurer {
   constructor(
@@ -81,29 +80,25 @@ export class AmpersendTreasurer implements X402Treasurer {
     private wallet: X402Wallet,
   ) {}
 
-  async onPaymentRequired(
-    options: ReadonlyArray<PaymentOption>,
-    context?: PaymentContext,
-  ): Promise<Authorization | null> {
+  async onPaymentRequired(request: PaymentRequest, context?: PaymentContext): Promise<Authorization | null> {
     try {
-      if (options.length === 0) {
-        return null
-      }
+      if (request.data.accepts.length === 0) return null
 
-      const [head, ...tail] = options
-      const response = await this.apiClient.authorizePayment([head, ...tail], context)
+      const response = await this.apiClient.authorizePayment(request, context)
 
       const selected = response.authorized.selected
       if (!selected) {
         const reasons = response.rejected
-          .map((r) => `${getResourceUrl(r.option as PaymentOption)}: ${r.reason}`)
+          .map((r) => `${resourceUrlOf(r.instruction as unknown as PaymentInstruction)}: ${r.reason}`)
           .join(", ")
-        console.log(`[AmpersendTreasurer] No options authorized. Reasons: ${reasons || "None provided"}`)
+        console.log(`[AmpersendTreasurer] No instructions authorized. Reasons: ${reasons || "None provided"}`)
         return null
       }
 
-      // The API echoes back the envelope shape we sent; re-cast at the boundary.
-      const selectedOption = selected.option as PaymentOption
+      // The API echoes back the envelope shape it chose; carry it to the wallet.
+      // Wire shape is loose (`data` is `Record<string, unknown>` in the Effect
+      // schema); the wallet narrows further on `instruction.protocol`.
+      const instruction = selected.instruction as unknown as PaymentInstruction
 
       let payment: PaymentAuthorization
       if (selected.coSignature) {
@@ -111,9 +106,9 @@ export class AmpersendTreasurer implements X402Treasurer {
           authorizationData: selected.coSignature.authorizationData,
           serverSignature: selected.coSignature.serverSignature,
         }
-        payment = await this.wallet.createPayment(selectedOption, serverAuth)
+        payment = await this.wallet.createPayment(instruction, serverAuth)
       } else {
-        payment = await this.wallet.createPayment(selectedOption)
+        payment = await this.wallet.createPayment(instruction)
       }
 
       return {
@@ -149,6 +144,11 @@ export class AmpersendTreasurer implements X402Treasurer {
         return { type: "error", reason: "Payment processing error" }
     }
   }
+}
+
+/** Read the resource URL from an instruction, regardless of protocol. */
+function resourceUrlOf(instruction: PaymentInstruction): string {
+  return instruction.protocol === "x402-v1" ? instruction.data.resource : instruction.resource.url
 }
 
 /**

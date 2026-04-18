@@ -1,4 +1,4 @@
-import type { PaymentAuthorization, PaymentOption } from "./envelopes.ts"
+import type { PaymentAuthorization, PaymentInstruction } from "./envelopes.ts"
 import type { ServerAuthorizationData } from "./types.ts"
 
 /**
@@ -15,33 +15,36 @@ export class WalletError extends Error {
 }
 
 /**
- * X402Wallet interface - signs payment options into payment authorizations.
+ * X402Wallet interface - signs a {@link PaymentInstruction} into a
+ * {@link PaymentAuthorization}.
  *
- * Input and output are ampersend protocol envelopes. The wallet narrows on
- * `option.protocol` to read protocol-specific fields and emits an
- * authorization tagged with the same protocol.
+ * Wallets narrow on `instruction.protocol` for protocol-specific fields and
+ * emit an authorization tagged with the same protocol.
  *
  * @example
  * ```typescript
  * class MyWallet implements X402Wallet {
- *   async createPayment(option: PaymentOption): Promise<PaymentAuthorization> {
- *     if (option.data.scheme !== "exact") {
- *       throw new WalletError(`Unsupported scheme: ${option.data.scheme}`)
+ *   async createPayment(instruction: PaymentInstruction): Promise<PaymentAuthorization> {
+ *     if (instruction.data.scheme !== "exact") {
+ *       throw new WalletError(`Unsupported scheme: ${instruction.data.scheme}`)
  *     }
- *     // Sign, then return an envelope matching `option.protocol`
- *     return { protocol: option.protocol, data: signedPayload } as PaymentAuthorization
+ *     // Sign, then return an envelope matching `instruction.protocol`
+ *     return { protocol: instruction.protocol, data: signedPayload } as PaymentAuthorization
  *   }
  * }
  * ```
  */
 export interface X402Wallet {
   /**
-   * Sign a payment option into a payment authorization.
+   * Sign a payment instruction into a payment authorization.
    *
-   * @param option - Ampersend envelope wrapping a seller-provided x402 option
+   * @param instruction - One concrete line-item to sign and package
    * @param serverAuthorization - Optional server co-signature data (for co-signed smart account keys)
-   * @returns Ampersend envelope wrapping the signed payment, tagged with the same protocol
+   * @returns Signed payment, tagged with the same protocol as the instruction
    * @throws {WalletError} If unable to create payment (unsupported scheme, insufficient funds, etc.)
    */
-  createPayment(option: PaymentOption, serverAuthorization?: ServerAuthorizationData): Promise<PaymentAuthorization>
+  createPayment(
+    instruction: PaymentInstruction,
+    serverAuthorization?: ServerAuthorizationData,
+  ): Promise<PaymentAuthorization>
 }

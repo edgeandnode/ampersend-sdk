@@ -1,5 +1,5 @@
 import { Client } from "@/mcp/client/index.ts"
-import type { PaymentAuthorization, PaymentOption } from "@/x402/envelopes.ts"
+import type { PaymentAuthorization, PaymentRequest } from "@/x402/envelopes.ts"
 import type { Authorization, X402Treasurer } from "@/x402/treasurer.ts"
 import { McpError } from "@modelcontextprotocol/sdk/types.js"
 import { beforeEach, describe, expect, it, vi } from "vitest"
@@ -22,8 +22,11 @@ const mockX402Response = {
   ],
 }
 
-// The envelope the treasurer should see after the client tags the wire data.
-const expectedOption: PaymentOption = { protocol: "x402-v1", data: mockX402Response.accepts[0] as any }
+// The PaymentRequest envelope the treasurer should see.
+const expectedPaymentRequest: PaymentRequest = {
+  protocol: "x402-v1",
+  data: { x402Version: 1, accepts: mockX402Response.accepts as any },
+}
 
 const v1WirePayment = {
   x402Version: 1 as const,
@@ -79,7 +82,7 @@ function setupClient(treasurer?: X402Treasurer) {
 }
 
 function expectPaymentRequired(treasurer: X402Treasurer, method: string, params: unknown) {
-  expect(treasurer.onPaymentRequired).toHaveBeenCalledWith([expectedOption], { method, params })
+  expect(treasurer.onPaymentRequired).toHaveBeenCalledWith(expectedPaymentRequest, { method, params })
 }
 
 function expectRetryWithPayment(

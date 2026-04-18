@@ -1,9 +1,9 @@
 import { encodeAbiParameters, encodePacked, type Address, type Hex, type TypedDataDefinition } from "viem"
 import { privateKeyToAccount } from "viem/accounts"
+import type { PaymentPayload as V1PaymentPayload } from "x402/types"
 
 import { TRANSFER_WITH_AUTHORIZATION_TYPE } from "../../../smart-account/eip712-types.ts"
-import { getNetworkCaip2 } from "../../accessors.ts"
-import type { PaymentAuthorization, PaymentOption } from "../../envelopes.ts"
+import type { PaymentAuthorization, PaymentInstruction } from "../../envelopes.ts"
 import type { ServerAuthorizationData } from "../../types.ts"
 
 /**
@@ -46,26 +46,26 @@ export async function encodeCoSignedERC1271Signature(
 }
 
 /**
- * Sign a co-signed "exact" option into a PaymentAuthorization envelope.
+ * Sign a co-signed "exact" instruction into a PaymentAuthorization envelope.
  *
  * The server provides ERC-3009 authorization data + its signature. The agent
  * key adds its signature; the two combine for ERC-1271 validation via
- * CoSignerValidator. The same signed body is wrapped in a v1 or v2 envelope
- * depending on the input option's protocol.
+ * CoSignerValidator. The signed body is wrapped in a v1 or v2 envelope
+ * depending on the input instruction's protocol.
  */
 export async function createCoSignedPayment(
-  option: PaymentOption,
+  instruction: PaymentInstruction,
   config: CoSignedPaymentConfig,
   serverAuthorization: ServerAuthorizationData,
 ): Promise<PaymentAuthorization> {
   const { authorizationData, serverSignature } = serverAuthorization
 
-  const extra = option.data.extra
+  const extra = instruction.data.extra
   const domainName = extra?.name as string | undefined
   const domainVersion = extra?.version as string | undefined
 
   if (!domainName || !domainVersion) {
-    throw new Error("option.data.extra must contain 'name' and 'version' for EIP-712 domain")
+    throw new Error("instruction.data.extra must contain 'name' and 'version' for EIP-712 domain")
   }
 
   const typedData: TypedDataDefinition = {
@@ -73,7 +73,7 @@ export async function createCoSignedPayment(
       name: domainName,
       version: domainVersion,
       chainId: config.chainId,
-      verifyingContract: option.data.asset as Address,
+      verifyingContract: instruction.data.asset as Address,
     },
     types: {
       TransferWithAuthorization: TRANSFER_WITH_AUTHORIZATION_TYPE,
@@ -108,13 +108,15 @@ export async function createCoSignedPayment(
     },
   }
 
-  if (option.protocol === "x402-v1") {
+  if (instruction.protocol === "x402-v1") {
+    // x402/types uses a narrow network enum; @x402/core/schemas is looser.
+    // Runtime values agree; cast at the boundary.
     return {
       protocol: "x402-v1",
       data: {
         x402Version: 1,
         scheme: "exact",
-        network: option.data.network,
+        network: instruction.data.network as V1PaymentPayload["network"],
         payload: signedPayload,
       },
     }
@@ -124,16 +126,8 @@ export async function createCoSignedPayment(
     protocol: "x402-v2",
     data: {
       x402Version: 2,
-      resource: option.resource,
-      accepted: {
-        scheme: option.data.scheme,
-        network: getNetworkCaip2(option),
-        amount: option.data.amount,
-        asset: option.data.asset,
-        payTo: option.data.payTo,
-        maxTimeoutSeconds: option.data.maxTimeoutSeconds,
-        extra: option.data.extra,
-      },
+      resource: instruction.resource,
+      accepted: instruction.data,
       payload: signedPayload,
     },
   }

@@ -110,7 +110,7 @@ export class ServerAuthorizationData extends Schema.Class<ServerAuthorizationDat
   }),
 }) {}
 
-// ============ Protocol envelope (wire) ============
+// ============ Protocol envelopes (wire) ============
 
 /**
  * Ampersend's protocol namespace. Dispatch tag for payment-related wire
@@ -119,23 +119,29 @@ export class ServerAuthorizationData extends Schema.Class<ServerAuthorizationDat
 export const Protocol = Schema.Literal("x402-v1", "x402-v2")
 export type Protocol = typeof Protocol.Type
 
-/**
- * Wire envelope for payment options. `data` carries the byte-exact protocol
- * shape (v1 `PaymentRequirements`, v2 `PaymentRequirementsV2`, etc). The
- * Effect schema here doesn't validate the inner data beyond "it's a record";
- * the server-side validation path uses the x402 package's own Zod schemas.
- *
- * v2 carries `resource` on the envelope because v2 puts resource info outside
- * the per-option entry (on the outer `PaymentRequired` response). v1 has
- * `resource` inside `data` and omits the envelope field.
- */
-const V2ResourceInfo = Schema.Struct({
+const ResourceInfo = Schema.Struct({
   url: Schema.NonEmptyTrimmedString,
   description: Schema.optional(Schema.String),
   mimeType: Schema.optional(Schema.String),
 })
 
-export const PaymentOptionEnvelope = Schema.Union(
+/**
+ * Wire envelope for a {@link PaymentRequest} — the seller's full 402
+ * response body. `data` carries the byte-exact upstream `PaymentRequired`
+ * shape (v1 or v2).
+ */
+export const PaymentRequestEnvelope = Schema.Struct({
+  protocol: Protocol,
+  data: Schema.Record({ key: Schema.String, value: Schema.Unknown }),
+})
+export type PaymentRequestEnvelope = typeof PaymentRequestEnvelope.Type
+
+/**
+ * Wire envelope for a {@link PaymentInstruction} — one concrete line-item
+ * selected from a request's `accepts[]`. For v2, the offer-level `resource`
+ * rides alongside because v2's wire payload echoes it as metadata.
+ */
+export const PaymentInstructionEnvelope = Schema.Union(
   Schema.Struct({
     protocol: Schema.Literal("x402-v1"),
     data: Schema.Record({ key: Schema.String, value: Schema.Unknown }),
@@ -143,11 +149,12 @@ export const PaymentOptionEnvelope = Schema.Union(
   Schema.Struct({
     protocol: Schema.Literal("x402-v2"),
     data: Schema.Record({ key: Schema.String, value: Schema.Unknown }),
-    resource: V2ResourceInfo,
+    resource: ResourceInfo,
   }),
 )
-export type PaymentOptionEnvelope = typeof PaymentOptionEnvelope.Type
+export type PaymentInstructionEnvelope = typeof PaymentInstructionEnvelope.Type
 
+/** Wire envelope for a signed {@link PaymentAuthorization}. */
 export const PaymentAuthorizationEnvelope = Schema.Struct({
   protocol: Protocol,
   data: Schema.Record({ key: Schema.String, value: Schema.Unknown }),
@@ -165,26 +172,25 @@ const AuthorizeContext = Schema.Struct({
 /**
  * Request body for POST /api/v1/agents/:agent/payment/authorize.
  *
- * The SDK always emits this envelope-byte-exact shape. The server is
- * responsible for also accepting the pre-envelope legacy shape from older
- * deployed SDKs (v0.0.19 and earlier) and responding in kind.
+ * The SDK emits the seller's full payment request. The server picks a
+ * specific instruction (if any) and returns it in {@link AgentAuthorizeResponse}.
  */
 export const AgentAuthorizeRequest = Schema.Struct({
-  options: Schema.NonEmptyArray(PaymentOptionEnvelope).annotations({
-    description: "Payment options to authorize, each tagged with its protocol",
+  paymentRequest: PaymentRequestEnvelope.annotations({
+    description: "The seller's 402 response, protocol-tagged",
   }),
   context: Schema.optional(AuthorizeContext).annotations({
-    description: "Optional protocol call context for debugging (MCP method, A2A action, etc)",
+    description: "Optional protocol call context for debugging (MCP method, A2A action, HTTP URL, etc)",
   }),
 })
 export type AgentAuthorizeRequest = typeof AgentAuthorizeRequest.Type
 
 const AuthorizedLimits = Schema.Struct({
   dailyRemaining: Schema.NonEmptyTrimmedString.annotations({
-    description: "Remaining daily budget after this option (in wei)",
+    description: "Remaining daily budget after this instruction (in wei)",
   }),
   monthlyRemaining: Schema.NonEmptyTrimmedString.annotations({
-    description: "Remaining monthly budget after this option (in wei)",
+    description: "Remaining monthly budget after this instruction (in wei)",
   }),
 })
 
@@ -215,46 +221,40 @@ const SuggestedNonce = Schema.Struct({
 /**
  * Response body for POST /api/v1/agents/:agent/payment/authorize.
  *
- * The server replies in matching dialect with the client's request. For
- * new-SDK (envelope) clients the shape is:
- *
  * ```
  * {
  *   authorized: {
- *     selected: { option, limits, coSignature? } | null,
- *     alternatives: [{ option, limits }],
+ *     selected: { instruction, limits, coSignature? } | null,
+ *     alternatives: [{ instruction, limits }],
  *   },
- *   rejected: [{ option, reason }],
+ *   rejected: [{ instruction, reason }],
  *   suggested?: { nonce, validBefore },
  * }
  * ```
- *
- * Each `option` here is a `PaymentOptionEnvelope` echoing back the shape the
- * client sent (byte-exact inner data).
  */
 export const AgentAuthorizeResponse = Schema.Struct({
   authorized: Schema.Struct({
     selected: Schema.NullOr(
       Schema.Struct({
-        option: PaymentOptionEnvelope,
+        instruction: PaymentInstructionEnvelope,
         limits: AuthorizedLimits,
         coSignature: Schema.optional(CoSignature),
       }),
     ).annotations({
-      description: "The selected authorized option, or null if none could be authorized",
+      description: "The selected authorized instruction, or null if none could be authorized",
     }),
     alternatives: Schema.Array(
       Schema.Struct({
-        option: PaymentOptionEnvelope,
+        instruction: PaymentInstructionEnvelope,
         limits: AuthorizedLimits,
       }),
     ).annotations({
-      description: "Other authorized options the client can fall back to",
+      description: "Other authorized instructions the client can fall back to",
     }),
   }),
   rejected: Schema.Array(
     Schema.Struct({
-      option: PaymentOptionEnvelope,
+      instruction: PaymentInstructionEnvelope,
       reason: Schema.NonEmptyTrimmedString,
     }),
   ),

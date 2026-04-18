@@ -1,41 +1,59 @@
 /**
  * Ampersend-owned protocol envelopes.
  *
- * Every payment-related value that crosses an SDK interface — treasurer,
- * wallet, MCP callbacks, HTTP adapter, and the wire to the ampersend API —
- * is wrapped in one of these envelopes. The envelope has two fields:
+ * Every payment-related value crossing an SDK interface (treasurer, wallet,
+ * MCP/A2A/HTTP adapters, Ampersend API wire) is wrapped in a `{ protocol, data }`
+ * envelope. `protocol` is ampersend's dispatch tag; `data` is the byte-exact
+ * payload from the underlying protocol package. We don't invent inner shapes.
  *
- *   - `protocol`: ampersend's dispatch tag. Grows as we add protocols
- *     (x402-v3, mpp-v1, etc). Distinct from any protocol's internal version.
- *   - `data`: byte-exact payload produced by the seller (or, for
- *     authorizations, by our wallet). Types for `data` come from upstream
- *     protocol packages; we don't invent inner shapes.
+ * The x402 `x402Version` field inside `data` intentionally duplicates the outer
+ * `protocol` tag. They serve different dispatch layers (ampersend vs upstream
+ * x402) and happen to agree. Don't collapse them.
  *
- * For x402 specifically, the outer `protocol` tag intentionally duplicates
- * `data.x402Version`. They serve different dispatch layers (ampersend vs
- * x402) and happen to agree; don't collapse them.
+ * Four stages, four types:
+ *
+ *   PaymentRequest         — what the seller is asking for (the full 402 body)
+ *        ↓ treasurer picks one line-item
+ *   PaymentInstruction     — the specific line-item the wallet will sign
+ *        ↓ wallet signs
+ *   PaymentAuthorization   — signed, ready to submit to the seller
+ *        ↓ facilitator settles
+ *   SettlementResult       — final outcome
  */
 
-import type { PaymentPayloadV2, PaymentRequirementsV2, ResourceInfo } from "@x402/core/schemas"
-import type { SettleResponse as V2SettleResponse } from "@x402/core/types"
 import type {
-  PaymentPayload as V1PaymentPayload,
-  PaymentRequirements as V1PaymentRequirements,
-  SettleResponse as V1SettleResponse,
-} from "x402/types"
+  PaymentPayloadV2,
+  PaymentRequiredV1,
+  PaymentRequiredV2,
+  PaymentRequirementsV1,
+  PaymentRequirementsV2,
+  ResourceInfo,
+} from "@x402/core/schemas"
+import type { SettleResponse as V2SettleResponse } from "@x402/core/types"
+import type { PaymentPayload as V1PaymentPayload, SettleResponse as V1SettleResponse } from "x402/types"
 
 export type Protocol = "x402-v1" | "x402-v2"
 
 /**
- * A payment option advertised by a seller.
+ * PaymentRequest — the seller's full "402 Payment Required" declaration.
  *
- * v2 carries `resource` on the envelope because v2 puts resource info outside
- * the per-option `accepts[]` entry (on the outer `PaymentRequired` response).
- * v1 has `resource` flat inside `data`, so v1 envelopes don't need the extra
- * field. The asymmetry reflects the underlying protocol shapes.
+ * Wraps the upstream protocol's top-level response body. The treasurer receives
+ * this and decides which (if any) of the `data.accepts` entries to sign against.
  */
-export type PaymentOption =
-  | { readonly protocol: "x402-v1"; readonly data: V1PaymentRequirements }
+export type PaymentRequest =
+  | { readonly protocol: "x402-v1"; readonly data: PaymentRequiredV1 }
+  | { readonly protocol: "x402-v2"; readonly data: PaymentRequiredV2 }
+
+/**
+ * PaymentInstruction — one concrete line-item the wallet will sign and package.
+ *
+ * For v2, the wallet also needs the offer-level `resource` to build the wire
+ * payload (v2's `PaymentPayload` echoes `resource` as metadata). That info lives
+ * outside `data` because it is not part of v2's per-option shape — it's a wire
+ * concern, not a signing-input concern.
+ */
+export type PaymentInstruction =
+  | { readonly protocol: "x402-v1"; readonly data: PaymentRequirementsV1 }
   | {
       readonly protocol: "x402-v2"
       readonly data: PaymentRequirementsV2
@@ -43,15 +61,14 @@ export type PaymentOption =
     }
 
 /**
- * A signed payment authorization produced by a wallet, ready to submit to
- * the seller.
+ * PaymentAuthorization — signed payment, ready to submit.
  */
 export type PaymentAuthorization =
   | { readonly protocol: "x402-v1"; readonly data: V1PaymentPayload }
   | { readonly protocol: "x402-v2"; readonly data: PaymentPayloadV2 }
 
 /**
- * Settlement result returned by a facilitator after a payment.
+ * SettlementResult — facilitator's settlement outcome.
  */
 export type SettlementResult =
   | { readonly protocol: "x402-v1"; readonly data: V1SettleResponse }

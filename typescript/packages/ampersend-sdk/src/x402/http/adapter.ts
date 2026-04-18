@@ -4,6 +4,7 @@ import type {
   PaymentCreationFailureContext,
   x402Client,
 } from "@x402/core/client"
+import type { PaymentRequiredV1, PaymentRequiredV2 } from "@x402/core/schemas"
 import type {
   PaymentPayload as V2PaymentPayload,
   PaymentRequired as V2PaymentRequired,
@@ -11,13 +12,8 @@ import type {
 } from "@x402/core/types"
 import { EvmNetworkToChainId, type PaymentRequirements as V1PaymentRequirements } from "x402/types"
 
-import type { PaymentOption } from "../envelopes.ts"
+import type { PaymentRequest } from "../envelopes.ts"
 import type { Authorization, X402Treasurer } from "../treasurer.ts"
-
-// `@x402/core` ships two flavors of v2 ResourceInfo (loose/schemas vs strict/types).
-// At the boundary we accept either; the v2 client library is the authoritative
-// consumer, and accepts the strict shape we get from `paymentRequired.resource`.
-type V2Resource = V2PaymentRequired["resource"]
 
 function caip2FromV1Name(network: string): `eip155:${number}` {
   const chainId = EvmNetworkToChainId.get(network as Parameters<typeof EvmNetworkToChainId.get>[0])
@@ -27,23 +23,12 @@ function caip2FromV1Name(network: string): `eip155:${number}` {
 
 /**
  * Store entry keyed by the wire-format requirements object the x402 client
- * handed us. Holds the envelope-tagged authorization produced by the
- * treasurer, plus (for v2) the resource info that the outgoing payload needs
- * to echo.
+ * handed us. Holds the envelope-tagged authorization produced by the treasurer.
  */
-interface V1StoreEntry {
-  version: 1
+interface StoreEntry {
+  version: 1 | 2
   authorization: Authorization
 }
-
-interface V2StoreEntry {
-  version: 2
-  authorization: Authorization
-  resource: V2Resource
-  originalRequirements: V2PaymentRequirements
-}
-
-type StoreEntry = V1StoreEntry | V2StoreEntry
 
 /**
  * Scheme client for x402 v1 protocol. Pulls the envelope-tagged authorization
@@ -109,11 +94,14 @@ class TreasurerSchemeClientV2 {
  * Wrap an `x402Client` so payment decisions flow through an ampersend-sdk
  * treasurer.
  *
- * When a 402 arrives, the before-payment hook tags the seller's requirements
- * as an ampersend envelope (byte-exact inside), consults the treasurer, and
- * stashes the resulting authorization keyed by the original requirements
- * object so the outbound scheme client can hand it back to x402Client
- * without a second treasurer round-trip.
+ * When a 402 arrives, the before-payment hook builds a {@link PaymentRequest}
+ * from the full 402 body and hands it to the treasurer. The resulting
+ * authorization is stashed keyed by x402's `selectedRequirements` object, and
+ * an outbound scheme client returns it on the way back out.
+ *
+ * Treasurers are expected to sign against the same `accepts[i]` that x402Client
+ * pre-selected. To override x402's selection, register a custom
+ * `selectPaymentRequirements` on the `x402Client` before wrapping.
  */
 export function wrapWithAmpersend(client: x402Client, treasurer: X402Treasurer, networks: Array<string>): x402Client {
   const paymentStore = new WeakMap<object, StoreEntry>()
@@ -130,52 +118,38 @@ export function wrapWithAmpersend(client: x402Client, treasurer: X402Treasurer, 
   const authorizationByRequirements = new WeakMap<object, Authorization>()
 
   client.onBeforePaymentCreation(async (context: PaymentCreationContext) => {
-    const originalRequirements = context.selectedRequirements
     const paymentRequired = context.paymentRequired as V2PaymentRequired
 
     if (paymentRequired.x402Version !== 1 && paymentRequired.x402Version !== 2) {
       throw new Error(`Unsupported x402 version: ${paymentRequired.x402Version}`)
     }
 
-    let option: PaymentOption
-    let storeEntry: StoreEntry
-    let statusResource: string
+    // x402Client types the 402 body as its v2 `PaymentRequired` surface, but
+    // for v1 the runtime shape is `PaymentRequiredV1` (flat `resource` inside
+    // each `accepts[i]`, no offer-level resource). Cast into the strict
+    // per-version schemas types used by the envelope.
+    const request: PaymentRequest =
+      paymentRequired.x402Version === 2
+        ? { protocol: "x402-v2", data: paymentRequired as unknown as PaymentRequiredV2 }
+        : { protocol: "x402-v1", data: paymentRequired as unknown as PaymentRequiredV1 }
 
-    if (paymentRequired.x402Version === 2) {
-      option = {
-        protocol: "x402-v2",
-        data: originalRequirements as V2PaymentRequirements,
-        resource: paymentRequired.resource,
-      }
-      statusResource = paymentRequired.resource.url
-    } else {
-      option = { protocol: "x402-v1", data: originalRequirements as unknown as V1PaymentRequirements }
-      statusResource = option.data.resource
-    }
+    const resourceUrl =
+      paymentRequired.x402Version === 2
+        ? paymentRequired.resource.url
+        : (context.selectedRequirements as unknown as V1PaymentRequirements).resource
 
-    const authorization = await treasurer.onPaymentRequired([option], {
+    const authorization = await treasurer.onPaymentRequired(request, {
       method: "http",
-      params: { resource: statusResource },
+      params: { resource: resourceUrl },
     })
 
     if (!authorization) {
       return { abort: true, reason: "Payment declined by treasurer" }
     }
 
-    if (option.protocol === "x402-v2") {
-      storeEntry = {
-        version: 2,
-        authorization,
-        // Casts bridge the loose (schemas) vs strict (mechanisms) v2 type pair.
-        resource: option.resource as V2Resource,
-        originalRequirements: option.data as V2PaymentRequirements,
-      }
-    } else {
-      storeEntry = { version: 1, authorization }
-    }
-
-    paymentStore.set(originalRequirements, storeEntry)
-    authorizationByRequirements.set(originalRequirements, authorization)
+    const version: 1 | 2 = paymentRequired.x402Version
+    paymentStore.set(context.selectedRequirements, { version, authorization })
+    authorizationByRequirements.set(context.selectedRequirements, authorization)
     return
   })
 

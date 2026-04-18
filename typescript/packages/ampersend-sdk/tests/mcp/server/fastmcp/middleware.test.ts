@@ -1,5 +1,5 @@
 import { withX402Payment } from "@/mcp/server/fastmcp/index.ts"
-import type { PaymentOption, SettlementResult } from "@/x402/envelopes.ts"
+import type { PaymentInstruction, SettlementResult } from "@/x402/envelopes.ts"
 import { Client } from "@modelcontextprotocol/sdk/client/index.js"
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js"
 import { McpError } from "@modelcontextprotocol/sdk/types.js"
@@ -43,7 +43,7 @@ const v1Requirements: V1PaymentRequirements = {
   extra: {},
 }
 
-const v1Option: PaymentOption = { protocol: "x402-v1", data: v1Requirements }
+const v1Instruction: PaymentInstruction = { protocol: "x402-v1", data: v1Requirements }
 const expectedWireRequirements = v1Requirements
 
 describe("FastMCP x402 Integration", () => {
@@ -59,7 +59,7 @@ describe("FastMCP x402 Integration", () => {
       name: "paid-tool",
       description: "A tool that requires payment",
       execute: withX402Payment({
-        onExecute: async () => v1Option,
+        onExecute: async () => v1Instruction,
         onPayment: async ({ payment: _payment }) => {
           // accept
         },
@@ -121,7 +121,7 @@ describe("FastMCP x402 Integration", () => {
       name: "paid-tool-that-fails",
       description: "A tool that requires payment but fails",
       execute: withX402Payment({
-        onExecute: async () => v1Option,
+        onExecute: async () => v1Instruction,
         onPayment: async ({ payment: _payment }) => {
           throw new Error("This tool will always throw")
         },
@@ -189,7 +189,7 @@ describe("FastMCP x402 Integration", () => {
       name: "paid-tool-success",
       description: "A tool that requires payment and succeeds",
       execute: withX402Payment({
-        onExecute: async () => v1Option,
+        onExecute: async () => v1Instruction,
         onPayment: async ({ payment: _payment }) => {
           return settlement
         },

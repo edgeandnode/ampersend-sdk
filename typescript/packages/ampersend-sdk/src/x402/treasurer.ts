@@ -1,4 +1,4 @@
-import type { PaymentAuthorization, PaymentOption } from "./envelopes.ts"
+import type { PaymentAuthorization, PaymentRequest } from "./envelopes.ts"
 
 /**
  * Context information for payment decisions
@@ -30,25 +30,25 @@ export type PaymentStatus =
 /**
  * X402Treasurer interface - separates payment decision logic from payment creation.
  *
- * An X402Treasurer decides whether to approve or reject payment requests,
- * tracks payment status, and delegates actual payment creation to an X402Wallet.
- *
- * Payments cross this interface as ampersend protocol envelopes — each option
- * and authorization carries a `protocol` tag with byte-exact protocol data
- * inside `data`. Treasurer implementations narrow on `option.protocol` when
- * they need protocol-specific fields; the `accessors` helpers (`getAmount`,
- * `getNetworkCaip2`, `getResourceUrl`) cover the cross-protocol reads.
+ * The treasurer receives the seller's full {@link PaymentRequest} (the 402
+ * response), decides whether and how to pay, and returns a signed
+ * {@link Authorization} or null to decline. Internally it narrows on
+ * `request.protocol` and picks one entry from `request.data.accepts` to build a
+ * {@link PaymentInstruction} for its wallet.
  *
  * @example
  * ```typescript
  * class BudgetTreasurer implements X402Treasurer {
  *   constructor(private wallet: X402Wallet, private dailyLimit: number) {}
  *
- *   async onPaymentRequired(options, context) {
- *     if (this.wouldExceedBudget(options[0])) {
- *       return null // Decline
- *     }
- *     const payment = await this.wallet.createPayment(options[0])
+ *   async onPaymentRequired(request, context) {
+ *     const first = request.data.accepts[0]
+ *     if (!first || this.wouldExceedBudget(first)) return null
+ *     const instruction: PaymentInstruction =
+ *       request.protocol === "x402-v1"
+ *         ? { protocol: "x402-v1", data: first }
+ *         : { protocol: "x402-v2", data: first, resource: request.data.resource }
+ *     const payment = await this.wallet.createPayment(instruction)
  *     return { payment, authorizationId: crypto.randomUUID() }
  *   }
  *
@@ -62,11 +62,11 @@ export interface X402Treasurer {
   /**
    * Called when payment is required.
    *
-   * @param options - Array of payment options from seller (typically use the first)
+   * @param request - The seller's full payment request (402 response body)
    * @param context - Optional context about the request requiring payment
    * @returns Authorization to proceed with payment, or null to decline
    */
-  onPaymentRequired(options: ReadonlyArray<PaymentOption>, context?: PaymentContext): Promise<Authorization | null>
+  onPaymentRequired(request: PaymentRequest, context?: PaymentContext): Promise<Authorization | null>
 
   /**
    * Called with payment status updates throughout the payment lifecycle.

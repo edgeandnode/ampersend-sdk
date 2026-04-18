@@ -1,7 +1,7 @@
 import { type JSONRPCMessage, type JSONRPCRequest } from "@modelcontextprotocol/sdk/types.js"
 import type { PaymentRequirements as V1PaymentRequirements } from "x402/types"
 
-import type { PaymentOption } from "../../x402/envelopes.ts"
+import type { PaymentRequest } from "../../x402/envelopes.ts"
 import type { Authorization, PaymentStatus, X402Treasurer } from "../../x402/treasurer.ts"
 import {
   buildMessageWithPayment,
@@ -77,11 +77,11 @@ export class X402Middleware {
     request: JSONRPCRequest,
     wireRequirements: ReadonlyArray<V1PaymentRequirements>,
   ): Promise<{ messageWithPayment: JSONRPCRequest; authorization: Authorization } | null> {
-    // MCP spec uses x402-v1 wire shapes; tag each requirement accordingly.
-    const options: ReadonlyArray<PaymentOption> = wireRequirements.map((req) => ({
+    // MCP spec uses x402-v1 wire shapes. Wrap them into a v1 PaymentRequest for the treasurer.
+    const paymentRequest: PaymentRequest = {
       protocol: "x402-v1",
-      data: req,
-    }))
+      data: { x402Version: 1, accepts: [...wireRequirements] },
+    }
 
     const paymentContext = {
       method: request.method,
@@ -89,11 +89,9 @@ export class X402Middleware {
       metadata: { requestId: request.id },
     }
 
-    const authorization = await this._treasurer.onPaymentRequired(options, paymentContext)
+    const authorization = await this._treasurer.onPaymentRequired(paymentRequest, paymentContext)
 
-    if (!authorization) {
-      return null
-    }
+    if (!authorization) return null
 
     const { messageWithPayment } = buildMessageWithPayment(
       request,

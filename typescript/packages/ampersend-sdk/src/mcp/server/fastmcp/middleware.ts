@@ -13,25 +13,24 @@ import type {
   SettleResponse as V1SettleResponse,
 } from "x402/types"
 
-import type { PaymentAuthorization, PaymentOption, SettlementResult } from "../../../x402/envelopes.ts"
+import type { PaymentAuthorization, PaymentInstruction, SettlementResult } from "../../../x402/envelopes.ts"
 
 /**
  * Callback to determine if payment is required for a tool execution. Returns
- * the seller's payment option (envelope) or null if no payment is required.
- * The MCP spec currently uses x402-v1, so this middleware expects v1-tagged
- * envelopes.
+ * the payment instruction the tool is demanding, or null if none is required.
+ * The MCP spec currently uses x402-v1, so the instruction must be v1-tagged.
  */
-export type OnExecute = (context: { args: unknown }) => Promise<PaymentOption | null>
+export type OnExecute = (context: { args: unknown }) => Promise<PaymentInstruction | null>
 
 /**
  * Callback invoked when a payment has been attached to a tool call.
  *
  * Inputs and outputs are ampersend envelopes. Because the MCP spec is v1,
- * implementations return v1-tagged settlement envelopes (or void).
+ * implementations must return a v1-tagged settlement envelope (or void).
  */
 export type OnPayment = (context: {
   payment: PaymentAuthorization
-  option: PaymentOption
+  instruction: PaymentInstruction
 }) => Promise<SettlementResult | void>
 
 /**
@@ -71,11 +70,12 @@ interface FastMCPContext {
 type ExecuteFunction<TArgs = any, TResult = any> = (args: TArgs, context: FastMCPContext) => Promise<TResult>
 
 /** Require MCP-flavoured envelope (x402-v1); otherwise error. */
-function requireV1Option(option: PaymentOption): V1PaymentRequirements {
-  if (option.protocol !== "x402-v1") {
-    throw new Error(`MCP x402 middleware only supports x402-v1 options (got ${option.protocol}).`)
+function requireV1Instruction(instruction: PaymentInstruction): V1PaymentRequirements {
+  if (instruction.protocol !== "x402-v1") {
+    throw new Error(`MCP x402 middleware only supports x402-v1 instructions (got ${instruction.protocol}).`)
   }
-  return option.data
+  // x402/types is stricter than @x402/core/schemas; structurally compatible at runtime.
+  return instruction.data as V1PaymentRequirements
 }
 
 function requireV1Settlement(settlement: SettlementResult): V1SettleResponse {
@@ -86,7 +86,7 @@ function requireV1Settlement(settlement: SettlementResult): V1SettleResponse {
 }
 
 function createPaymentError(
-  option: PaymentOption,
+  instruction: PaymentInstruction,
   errorReason: string | null = null,
   settlement: SettlementResult | null = null,
 ): CustomMcpError {
@@ -94,7 +94,7 @@ function createPaymentError(
     message: "Payment required for tool execution",
     code: 402,
     x402Version: 1,
-    accepts: [requireV1Option(option)],
+    accepts: [requireV1Instruction(instruction)],
   }
   if (errorReason) {
     data.error = errorReason
@@ -146,13 +146,13 @@ export function withX402Payment<TArgs = any, TResult = any>(
     return async (args: TArgs, context: FastMCPContext): Promise<TResult> => {
       const wirePayment = context.requestMetadata?.["x402/payment"]
 
-      const option = await options.onExecute({ args })
-      if (!option) {
+      const instruction = await options.onExecute({ args })
+      if (!instruction) {
         return execute(args, context)
       }
 
       if (!wirePayment) {
-        throw createPaymentError(option)
+        throw createPaymentError(instruction)
       }
 
       // MCP spec is v1-only; wrap the wire payment back into a v1 envelope.
@@ -160,15 +160,15 @@ export function withX402Payment<TArgs = any, TResult = any>(
 
       let settlement: SettlementResult | void
       try {
-        settlement = await options.onPayment({ payment, option })
+        settlement = await options.onPayment({ payment, instruction })
       } catch (error) {
         const reason = error instanceof Error ? error.message : String(error)
-        throw createPaymentError(option, reason)
+        throw createPaymentError(instruction, reason)
       }
       if (settlement) {
         const v1 = requireV1Settlement(settlement)
         if (!v1.success) {
-          throw createPaymentError(option, v1.errorReason ?? null, settlement)
+          throw createPaymentError(instruction, v1.errorReason ?? null, settlement)
         }
       }
 

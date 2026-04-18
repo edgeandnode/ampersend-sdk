@@ -1,12 +1,13 @@
 // Ampersend protocol envelopes. Every payment-related value on SDK interfaces
 // and the wire is wrapped in `{ protocol, data }`, where `data` is byte-exact
-// protocol payload (v1 or v2 x402) and `protocol` is ampersend's dispatch tag.
-export type { PaymentAuthorization, PaymentOption, Protocol, SettlementResult } from "./envelopes.ts"
-
-// Cross-protocol accessors for fields whose shape differs between v1 and v2.
-// Other fields that share names across protocols (`scheme`, `asset`, `payTo`,
-// `maxTimeoutSeconds`, `extra`) are read directly as `option.data.X`.
-export { getAmount, getNetworkCaip2, getResourceUrl } from "./accessors.ts"
+// upstream protocol payload and `protocol` is ampersend's dispatch tag.
+export type {
+  PaymentAuthorization,
+  PaymentInstruction,
+  PaymentRequest,
+  Protocol,
+  SettlementResult,
+} from "./envelopes.ts"
 
 // Core abstractions
 export type { Authorization, PaymentContext, PaymentStatus, X402Treasurer } from "./treasurer.ts"
