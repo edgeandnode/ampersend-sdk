@@ -3,20 +3,19 @@ import { DateTime, Schema } from "effect"
 import { SiweMessage } from "siwe"
 import { privateKeyToAccount } from "viem/accounts"
 
+import type { PaymentAuthorization, PaymentRequest } from "../x402/envelopes.ts"
 import {
-  AgentPaymentAuthResponse,
+  AgentAuthorizeRequest,
+  AgentAuthorizeResponse,
+  AgentPaymentEventReport,
   AgentPaymentEventResponse,
   ApiError,
   SIWELoginResponse,
   SIWENonceResponse,
   type Address,
-  type AgentPaymentAuthRequest,
-  type AgentPaymentEventReport,
   type ApiClientOptions,
   type AuthenticationState,
   type PaymentEvent,
-  type PaymentPayload,
-  type PaymentRequirements,
   type SIWELoginRequest,
 } from "./types.js"
 
@@ -120,15 +119,18 @@ export class ApiClient {
    * Request authorization for a payment
    */
   async authorizePayment(
-    requirements: readonly [PaymentRequirements, ...Array<PaymentRequirements>],
-    context?: AgentPaymentAuthRequest["context"],
-  ): Promise<AgentPaymentAuthResponse> {
+    paymentRequest: PaymentRequest,
+    context?: AgentAuthorizeRequest["context"],
+  ): Promise<typeof AgentAuthorizeResponse.Type> {
     await this.ensureAuthenticated()
 
-    const request: AgentPaymentAuthRequest = {
-      requirements,
+    // Envelope is byte-exact upstream; the Effect schema shapes it for
+    // transport directly without an intermediate canonical form.
+    const request: AgentAuthorizeRequest = {
+      paymentRequest: paymentRequest as unknown as AgentAuthorizeRequest["paymentRequest"],
       context,
     }
+    const wireBody = Schema.encodeSync(AgentAuthorizeRequest)(request)
 
     return this.fetch(
       `/api/v1/agents/${this.agentAddress}/payment/authorize`,
@@ -138,9 +140,9 @@ export class ApiClient {
           "Content-Type": "application/json",
           Authorization: `Bearer ${this.auth.token}`,
         },
-        body: JSON.stringify(request),
+        body: JSON.stringify(wireBody),
       },
-      AgentPaymentAuthResponse,
+      AgentAuthorizeResponse,
     )
   }
 
@@ -149,16 +151,17 @@ export class ApiClient {
    */
   async reportPaymentEvent(
     eventId: string,
-    payment: PaymentPayload,
+    payment: PaymentAuthorization,
     event: PaymentEvent,
   ): Promise<AgentPaymentEventResponse> {
     await this.ensureAuthenticated()
 
     const report: AgentPaymentEventReport = {
       id: eventId,
-      payment,
+      payment: payment as unknown as AgentPaymentEventReport["payment"],
       event,
     }
+    const wireBody = Schema.encodeSync(AgentPaymentEventReport)(report)
 
     return this.fetch(
       `/api/v1/agents/${this.agentAddress}/payment/events`,
@@ -168,7 +171,7 @@ export class ApiClient {
           "Content-Type": "application/json",
           Authorization: `Bearer ${this.auth.token}`,
         },
-        body: JSON.stringify(report),
+        body: JSON.stringify(wireBody),
       },
       AgentPaymentEventResponse,
     )

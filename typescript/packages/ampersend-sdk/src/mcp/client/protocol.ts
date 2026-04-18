@@ -4,9 +4,15 @@ import {
   type JSONRPCMessage,
   type JSONRPCRequest,
 } from "@modelcontextprotocol/sdk/types.js"
-import { SettleResponseSchema, x402ResponseSchema, type PaymentPayload, type PaymentRequirements } from "x402/types"
+import {
+  SettleResponseSchema,
+  x402ResponseSchema,
+  type PaymentPayload as V1PaymentPayload,
+  type PaymentRequirements as V1PaymentRequirements,
+} from "x402/types"
 import { z } from "zod"
 
+import type { PaymentAuthorization } from "../../x402/envelopes.ts"
 import type { X402Response } from "./types.ts"
 
 export const McpX402PaymentResponseSchema = z.object({
@@ -21,12 +27,21 @@ export const McpX402PaymentRequiredSchema = x402ResponseSchema.extend({
 
 export type McpX402PaymentRequired = z.infer<typeof McpX402PaymentRequiredSchema>
 
+/**
+ * Embed a payment authorization into a JSON-RPC request's `_meta` field.
+ *
+ * The MCP spec uses the x402-v1 PaymentPayload shape, so this helper requires
+ * an x402-v1 authorization envelope and throws otherwise.
+ */
 export function buildMessageWithPayment(
   message: JSONRPCRequest,
-  payment: PaymentPayload,
+  payment: PaymentAuthorization,
   paymentId: string,
 ): { messageWithPayment: JSONRPCRequest } {
-  // Return modified message with payment (using spec-compliant field name)
+  if (payment.protocol !== "x402-v1") {
+    throw new Error(`MCP meta requires an x402-v1 authorization; got ${payment.protocol}`)
+  }
+  const v1Payment = payment.data
   const base = message
   const baseParams = base.params || { _meta: {} }
   const baseParamsMeta = baseParams._meta || {}
@@ -36,7 +51,7 @@ export function buildMessageWithPayment(
       ...baseParams,
       _meta: {
         ...baseParamsMeta,
-        "x402/payment": payment,
+        "x402/payment": v1Payment,
         "ampersend/paymentId": paymentId,
       },
     },
@@ -44,8 +59,12 @@ export function buildMessageWithPayment(
   return { messageWithPayment }
 }
 
+/**
+ * Extract the raw x402 v1 payment payload and our tracking ID from a
+ * JSON-RPC request's `_meta`.
+ */
 export function paymentFromRequest(request: JSONRPCRequest): {
-  payment: PaymentPayload | null
+  payment: V1PaymentPayload | null
   paymentId: string | null
 } {
   const meta = request.params?._meta
@@ -53,7 +72,7 @@ export function paymentFromRequest(request: JSONRPCRequest): {
     return { payment: null, paymentId: null }
   }
 
-  const payment = (meta["x402/payment"] as PaymentPayload) || null
+  const payment = (meta["x402/payment"] as V1PaymentPayload) || null
   const paymentId = (meta["ampersend/paymentId"] as string) || null
 
   return { payment, paymentId }
@@ -104,7 +123,7 @@ export function isMcpX402PaymentRequired(data: unknown): data is McpX402PaymentR
 /**
  * Type guard to check if a value is a valid PaymentRequirements array
  */
-function isPaymentRequirementsArray(arr: unknown): arr is Array<PaymentRequirements> {
+function isPaymentRequirementsArray(arr: unknown): arr is Array<V1PaymentRequirements> {
   return Array.isArray(arr) && arr.length > 0 && arr.every((req) => req && typeof req === "object" && "scheme" in req)
 }
 

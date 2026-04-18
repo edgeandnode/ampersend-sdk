@@ -11,8 +11,9 @@ import {
   type ReadResourceRequest,
   type ReadResourceResult,
 } from "@modelcontextprotocol/sdk/types.js"
-import type { PaymentRequirements } from "x402/types"
+import type { PaymentRequirementsV1 } from "@x402/core/schemas"
 
+import type { PaymentRequest } from "../../x402/envelopes.ts"
 import type { Authorization, X402Treasurer } from "../../x402/treasurer.ts"
 import { asX402Response } from "./protocol.ts"
 import type { ClientOptions, X402Response } from "./types.ts"
@@ -132,29 +133,28 @@ export class Client extends McpClient {
   private async decidePayment(
     method: string,
     params: OpParams,
-    requirements: ReadonlyArray<PaymentRequirements>,
+    wireRequirements: ReadonlyArray<PaymentRequirementsV1>,
   ): Promise<{ paramsWithPayment: OpParams; authorization: Authorization } | null> {
-    // Build payment context
-    const paymentContext = {
-      method,
-      params,
+    // MCP spec currently uses the x402-v1 wire shape. Wrap the wire requirements
+    // into a v1 PaymentRequest envelope for the treasurer.
+    const request: PaymentRequest = {
+      protocol: "x402-v1",
+      data: { x402Version: 1, accepts: [...wireRequirements] },
     }
 
-    // Get payment decision from treasurer
-    const authorization = await this.treasurer.onPaymentRequired(requirements, paymentContext)
-
-    if (!authorization) {
-      // Payment declined
-      return null
+    const authorization = await this.treasurer.onPaymentRequired(request, { method, params })
+    if (!authorization) return null
+    if (authorization.payment.protocol !== "x402-v1") {
+      throw new Error(`MCP retry requires an x402-v1 authorization; got ${authorization.payment.protocol}`)
     }
 
-    // Return modified params with payment (using spec-compliant field name)
+    // Embed the byte-exact x402-v1 PaymentPayload into _meta per the MCP spec.
     const baseMeta = params._meta || {}
     const paramsWithPayment = {
       ...params,
       _meta: {
         ...baseMeta,
-        "x402/payment": authorization.payment,
+        "x402/payment": authorization.payment.data,
       },
     }
 

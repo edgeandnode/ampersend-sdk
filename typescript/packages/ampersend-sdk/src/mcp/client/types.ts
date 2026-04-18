@@ -1,24 +1,29 @@
 import type { ClientOptions as McpClientOptions } from "@modelcontextprotocol/sdk/client/index.js"
-import type { PaymentPayload, PaymentRequirements, SettleResponse } from "x402/types"
+import type { PaymentPayloadV1, PaymentRequirementsV1 } from "@x402/core/schemas"
+import type { SettleResponse } from "@x402/core/types"
 
 import type { X402Treasurer } from "../../x402/treasurer.ts"
 
 /**
- * HTTP 402 response structure with payment requirements
- * Matches the official MCP x402 specification PaymentRequirementsResponse
+ * HTTP 402 response structure with payment requirements (MCP wire format).
+ *
+ * This is an internal wire-format type. The MCP spec currently uses x402 v1
+ * shapes embedded in JSON-RPC error data; canonical conversion happens at the
+ * boundary in `client.ts`/`middleware.ts` before anything reaches the
+ * treasurer.
  */
 export interface X402Response {
   readonly x402Version: number
-  readonly accepts: ReadonlyArray<PaymentRequirements>
+  readonly accepts: ReadonlyArray<PaymentRequirementsV1>
   readonly error?: string
 }
 
 /**
- * MCP-specific meta field types for x402 payments
- * Used in request/response _meta fields according to official spec
+ * MCP-specific meta field types for x402 payments (wire format).
+ * Used internally when building/parsing JSON-RPC `_meta` fields.
  */
 export interface X402MetaFields {
-  "x402/payment"?: PaymentPayload
+  "x402/payment"?: PaymentPayloadV1
   "x402/payment-response"?: SettleResponse
 }
 

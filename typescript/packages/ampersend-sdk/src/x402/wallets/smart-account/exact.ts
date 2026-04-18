@@ -1,7 +1,7 @@
 import { toHex, type Address, type Hex } from "viem"
-import type { PaymentPayload, PaymentRequirements } from "x402/types"
 
 import { signERC3009Authorization } from "../../../smart-account/index.ts"
+import type { PaymentAuthorization, PaymentInstruction } from "../../envelopes.ts"
 
 /**
  * Generates a random 32-byte nonce for use in authorization signatures
@@ -31,42 +31,41 @@ export interface ExactPaymentConfig {
 }
 
 /**
- * Creates a payment payload using the "exact" scheme with ERC-3009 USDC authorization
+ * Sign an "exact" scheme instruction into a PaymentAuthorization envelope.
  *
- * This implements the x402 "exact" payment scheme, which uses USDC's transferWithAuthorization
- * (ERC-3009) to create signed payment authorizations. The signature is created using ERC-1271
- * from a smart account via the OwnableValidator module.
- *
- * @param requirements - Payment requirements from the x402 server
- * @param config - Configuration for the smart account wallet
- * @returns Payment payload ready to send to x402 server
- * @throws Error if payment requirements are invalid or signing fails
+ * Uses USDC's `transferWithAuthorization` (ERC-3009) via ERC-1271 with the
+ * OwnableValidator module. The signed body is wrapped in a v1 or v2 envelope
+ * depending on the input instruction's protocol.
  */
 export async function createExactPayment(
-  requirements: PaymentRequirements,
+  instruction: PaymentInstruction,
   config: ExactPaymentConfig,
-): Promise<PaymentPayload> {
-  // Generate nonce and validity timestamps
+): Promise<PaymentAuthorization> {
+  const maxTimeoutSeconds = instruction.data.maxTimeoutSeconds
+  const payTo = instruction.data.payTo as Address
+  const asset = instruction.data.asset as Address
+  const amount = instruction.protocol === "x402-v1" ? instruction.data.maxAmountRequired : instruction.data.amount
+
   const nonce = createNonce()
   const validAfter = BigInt(Math.floor(Date.now() / 1000) - 600) // 10 minutes before
-  const validBefore = BigInt(Math.floor(Date.now() / 1000) + requirements.maxTimeoutSeconds)
+  const validBefore = BigInt(Math.floor(Date.now() / 1000) + maxTimeoutSeconds)
 
-  // Prepare authorization data for ERC-3009 signing
   const authData = {
     from: config.smartAccountAddress,
-    to: requirements.payTo as Address,
-    value: BigInt(requirements.maxAmountRequired),
+    to: payTo,
+    value: BigInt(amount),
     validAfter,
     validBefore,
     nonce,
   }
 
-  // Get domain params from requirements.extra (provided by server)
-  const domainName = requirements.extra?.name as string | undefined
-  const domainVersion = requirements.extra?.version as string | undefined
+  // EIP-712 domain params come from the seller's scheme-specific metadata.
+  const extra = instruction.data.extra
+  const domainName = extra?.name as string | undefined
+  const domainVersion = extra?.version as string | undefined
 
   if (!domainName || !domainVersion) {
-    throw new Error("requirements.extra must contain 'name' and 'version' for EIP-712 domain")
+    throw new Error("instruction.data.extra must contain 'name' and 'version' for EIP-712 domain")
   }
 
   // Sign using ERC-1271 with OwnableValidator
@@ -74,30 +73,46 @@ export async function createExactPayment(
     config.sessionKeyPrivateKey,
     config.smartAccountAddress,
     authData,
-    requirements.asset as Address,
+    asset,
     config.chainId,
     config.validatorAddress,
     domainName,
     domainVersion,
   )
 
-  // Construct payment payload matching x402 exact scheme format
-  const paymentPayload: PaymentPayload = {
-    x402Version: 1,
-    scheme: "exact" as const,
-    network: requirements.network,
-    payload: {
-      signature: signature as string,
-      authorization: {
-        from: config.smartAccountAddress as string,
-        to: requirements.payTo,
-        value: requirements.maxAmountRequired,
-        validAfter: validAfter.toString(),
-        validBefore: validBefore.toString(),
-        nonce: nonce as string,
-      },
+  const signedPayload = {
+    signature: signature as string,
+    authorization: {
+      from: config.smartAccountAddress as string,
+      to: payTo as string,
+      value: amount,
+      validAfter: validAfter.toString(),
+      validBefore: validBefore.toString(),
+      nonce: nonce as string,
     },
   }
 
-  return paymentPayload
+  if (instruction.protocol === "x402-v1") {
+    return {
+      protocol: "x402-v1",
+      data: {
+        x402Version: 1,
+        scheme: "exact",
+        network: instruction.data.network,
+        payload: signedPayload,
+      },
+    }
+  }
+
+  // v2: PaymentPayloadV2 echoes `resource` (from the 402) and `accepted` (the
+  // requirement we signed) alongside the signed body.
+  return {
+    protocol: "x402-v2",
+    data: {
+      x402Version: 2,
+      resource: instruction.resource,
+      accepted: instruction.data,
+      payload: signedPayload,
+    },
+  }
 }

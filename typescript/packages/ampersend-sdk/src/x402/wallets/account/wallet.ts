@@ -1,28 +1,19 @@
+import type { PaymentPayloadV1 } from "@x402/core/schemas"
 import type { Hex, LocalAccount } from "viem"
 import { privateKeyToAccount } from "viem/accounts"
 import { createPaymentHeader } from "x402/client"
-import type { PaymentPayload, PaymentRequirements } from "x402/types"
+import type { PaymentRequirements as LegacyV1PaymentRequirements } from "x402/types"
 
-import type { ServerAuthorizationData } from "../../../ampersend/types.ts"
+import type { PaymentAuthorization, PaymentInstruction } from "../../envelopes.ts"
+import type { ServerAuthorizationData } from "../../types.ts"
 import { WalletError, type X402Wallet } from "../../wallet.ts"
 
 /**
- * AccountWallet - EOA (Externally Owned Account) wallet implementation
+ * AccountWallet - EOA (Externally Owned Account) wallet implementation.
  *
- * Creates payment payloads signed by an EOA private key.
- * Supports the "exact" payment scheme.
- *
- * @example
- * ```typescript
- * import { privateKeyToAccount } from "viem/accounts"
- *
- * // From viem Account
- * const account = privateKeyToAccount("0x...")
- * const wallet = new AccountWallet(account)
- *
- * // From private key directly
- * const wallet = AccountWallet.fromPrivateKey("0x...")
- * ```
+ * Signs a {@link PaymentInstruction} with an EOA private key. Currently supports
+ * x402 v1 with the "exact" scheme only (the `x402/client` helper it wraps is
+ * v1-specific).
  */
 export class AccountWallet implements X402Wallet {
   private account: LocalAccount
@@ -38,28 +29,27 @@ export class AccountWallet implements X402Wallet {
     return new AccountWallet(privateKeyToAccount(privateKey))
   }
 
-  /**
-   * Creates a payment payload from requirements.
-   * Only supports "exact" payment scheme.
-   * Note: serverAuthorization parameter is ignored for EOA wallets (only used by SmartAccountWallet)
-   */
   async createPayment(
-    requirements: PaymentRequirements,
+    instruction: PaymentInstruction,
     _serverAuthorization?: ServerAuthorizationData,
-  ): Promise<PaymentPayload> {
-    if (requirements.scheme !== "exact") {
-      throw new WalletError(`Unsupported payment scheme: ${requirements.scheme}. AccountWallet only supports "exact".`)
+  ): Promise<PaymentAuthorization> {
+    if (instruction.protocol !== "x402-v1") {
+      throw new WalletError(`AccountWallet only supports x402-v1 instructions (got ${instruction.protocol}).`)
+    }
+    if (instruction.data.scheme !== "exact") {
+      throw new WalletError(
+        `Unsupported payment scheme: ${instruction.data.scheme}. AccountWallet only supports "exact".`,
+      )
     }
 
     try {
-      // Create payment header using x402 client utility
-      const paymentHeader = await createPaymentHeader(this.account, 1, requirements)
-
-      // Decode base64 payment header to PaymentPayload
+      // `x402/client.createPaymentHeader` consumes the legacy `x402/types`
+      // `PaymentRequirements` (narrow `network` enum). Our envelope uses the
+      // looser `@x402/core/schemas` shape; structurally identical at runtime.
+      const paymentHeader = await createPaymentHeader(this.account, 1, instruction.data as LegacyV1PaymentRequirements)
       const decoded = Buffer.from(paymentHeader, "base64").toString("utf-8")
-      const payment = JSON.parse(decoded) as PaymentPayload
-
-      return payment
+      const v1Payment = JSON.parse(decoded) as PaymentPayloadV1
+      return { protocol: "x402-v1", data: v1Payment }
     } catch (error) {
       throw new WalletError(
         `Failed to create payment: ${error instanceof Error ? error.message : String(error)}`,

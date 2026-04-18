@@ -1,5 +1,7 @@
 import { type JSONRPCMessage, type JSONRPCRequest } from "@modelcontextprotocol/sdk/types.js"
+import type { PaymentRequirementsV1 } from "@x402/core/schemas"
 
+import type { PaymentRequest } from "../../x402/envelopes.ts"
 import type { Authorization, PaymentStatus, X402Treasurer } from "../../x402/treasurer.ts"
 import {
   buildMessageWithPayment,
@@ -52,7 +54,7 @@ export class X402Middleware {
       return
     }
 
-    const paymentResult = await this.decidePayment(request, x402Data.accepts!)
+    const paymentResult = await this.decidePayment(request, x402Data.accepts ?? [])
     if (!paymentResult) {
       return // Payment declined
     }
@@ -73,24 +75,24 @@ export class X402Middleware {
    */
   private async decidePayment(
     request: JSONRPCRequest,
-    requirements: ReadonlyArray<any>,
+    wireRequirements: ReadonlyArray<PaymentRequirementsV1>,
   ): Promise<{ messageWithPayment: JSONRPCRequest; authorization: Authorization } | null> {
-    // Build payment context from request
+    // MCP spec uses x402-v1 wire shapes. Wrap them into a v1 PaymentRequest for the treasurer.
+    const paymentRequest: PaymentRequest = {
+      protocol: "x402-v1",
+      data: { x402Version: 1, accepts: [...wireRequirements] },
+    }
+
     const paymentContext = {
       method: request.method,
       params: request.params,
       metadata: { requestId: request.id },
     }
 
-    // Get payment decision from treasurer
-    const authorization = await this._treasurer.onPaymentRequired(requirements as any, paymentContext)
+    const authorization = await this._treasurer.onPaymentRequired(paymentRequest, paymentContext)
 
-    if (!authorization) {
-      // Payment declined
-      return null
-    }
+    if (!authorization) return null
 
-    // Build message with payment
     const { messageWithPayment } = buildMessageWithPayment(
       request,
       authorization.payment,

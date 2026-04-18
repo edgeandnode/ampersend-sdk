@@ -1,8 +1,8 @@
 import { encodeAbiParameters, encodePacked, type Address, type Hex, type TypedDataDefinition } from "viem"
 import { privateKeyToAccount } from "viem/accounts"
-import type { PaymentPayload, PaymentRequirements } from "x402/types"
 
 import { TRANSFER_WITH_AUTHORIZATION_TYPE } from "../../../smart-account/eip712-types.ts"
+import type { PaymentAuthorization, PaymentInstruction } from "../../envelopes.ts"
 import type { ServerAuthorizationData } from "../../types.ts"
 
 /**
@@ -26,12 +26,6 @@ export interface CoSignedPaymentConfig {
  * 1. Sign typed data with agent key (raw ECDSA)
  * 2. Combine: abi.encode(agentSig, serverSig)
  * 3. Wrap for ERC-1271: encodePacked(validatorAddress, combined)
- *
- * @param agentPrivateKey - Agent's session key private key
- * @param typedDataParams - EIP-712 typed data to sign
- * @param serverSignature - Server's ECDSA signature (65 bytes as hex)
- * @param coSignerValidatorAddress - CoSignerValidator contract address
- * @returns ERC-1271 formatted signature
  */
 export async function encodeCoSignedERC1271Signature(
   agentPrivateKey: Hex,
@@ -39,55 +33,46 @@ export async function encodeCoSignedERC1271Signature(
   serverSignature: Hex,
   coSignerValidatorAddress: Address,
 ): Promise<Hex> {
-  // 1. Sign with agent key
   const agentAccount = privateKeyToAccount(agentPrivateKey)
   const agentSignature = await agentAccount.signTypedData(typedDataParams)
 
-  // 2. Combine signatures: abi.encode(bytes agentSig, bytes serverSig)
   const combinedSignature = encodeAbiParameters(
     [{ type: "bytes" }, { type: "bytes" }],
     [agentSignature, serverSignature],
   )
 
-  // 3. Encode for ERC-1271: encodePacked(address validator, bytes signature)
   return encodePacked(["address", "bytes"], [coSignerValidatorAddress, combinedSignature])
 }
 
 /**
- * Creates a payment payload using server co-signature
+ * Sign a co-signed "exact" instruction into a PaymentAuthorization envelope.
  *
- * This is used for co-signed agent keys where the server provides the ERC-3009
- * authorization data and co-signature. The agent key adds its signature and
- * combines them for ERC-1271 validation via CoSignerValidator.
- *
- * @param requirements - Payment requirements from the x402 server
- * @param config - Configuration for the smart account wallet
- * @param serverAuthorization - Server-provided authorization data and co-signature
- * @returns Payment payload ready to send to x402 server
- * @throws Error if requirements are invalid or signing fails
+ * The server provides ERC-3009 authorization data + its signature. The agent
+ * key adds its signature; the two combine for ERC-1271 validation via
+ * CoSignerValidator. The signed body is wrapped in a v1 or v2 envelope
+ * depending on the input instruction's protocol.
  */
 export async function createCoSignedPayment(
-  requirements: PaymentRequirements,
+  instruction: PaymentInstruction,
   config: CoSignedPaymentConfig,
   serverAuthorization: ServerAuthorizationData,
-): Promise<PaymentPayload> {
+): Promise<PaymentAuthorization> {
   const { authorizationData, serverSignature } = serverAuthorization
 
-  // Get domain params from requirements.extra
-  const domainName = requirements.extra?.name as string | undefined
-  const domainVersion = requirements.extra?.version as string | undefined
+  const extra = instruction.data.extra
+  const domainName = extra?.name as string | undefined
+  const domainVersion = extra?.version as string | undefined
 
   if (!domainName || !domainVersion) {
-    throw new Error("requirements.extra must contain 'name' and 'version' for EIP-712 domain")
+    throw new Error("instruction.data.extra must contain 'name' and 'version' for EIP-712 domain")
   }
 
-  // Construct EIP-712 typed data from server-provided authorization data
   const typedData: TypedDataDefinition = {
     domain: {
       name: domainName,
       version: domainVersion,
       chainId: config.chainId,
-      verifyingContract: requirements.asset as Address,
+      verifyingContract: instruction.data.asset as Address,
     },
     types: {
       TransferWithAuthorization: TRANSFER_WITH_AUTHORIZATION_TYPE,
@@ -103,7 +88,6 @@ export async function createCoSignedPayment(
     },
   }
 
-  // Encode co-signed signature
   const signature = await encodeCoSignedERC1271Signature(
     config.sessionKeyPrivateKey,
     typedData,
@@ -111,23 +95,37 @@ export async function createCoSignedPayment(
     config.coSignerValidatorAddress,
   )
 
-  // Construct payment payload matching x402 exact scheme format
-  const paymentPayload: PaymentPayload = {
-    x402Version: 1,
-    scheme: "exact" as const,
-    network: requirements.network,
-    payload: {
-      signature: signature as string,
-      authorization: {
-        from: authorizationData.from,
-        to: authorizationData.to,
-        value: authorizationData.value,
-        validAfter: authorizationData.validAfter,
-        validBefore: authorizationData.validBefore,
-        nonce: authorizationData.nonce,
-      },
+  const signedPayload = {
+    signature: signature as string,
+    authorization: {
+      from: authorizationData.from,
+      to: authorizationData.to,
+      value: authorizationData.value,
+      validAfter: authorizationData.validAfter,
+      validBefore: authorizationData.validBefore,
+      nonce: authorizationData.nonce,
     },
   }
 
-  return paymentPayload
+  if (instruction.protocol === "x402-v1") {
+    return {
+      protocol: "x402-v1",
+      data: {
+        x402Version: 1,
+        scheme: "exact",
+        network: instruction.data.network,
+        payload: signedPayload,
+      },
+    }
+  }
+
+  return {
+    protocol: "x402-v2",
+    data: {
+      x402Version: 2,
+      resource: instruction.resource,
+      accepted: instruction.data,
+      payload: signedPayload,
+    },
+  }
 }

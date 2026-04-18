@@ -1,3 +1,4 @@
+import type { PaymentRequest } from "@/x402/envelopes.ts"
 import { wrapWithAmpersend } from "@/x402/http/adapter.ts"
 import type { Authorization, PaymentContext, X402Treasurer } from "@/x402/treasurer.ts"
 import type {
@@ -7,9 +8,9 @@ import type {
   x402Client,
 } from "@x402/core/client"
 import { beforeEach, describe, expect, it, vi } from "vitest"
-import type { PaymentPayload, PaymentRequirements } from "x402/types"
+import type { PaymentRequirements as V1PaymentRequirements } from "x402/types"
 
-function createMockRequirements(): PaymentRequirements {
+function createMockV1Requirements(): V1PaymentRequirements {
   return {
     scheme: "exact",
     network: "base-sepolia",
@@ -23,28 +24,69 @@ function createMockRequirements(): PaymentRequirements {
   }
 }
 
-function createMockPaymentPayload(): PaymentPayload {
+function createMockV2Requirements() {
   return {
-    x402Version: 1,
     scheme: "exact",
-    network: "base-sepolia",
-    payload: {
-      signature: "0xmocksignature",
-      authorization: {
-        from: "0xfrom",
-        to: "0xto",
-        value: "1000000",
-        validAfter: "0",
-        validBefore: "999999999999",
-        nonce: "0xnonce",
-      },
-    },
+    network: "eip155:84532" as `eip155:${number}`,
+    amount: "1000000",
+    asset: "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
+    payTo: "0x1234567890123456789012345678901234567890",
+    maxTimeoutSeconds: 300,
+    extra: {},
   }
 }
 
-function createMockAuthorization(payment: PaymentPayload): Authorization {
+function createMockV2PaymentRequired() {
   return {
-    payment,
+    x402Version: 2,
+    resource: {
+      url: "https://api.example.com/resource",
+      description: "Test resource",
+      mimeType: "application/json",
+    },
+    accepts: [createMockV2Requirements()],
+  }
+}
+
+const v1SignedBody = {
+  signature: "0xmocksignature",
+  authorization: {
+    from: "0xfrom",
+    to: "0xto",
+    value: "1000000",
+    validAfter: "0",
+    validBefore: "999999999999",
+    nonce: "0xnonce",
+  },
+}
+
+function createMockV1Authorization(): Authorization {
+  return {
+    payment: {
+      protocol: "x402-v1",
+      data: {
+        x402Version: 1,
+        scheme: "exact",
+        network: "base-sepolia",
+        payload: v1SignedBody,
+      },
+    },
+    authorizationId: "test-auth-id",
+  }
+}
+
+function createMockV2Authorization(): Authorization {
+  const v2Req = createMockV2Requirements()
+  return {
+    payment: {
+      protocol: "x402-v2",
+      data: {
+        x402Version: 2,
+        resource: createMockV2PaymentRequired().resource,
+        accepted: v2Req,
+        payload: v1SignedBody,
+      },
+    },
     authorizationId: "test-auth-id",
   }
 }
@@ -63,7 +105,6 @@ describe("wrapWithAmpersend", () => {
   }
 
   beforeEach(() => {
-    // Create mock client that captures hooks
     const beforeHooks: typeof mockClient._beforeHooks = []
     const afterHooks: typeof mockClient._afterHooks = []
     const failureHooks: typeof mockClient._failureHooks = []
@@ -107,7 +148,6 @@ describe("wrapWithAmpersend", () => {
   describe("registration", () => {
     it("registers v1 scheme client on all specified networks", () => {
       wrapWithAmpersend(mockClient, mockTreasurer, ["base", "base-sepolia"])
-
       expect(mockClient.registerV1).toHaveBeenCalledTimes(2)
       expect(mockClient._registeredSchemesV1.has("base")).toBe(true)
       expect(mockClient._registeredSchemesV1.has("base-sepolia")).toBe(true)
@@ -115,7 +155,6 @@ describe("wrapWithAmpersend", () => {
 
     it("registers v2 scheme client on CAIP-2 networks", () => {
       wrapWithAmpersend(mockClient, mockTreasurer, ["base", "base-sepolia"])
-
       expect(mockClient.register).toHaveBeenCalledTimes(2)
       expect(mockClient._registeredSchemesV2.has("eip155:8453")).toBe(true)
       expect(mockClient._registeredSchemesV2.has("eip155:84532")).toBe(true)
@@ -123,7 +162,6 @@ describe("wrapWithAmpersend", () => {
 
     it("uses same v1 scheme client instance for all networks", () => {
       wrapWithAmpersend(mockClient, mockTreasurer, ["base", "base-sepolia"])
-
       const baseClient = mockClient._registeredSchemesV1.get("base")
       const sepoliaClient = mockClient._registeredSchemesV1.get("base-sepolia")
       expect(baseClient).toBe(sepoliaClient)
@@ -131,7 +169,6 @@ describe("wrapWithAmpersend", () => {
 
     it("uses same v2 scheme client instance for all networks", () => {
       wrapWithAmpersend(mockClient, mockTreasurer, ["base", "base-sepolia"])
-
       const baseClient = mockClient._registeredSchemesV2.get("eip155:8453")
       const sepoliaClient = mockClient._registeredSchemesV2.get("eip155:84532")
       expect(baseClient).toBe(sepoliaClient)
@@ -139,7 +176,6 @@ describe("wrapWithAmpersend", () => {
 
     it("scheme client has correct scheme property", () => {
       wrapWithAmpersend(mockClient, mockTreasurer, ["base"])
-
       const schemeClientV1 = mockClient._registeredSchemesV1.get("base")
       const schemeClientV2 = mockClient._registeredSchemesV2.get("eip155:8453")
       expect(schemeClientV1.scheme).toBe("exact")
@@ -147,40 +183,36 @@ describe("wrapWithAmpersend", () => {
     })
   })
 
-  describe("happy path - payment approved", () => {
-    it("calls treasurer with requirements and context", async () => {
-      const requirements = createMockRequirements()
-      const payment = createMockPaymentPayload()
-      const authorization = createMockAuthorization(payment)
-
+  describe("happy path - v1 wire", () => {
+    it("passes a v1-tagged PaymentRequest to the treasurer", async () => {
+      const v1Requirements = createMockV1Requirements()
+      const authorization = createMockV1Authorization()
       mockTreasurer.onPaymentRequired.mockResolvedValue(authorization)
 
       wrapWithAmpersend(mockClient, mockTreasurer, ["base-sepolia"])
 
+      const v1Body = {
+        x402Version: 1,
+        accepts: [v1Requirements],
+      }
       const context: PaymentCreationContext = {
-        paymentRequired: {
-          x402Version: 1,
-          accepts: [requirements],
-          resource: "https://api.example.com/resource",
-        },
-        selectedRequirements: requirements,
+        paymentRequired: v1Body,
+        selectedRequirements: v1Requirements,
       } as any
 
       await mockClient._beforeHooks[0](context)
 
-      expect(mockTreasurer.onPaymentRequired).toHaveBeenCalledWith([requirements], {
-        method: "http",
-        params: {
-          resource: "https://api.example.com/resource",
-        },
-      })
+      const [passedRequest, passedContext] = mockTreasurer.onPaymentRequired.mock.calls[0]
+      const request = passedRequest as PaymentRequest
+      expect(request.protocol).toBe("x402-v1")
+      expect(request.data).toBe(v1Body) // byte-exact: same reference
+
+      expect(passedContext).toEqual({ method: "http" })
     })
 
-    it("scheme client retrieves payment payload from store", async () => {
-      const requirements = createMockRequirements()
-      const payment = createMockPaymentPayload()
-      const authorization = createMockAuthorization(payment)
-
+    it("v1 scheme client returns the byte-exact v1 PaymentPayload", async () => {
+      const v1Requirements = createMockV1Requirements()
+      const authorization = createMockV1Authorization()
       mockTreasurer.onPaymentRequired.mockResolvedValue(authorization)
 
       wrapWithAmpersend(mockClient, mockTreasurer, ["base-sepolia"])
@@ -188,32 +220,25 @@ describe("wrapWithAmpersend", () => {
       const context: PaymentCreationContext = {
         paymentRequired: {
           x402Version: 1,
-          accepts: [requirements],
+          accepts: [v1Requirements],
           resource: "https://api.example.com/resource",
         },
-        selectedRequirements: requirements,
+        selectedRequirements: v1Requirements,
       } as any
-
-      // Store authorization via hook
       await mockClient._beforeHooks[0](context)
 
-      // Retrieve via scheme client
       const schemeClient = mockClient._registeredSchemesV1.get("base-sepolia")
-      const result = await schemeClient.createPaymentPayload(1, requirements)
+      const result = await schemeClient.createPaymentPayload(1, v1Requirements)
 
-      expect(result).toEqual({
-        x402Version: 1,
-        scheme: payment.scheme,
-        network: payment.network,
-        payload: payment.payload,
-      })
+      expect(result.x402Version).toBe(1)
+      expect(result.scheme).toBe("exact")
+      expect(result.network).toBe("base-sepolia")
+      expect(result.payload).toEqual(v1SignedBody)
     })
 
     it("calls onStatus with sending after payment created", async () => {
-      const requirements = createMockRequirements()
-      const payment = createMockPaymentPayload()
-      const authorization = createMockAuthorization(payment)
-
+      const v1Requirements = createMockV1Requirements()
+      const authorization = createMockV1Authorization()
       mockTreasurer.onPaymentRequired.mockResolvedValue(authorization)
 
       wrapWithAmpersend(mockClient, mockTreasurer, ["base-sepolia"])
@@ -221,40 +246,26 @@ describe("wrapWithAmpersend", () => {
       const beforeContext: PaymentCreationContext = {
         paymentRequired: {
           x402Version: 1,
-          accepts: [requirements],
+          accepts: [v1Requirements],
           resource: "https://api.example.com/resource",
         },
-        selectedRequirements: requirements,
+        selectedRequirements: v1Requirements,
       } as any
-
-      // Trigger before hook to store authorization
       await mockClient._beforeHooks[0](beforeContext)
 
       const afterContext: PaymentCreatedContext = {
-        paymentRequired: {
-          x402Version: 1,
-          accepts: [requirements],
-          resource: "https://api.example.com/resource",
-        },
-        selectedRequirements: requirements,
-        paymentPayload: payment,
+        paymentRequired: beforeContext.paymentRequired,
+        selectedRequirements: v1Requirements,
       } as any
-
       await mockClient._afterHooks[0](afterContext)
 
-      expect(mockTreasurer.onStatus).toHaveBeenCalledWith("sending", authorization, {
-        method: "http",
-        params: {
-          resource: "https://api.example.com/resource",
-        },
-      })
+      expect(mockTreasurer.onStatus).toHaveBeenCalledWith("sending", authorization, { method: "http" })
     })
   })
 
   describe("treasurer declines", () => {
     it("returns abort when treasurer returns null", async () => {
-      const requirements = createMockRequirements()
-
+      const v1Requirements = createMockV1Requirements()
       mockTreasurer.onPaymentRequired.mockResolvedValue(null)
 
       wrapWithAmpersend(mockClient, mockTreasurer, ["base-sepolia"])
@@ -262,23 +273,18 @@ describe("wrapWithAmpersend", () => {
       const context: PaymentCreationContext = {
         paymentRequired: {
           x402Version: 1,
-          accepts: [requirements],
+          accepts: [v1Requirements],
           resource: "https://api.example.com/resource",
         },
-        selectedRequirements: requirements,
+        selectedRequirements: v1Requirements,
       } as any
 
       const result = await mockClient._beforeHooks[0](context)
-
-      expect(result).toEqual({
-        abort: true,
-        reason: "Payment declined by treasurer",
-      })
+      expect(result).toEqual({ abort: true, reason: "Payment declined by treasurer" })
     })
 
     it("does not call onStatus when declined", async () => {
-      const requirements = createMockRequirements()
-
+      const v1Requirements = createMockV1Requirements()
       mockTreasurer.onPaymentRequired.mockResolvedValue(null)
 
       wrapWithAmpersend(mockClient, mockTreasurer, ["base-sepolia"])
@@ -286,12 +292,11 @@ describe("wrapWithAmpersend", () => {
       const context: PaymentCreationContext = {
         paymentRequired: {
           x402Version: 1,
-          accepts: [requirements],
+          accepts: [v1Requirements],
           resource: "https://api.example.com/resource",
         },
-        selectedRequirements: requirements,
+        selectedRequirements: v1Requirements,
       } as any
-
       await mockClient._beforeHooks[0](context)
 
       expect(mockTreasurer.onStatus).not.toHaveBeenCalled()
@@ -300,9 +305,8 @@ describe("wrapWithAmpersend", () => {
 
   describe("treasurer throws", () => {
     it("propagates error from treasurer", async () => {
-      const requirements = createMockRequirements()
+      const v1Requirements = createMockV1Requirements()
       const error = new Error("Treasurer error")
-
       mockTreasurer.onPaymentRequired.mockRejectedValue(error)
 
       wrapWithAmpersend(mockClient, mockTreasurer, ["base-sepolia"])
@@ -310,10 +314,10 @@ describe("wrapWithAmpersend", () => {
       const context: PaymentCreationContext = {
         paymentRequired: {
           x402Version: 1,
-          accepts: [requirements],
+          accepts: [v1Requirements],
           resource: "https://api.example.com/resource",
         },
-        selectedRequirements: requirements,
+        selectedRequirements: v1Requirements,
       } as any
 
       await expect(mockClient._beforeHooks[0](context)).rejects.toThrow("Treasurer error")
@@ -322,107 +326,79 @@ describe("wrapWithAmpersend", () => {
 
   describe("payment creation failure", () => {
     it("calls onStatus with error status", async () => {
-      const requirements = createMockRequirements()
-      const payment = createMockPaymentPayload()
-      const authorization = createMockAuthorization(payment)
-
+      const v1Requirements = createMockV1Requirements()
+      const authorization = createMockV1Authorization()
       mockTreasurer.onPaymentRequired.mockResolvedValue(authorization)
 
       wrapWithAmpersend(mockClient, mockTreasurer, ["base-sepolia"])
 
-      // First store authorization via before hook
       const beforeContext: PaymentCreationContext = {
         paymentRequired: {
           x402Version: 1,
-          accepts: [requirements],
+          accepts: [v1Requirements],
           resource: "https://api.example.com/resource",
         },
-        selectedRequirements: requirements,
+        selectedRequirements: v1Requirements,
       } as any
-
       await mockClient._beforeHooks[0](beforeContext)
 
-      // Then trigger failure
       const failureContext: PaymentCreationFailureContext = {
-        paymentRequired: {
-          x402Version: 1,
-          accepts: [requirements],
-          resource: "https://api.example.com/resource",
-        },
-        selectedRequirements: requirements,
+        paymentRequired: beforeContext.paymentRequired,
+        selectedRequirements: v1Requirements,
         error: new Error("Payment failed"),
       } as any
-
       await mockClient._failureHooks[0](failureContext)
 
       expect(mockTreasurer.onStatus).toHaveBeenCalledWith("error", authorization, {
         method: "http",
-        params: {
-          resource: "https://api.example.com/resource",
-          error: "Payment failed",
-        },
+        params: { error: "Payment failed" },
       })
     })
 
     it("does not recover from failure", async () => {
-      const requirements = createMockRequirements()
-      const payment = createMockPaymentPayload()
-      const authorization = createMockAuthorization(payment)
-
+      const v1Requirements = createMockV1Requirements()
+      const authorization = createMockV1Authorization()
       mockTreasurer.onPaymentRequired.mockResolvedValue(authorization)
 
       wrapWithAmpersend(mockClient, mockTreasurer, ["base-sepolia"])
 
-      // Store authorization
       const beforeContext: PaymentCreationContext = {
         paymentRequired: {
           x402Version: 1,
-          accepts: [requirements],
+          accepts: [v1Requirements],
           resource: "https://api.example.com/resource",
         },
-        selectedRequirements: requirements,
+        selectedRequirements: v1Requirements,
       } as any
-
       await mockClient._beforeHooks[0](beforeContext)
 
       const failureContext: PaymentCreationFailureContext = {
-        paymentRequired: {
-          x402Version: 1,
-          accepts: [requirements],
-          resource: "https://api.example.com/resource",
-        },
-        selectedRequirements: requirements,
+        paymentRequired: beforeContext.paymentRequired,
+        selectedRequirements: v1Requirements,
         error: new Error("Payment failed"),
       } as any
 
       const result = await mockClient._failureHooks[0](failureContext)
-
-      // Should return undefined (no recovery)
       expect(result).toBeUndefined()
     })
   })
 
   describe("missing authorization in store", () => {
     it("throws when authorization not found", async () => {
-      const requirements = createMockRequirements()
-
+      const v1Requirements = createMockV1Requirements()
       wrapWithAmpersend(mockClient, mockTreasurer, ["base-sepolia"])
 
       const schemeClient = mockClient._registeredSchemesV1.get("base-sepolia")
-
-      // Try to get payload without storing authorization first
-      await expect(schemeClient.createPaymentPayload(1, requirements)).rejects.toThrow(
-        "No payment authorization found for requirements",
+      await expect(schemeClient.createPaymentPayload(1, v1Requirements)).rejects.toThrow(
+        "No v1 payment authorization found",
       )
     })
   })
 
   describe("context shape", () => {
     it("passes correct context structure to treasurer", async () => {
-      const requirements = createMockRequirements()
-      const payment = createMockPaymentPayload()
-      const authorization = createMockAuthorization(payment)
-
+      const v1Requirements = createMockV1Requirements()
+      const authorization = createMockV1Authorization()
       mockTreasurer.onPaymentRequired.mockResolvedValue(authorization)
 
       wrapWithAmpersend(mockClient, mockTreasurer, ["base-sepolia"])
@@ -430,75 +406,51 @@ describe("wrapWithAmpersend", () => {
       const context: PaymentCreationContext = {
         paymentRequired: {
           x402Version: 1,
-          accepts: [requirements],
+          accepts: [v1Requirements],
           resource: "https://api.example.com/resource",
         },
-        selectedRequirements: requirements,
+        selectedRequirements: v1Requirements,
       } as any
-
       await mockClient._beforeHooks[0](context)
 
       const calledContext = mockTreasurer.onPaymentRequired.mock.calls[0][1] as PaymentContext
       expect(calledContext.method).toBe("http")
-      expect(calledContext.params).toEqual({
-        resource: "https://api.example.com/resource",
-      })
+      expect(calledContext.params).toBeUndefined()
     })
   })
 
   describe("v2 protocol support", () => {
-    function createMockV2Requirements() {
-      return {
-        scheme: "exact",
-        network: "eip155:84532", // CAIP-2 format
-        amount: "1000000",
-        asset: "0x036CbD53842c5426634e7929541eC2318f3dCF7e", // USDC on Base Sepolia
-        payTo: "0x1234567890123456789012345678901234567890",
-        maxTimeoutSeconds: 300,
-        extra: {},
-      }
-    }
+    it("passes a v2-tagged PaymentRequest (with top-level resource) to the treasurer", async () => {
+      const v2Requirements = createMockV2Requirements()
+      const v2PaymentRequired = createMockV2PaymentRequired()
+      const authorization = createMockV2Authorization()
+      mockTreasurer.onPaymentRequired.mockResolvedValue(authorization)
 
-    function createMockV2PaymentRequired() {
-      return {
-        x402Version: 2,
-        resource: {
+      wrapWithAmpersend(mockClient, mockTreasurer, ["base-sepolia"])
+
+      const context: PaymentCreationContext = {
+        paymentRequired: v2PaymentRequired,
+        selectedRequirements: v2Requirements,
+      } as any
+      await mockClient._beforeHooks[0](context)
+
+      const [passedRequest] = mockTreasurer.onPaymentRequired.mock.calls[0]
+      const request = passedRequest as PaymentRequest
+      expect(request.protocol).toBe("x402-v2")
+      expect(request.data).toBe(v2PaymentRequired) // byte-exact passthrough
+      if (request.protocol === "x402-v2") {
+        expect(request.data.resource).toEqual({
           url: "https://api.example.com/resource",
           description: "Test resource",
           mimeType: "application/json",
-        },
-        accepts: [createMockV2Requirements()],
+        })
+        expect(request.data.accepts).toEqual([v2Requirements])
       }
-    }
-
-    it("converts v2 requirements to v1 for treasurer", async () => {
-      const v2Requirements = createMockV2Requirements()
-      const payment = createMockPaymentPayload()
-      const authorization = createMockAuthorization(payment)
-
-      mockTreasurer.onPaymentRequired.mockResolvedValue(authorization)
-
-      wrapWithAmpersend(mockClient, mockTreasurer, ["base-sepolia"])
-
-      const context: PaymentCreationContext = {
-        paymentRequired: createMockV2PaymentRequired(),
-        selectedRequirements: v2Requirements,
-      } as any
-
-      await mockClient._beforeHooks[0](context)
-
-      // Treasurer should receive v1-converted requirements
-      const [requirements] = mockTreasurer.onPaymentRequired.mock.calls[0][0]
-      expect(requirements.network).toBe("base-sepolia") // v1 format
-      expect(requirements.maxAmountRequired).toBe("1000000") // v1 field name
-      expect(requirements.resource).toBe("https://api.example.com/resource")
     })
 
-    it("v2 scheme client returns v2 payload format", async () => {
+    it("v2 scheme client returns the v2 payload fragment", async () => {
       const v2Requirements = createMockV2Requirements()
-      const payment = createMockPaymentPayload()
-      const authorization = createMockAuthorization(payment)
-
+      const authorization = createMockV2Authorization()
       mockTreasurer.onPaymentRequired.mockResolvedValue(authorization)
 
       wrapWithAmpersend(mockClient, mockTreasurer, ["base-sepolia"])
@@ -507,87 +459,37 @@ describe("wrapWithAmpersend", () => {
         paymentRequired: createMockV2PaymentRequired(),
         selectedRequirements: v2Requirements,
       } as any
-
-      // Store authorization via hook
       await mockClient._beforeHooks[0](context)
 
-      // Retrieve via v2 scheme client
       const schemeClient = mockClient._registeredSchemesV2.get("eip155:84532")
       const result = await schemeClient.createPaymentPayload(2, v2Requirements)
 
       expect(result.x402Version).toBe(2)
-      expect(result.resource).toEqual({
-        url: "https://api.example.com/resource",
-        description: "Test resource",
-        mimeType: "application/json",
-      })
-      expect(result.accepted).toEqual(v2Requirements)
-      expect(result.payload).toEqual(payment.payload)
+      expect(result.payload).toEqual(v1SignedBody)
     })
 
-    it("handles v2 requirements that include maxAmountRequired for backward compatibility", async () => {
-      // Some servers include both 'amount' (v2) and 'maxAmountRequired' (v1) for backward compat
-      const hybridRequirements = {
-        ...createMockV2Requirements(),
-        maxAmountRequired: "1000000",
-      }
-      const payment = createMockPaymentPayload()
-      const authorization = createMockAuthorization(payment)
-
-      mockTreasurer.onPaymentRequired.mockResolvedValue(authorization)
-
-      wrapWithAmpersend(mockClient, mockTreasurer, ["base-sepolia"])
-
-      const context: PaymentCreationContext = {
-        paymentRequired: createMockV2PaymentRequired(),
-        selectedRequirements: hybridRequirements,
-      } as any
-
-      // Store authorization via hook
-      await mockClient._beforeHooks[0](context)
-
-      // Retrieve via v2 scheme client — this would fail before the fix
-      const schemeClient = mockClient._registeredSchemesV2.get("eip155:84532")
-      const result = await schemeClient.createPaymentPayload(2, hybridRequirements)
-
-      expect(result.x402Version).toBe(2)
-      expect(result.payload).toEqual(payment.payload)
-    })
-
-    it("extracts resource URL from v2 format for status callbacks", async () => {
+    it("invokes onStatus('sending') for v2 payments after creation", async () => {
       const v2Requirements = createMockV2Requirements()
-      const payment = createMockPaymentPayload()
-      const authorization = createMockAuthorization(payment)
-
+      const authorization = createMockV2Authorization()
       mockTreasurer.onPaymentRequired.mockResolvedValue(authorization)
 
       wrapWithAmpersend(mockClient, mockTreasurer, ["base-sepolia"])
 
       const v2PaymentRequired = createMockV2PaymentRequired()
 
-      // Store authorization via before hook
       const beforeContext: PaymentCreationContext = {
         paymentRequired: v2PaymentRequired,
         selectedRequirements: v2Requirements,
       } as any
-
       await mockClient._beforeHooks[0](beforeContext)
 
-      // Trigger after hook
       const afterContext = {
         paymentRequired: v2PaymentRequired,
         selectedRequirements: v2Requirements,
-        paymentPayload: payment,
       } as any
-
       await mockClient._afterHooks[0](afterContext)
 
-      expect(mockTreasurer.onStatus).toHaveBeenCalledWith("sending", authorization, {
-        method: "http",
-        params: {
-          resource: "https://api.example.com/resource",
-        },
-      })
+      expect(mockTreasurer.onStatus).toHaveBeenCalledWith("sending", authorization, { method: "http" })
     })
   })
 })
