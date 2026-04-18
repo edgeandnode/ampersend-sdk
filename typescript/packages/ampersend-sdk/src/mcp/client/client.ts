@@ -11,7 +11,7 @@ import {
   type ReadResourceRequest,
   type ReadResourceResult,
 } from "@modelcontextprotocol/sdk/types.js"
-import type { PaymentRequirements as V1PaymentRequirements } from "x402/types"
+import type { PaymentRequirementsV1 } from "@x402/core/schemas"
 
 import type { PaymentRequest } from "../../x402/envelopes.ts"
 import type { Authorization, X402Treasurer } from "../../x402/treasurer.ts"
@@ -133,7 +133,7 @@ export class Client extends McpClient {
   private async decidePayment(
     method: string,
     params: OpParams,
-    wireRequirements: ReadonlyArray<V1PaymentRequirements>,
+    wireRequirements: ReadonlyArray<PaymentRequirementsV1>,
   ): Promise<{ paramsWithPayment: OpParams; authorization: Authorization } | null> {
     // MCP spec currently uses the x402-v1 wire shape. Wrap the wire requirements
     // into a v1 PaymentRequest envelope for the treasurer.

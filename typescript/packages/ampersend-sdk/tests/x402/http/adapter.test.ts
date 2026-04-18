@@ -207,10 +207,7 @@ describe("wrapWithAmpersend", () => {
       expect(request.protocol).toBe("x402-v1")
       expect(request.data).toBe(v1Body) // byte-exact: same reference
 
-      expect(passedContext).toEqual({
-        method: "http",
-        params: { resource: "https://api.example.com/resource" },
-      })
+      expect(passedContext).toEqual({ method: "http" })
     })
 
     it("v1 scheme client returns the byte-exact v1 PaymentPayload", async () => {
@@ -262,10 +259,7 @@ describe("wrapWithAmpersend", () => {
       } as any
       await mockClient._afterHooks[0](afterContext)
 
-      expect(mockTreasurer.onStatus).toHaveBeenCalledWith("sending", authorization, {
-        method: "http",
-        params: { resource: "https://api.example.com/resource" },
-      })
+      expect(mockTreasurer.onStatus).toHaveBeenCalledWith("sending", authorization, { method: "http" })
     })
   })
 
@@ -357,7 +351,7 @@ describe("wrapWithAmpersend", () => {
 
       expect(mockTreasurer.onStatus).toHaveBeenCalledWith("error", authorization, {
         method: "http",
-        params: { resource: "https://api.example.com/resource", error: "Payment failed" },
+        params: { error: "Payment failed" },
       })
     })
 
@@ -421,7 +415,7 @@ describe("wrapWithAmpersend", () => {
 
       const calledContext = mockTreasurer.onPaymentRequired.mock.calls[0][1] as PaymentContext
       expect(calledContext.method).toBe("http")
-      expect(calledContext.params).toEqual({ resource: "https://api.example.com/resource" })
+      expect(calledContext.params).toBeUndefined()
     })
   })
 
@@ -474,7 +468,7 @@ describe("wrapWithAmpersend", () => {
       expect(result.payload).toEqual(v1SignedBody)
     })
 
-    it("extracts resource URL from v2 format for status callbacks", async () => {
+    it("invokes onStatus('sending') for v2 payments after creation", async () => {
       const v2Requirements = createMockV2Requirements()
       const authorization = createMockV2Authorization()
       mockTreasurer.onPaymentRequired.mockResolvedValue(authorization)
@@ -495,10 +489,7 @@ describe("wrapWithAmpersend", () => {
       } as any
       await mockClient._afterHooks[0](afterContext)
 
-      expect(mockTreasurer.onStatus).toHaveBeenCalledWith("sending", authorization, {
-        method: "http",
-        params: { resource: "https://api.example.com/resource" },
-      })
+      expect(mockTreasurer.onStatus).toHaveBeenCalledWith("sending", authorization, { method: "http" })
     })
   })
 })

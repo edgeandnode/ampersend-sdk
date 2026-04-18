@@ -22,6 +22,7 @@
  */
 
 import type {
+  PaymentPayloadV1,
   PaymentPayloadV2,
   PaymentRequiredV1,
   PaymentRequiredV2,
@@ -29,8 +30,7 @@ import type {
   PaymentRequirementsV2,
   ResourceInfo,
 } from "@x402/core/schemas"
-import type { SettleResponse as V2SettleResponse } from "@x402/core/types"
-import type { PaymentPayload as V1PaymentPayload, SettleResponse as V1SettleResponse } from "x402/types"
+import type { SettleResponse } from "@x402/core/types"
 
 export type Protocol = "x402-v1" | "x402-v2"
 
@@ -64,12 +64,13 @@ export type PaymentInstruction =
  * PaymentAuthorization — signed payment, ready to submit.
  */
 export type PaymentAuthorization =
-  | { readonly protocol: "x402-v1"; readonly data: V1PaymentPayload }
+  | { readonly protocol: "x402-v1"; readonly data: PaymentPayloadV1 }
   | { readonly protocol: "x402-v2"; readonly data: PaymentPayloadV2 }
 
 /**
- * SettlementResult — facilitator's settlement outcome.
+ * SettlementResult — facilitator's settlement outcome. Same shape across v1
+ * and v2; upstream `@x402/core` ships one `SettleResponse` type used for both.
  */
 export type SettlementResult =
-  | { readonly protocol: "x402-v1"; readonly data: V1SettleResponse }
-  | { readonly protocol: "x402-v2"; readonly data: V2SettleResponse }
+  | { readonly protocol: "x402-v1"; readonly data: SettleResponse }
+  | { readonly protocol: "x402-v2"; readonly data: SettleResponse }

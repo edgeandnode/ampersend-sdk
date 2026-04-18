@@ -1,9 +1,6 @@
 import type { ClientOptions as McpClientOptions } from "@modelcontextprotocol/sdk/client/index.js"
-import type {
-  PaymentPayload as V1PaymentPayload,
-  PaymentRequirements as V1PaymentRequirements,
-  SettleResponse as V1SettleResponse,
-} from "x402/types"
+import type { PaymentPayloadV1, PaymentRequirementsV1 } from "@x402/core/schemas"
+import type { SettleResponse } from "@x402/core/types"
 
 import type { X402Treasurer } from "../../x402/treasurer.ts"
 
@@ -17,7 +14,7 @@ import type { X402Treasurer } from "../../x402/treasurer.ts"
  */
 export interface X402Response {
   readonly x402Version: number
-  readonly accepts: ReadonlyArray<V1PaymentRequirements>
+  readonly accepts: ReadonlyArray<PaymentRequirementsV1>
   readonly error?: string
 }
 
@@ -26,8 +23,8 @@ export interface X402Response {
  * Used internally when building/parsing JSON-RPC `_meta` fields.
  */
 export interface X402MetaFields {
-  "x402/payment"?: V1PaymentPayload
-  "x402/payment-response"?: V1SettleResponse
+  "x402/payment"?: PaymentPayloadV1
+  "x402/payment-response"?: SettleResponse
 }
 
 /**

@@ -1,6 +1,5 @@
 import { encodeAbiParameters, encodePacked, type Address, type Hex, type TypedDataDefinition } from "viem"
 import { privateKeyToAccount } from "viem/accounts"
-import type { PaymentPayload as V1PaymentPayload } from "x402/types"
 
 import { TRANSFER_WITH_AUTHORIZATION_TYPE } from "../../../smart-account/eip712-types.ts"
 import type { PaymentAuthorization, PaymentInstruction } from "../../envelopes.ts"
@@ -109,14 +108,12 @@ export async function createCoSignedPayment(
   }
 
   if (instruction.protocol === "x402-v1") {
-    // x402/types uses a narrow network enum; @x402/core/schemas is looser.
-    // Runtime values agree; cast at the boundary.
     return {
       protocol: "x402-v1",
       data: {
         x402Version: 1,
         scheme: "exact",
-        network: instruction.data.network as V1PaymentPayload["network"],
+        network: instruction.data.network,
         payload: signedPayload,
       },
     }

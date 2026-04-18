@@ -1,5 +1,4 @@
 import { toHex, type Address, type Hex } from "viem"
-import type { PaymentPayload as V1PaymentPayload } from "x402/types"
 
 import { signERC3009Authorization } from "../../../smart-account/index.ts"
 import type { PaymentAuthorization, PaymentInstruction } from "../../envelopes.ts"
@@ -94,14 +93,12 @@ export async function createExactPayment(
   }
 
   if (instruction.protocol === "x402-v1") {
-    // x402/types uses a narrow network enum; @x402/core/schemas is looser.
-    // Runtime values agree; cast at the boundary.
     return {
       protocol: "x402-v1",
       data: {
         x402Version: 1,
         scheme: "exact",
-        network: instruction.data.network as V1PaymentPayload["network"],
+        network: instruction.data.network,
         payload: signedPayload,
       },
     }

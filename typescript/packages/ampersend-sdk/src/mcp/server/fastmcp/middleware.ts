@@ -1,3 +1,5 @@
+import type { PaymentPayloadV1, PaymentRequirementsV1 } from "@x402/core/schemas"
+import type { SettleResponse } from "@x402/core/types"
 import {
   CustomMcpError,
   type AudioContent,
@@ -7,11 +9,6 @@ import {
   type ResourceLink,
   type TextContent,
 } from "fastmcp"
-import type {
-  PaymentPayload as V1PaymentPayload,
-  PaymentRequirements as V1PaymentRequirements,
-  SettleResponse as V1SettleResponse,
-} from "x402/types"
 
 import type { PaymentAuthorization, PaymentInstruction, SettlementResult } from "../../../x402/envelopes.ts"
 
@@ -48,9 +45,9 @@ interface PaymentErrorData {
   message: string
   code: number
   x402Version: number
-  accepts: Array<V1PaymentRequirements>
+  accepts: Array<PaymentRequirementsV1>
   error?: string
-  "x402/payment-response"?: V1SettleResponse
+  "x402/payment-response"?: SettleResponse
 }
 
 /**
@@ -58,7 +55,7 @@ interface PaymentErrorData {
  */
 interface FastMCPContext {
   requestMetadata?: {
-    "x402/payment"?: V1PaymentPayload
+    "x402/payment"?: PaymentPayloadV1
     [key: string]: unknown
   }
   [key: string]: unknown
@@ -70,15 +67,14 @@ interface FastMCPContext {
 type ExecuteFunction<TArgs = any, TResult = any> = (args: TArgs, context: FastMCPContext) => Promise<TResult>
 
 /** Require MCP-flavoured envelope (x402-v1); otherwise error. */
-function requireV1Instruction(instruction: PaymentInstruction): V1PaymentRequirements {
+function requireV1Instruction(instruction: PaymentInstruction): PaymentRequirementsV1 {
   if (instruction.protocol !== "x402-v1") {
     throw new Error(`MCP x402 middleware only supports x402-v1 instructions (got ${instruction.protocol}).`)
   }
-  // x402/types is stricter than @x402/core/schemas; structurally compatible at runtime.
-  return instruction.data as V1PaymentRequirements
+  return instruction.data
 }
 
-function requireV1Settlement(settlement: SettlementResult): V1SettleResponse {
+function requireV1Settlement(settlement: SettlementResult): SettleResponse {
   if (settlement.protocol !== "x402-v1") {
     throw new Error(`MCP x402 middleware only supports x402-v1 settlements (got ${settlement.protocol}).`)
   }

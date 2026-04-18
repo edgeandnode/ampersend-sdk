@@ -1,7 +1,8 @@
+import type { PaymentPayloadV1 } from "@x402/core/schemas"
 import type { Hex, LocalAccount } from "viem"
 import { privateKeyToAccount } from "viem/accounts"
 import { createPaymentHeader } from "x402/client"
-import type { PaymentPayload as V1PaymentPayload, PaymentRequirements as V1PaymentRequirements } from "x402/types"
+import type { PaymentRequirements as LegacyV1PaymentRequirements } from "x402/types"
 
 import type { PaymentAuthorization, PaymentInstruction } from "../../envelopes.ts"
 import type { ServerAuthorizationData } from "../../types.ts"
@@ -42,11 +43,12 @@ export class AccountWallet implements X402Wallet {
     }
 
     try {
-      // x402/types is stricter (narrow network union) than @x402/core/schemas'
-      // PaymentRequirementsV1; at runtime they are structurally compatible.
-      const paymentHeader = await createPaymentHeader(this.account, 1, instruction.data as V1PaymentRequirements)
+      // `x402/client.createPaymentHeader` consumes the legacy `x402/types`
+      // `PaymentRequirements` (narrow `network` enum). Our envelope uses the
+      // looser `@x402/core/schemas` shape; structurally identical at runtime.
+      const paymentHeader = await createPaymentHeader(this.account, 1, instruction.data as LegacyV1PaymentRequirements)
       const decoded = Buffer.from(paymentHeader, "base64").toString("utf-8")
-      const v1Payment = JSON.parse(decoded) as V1PaymentPayload
+      const v1Payment = JSON.parse(decoded) as PaymentPayloadV1
       return { protocol: "x402-v1", data: v1Payment }
     } catch (error) {
       throw new WalletError(

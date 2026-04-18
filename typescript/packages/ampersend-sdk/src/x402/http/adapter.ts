@@ -10,7 +10,7 @@ import type {
   PaymentRequired as V2PaymentRequired,
   PaymentRequirements as V2PaymentRequirements,
 } from "@x402/core/types"
-import { EvmNetworkToChainId, type PaymentRequirements as V1PaymentRequirements } from "x402/types"
+import { EvmNetworkToChainId } from "x402/types"
 
 import type { PaymentRequest } from "../envelopes.ts"
 import type { Authorization, X402Treasurer } from "../treasurer.ts"
@@ -41,7 +41,7 @@ class TreasurerSchemeClientV1 {
 
   async createPaymentPayload(
     _x402Version: number,
-    requirements: V1PaymentRequirements,
+    requirements: object,
   ): Promise<{ x402Version: number; scheme: string; network: string; payload: Record<string, unknown> }> {
     const entry = this.paymentStore.get(requirements)
     if (!entry || entry.version !== 1) {
@@ -133,15 +133,9 @@ export function wrapWithAmpersend(client: x402Client, treasurer: X402Treasurer, 
         ? { protocol: "x402-v2", data: paymentRequired as unknown as PaymentRequiredV2 }
         : { protocol: "x402-v1", data: paymentRequired as unknown as PaymentRequiredV1 }
 
-    const resourceUrl =
-      paymentRequired.x402Version === 2
-        ? paymentRequired.resource.url
-        : (context.selectedRequirements as unknown as V1PaymentRequirements).resource
-
-    const authorization = await treasurer.onPaymentRequired(request, {
-      method: "http",
-      params: { resource: resourceUrl },
-    })
+    // Treasurers read resource info directly off `request.data` (v2 top-level
+    // or v1 per-option). No need to duplicate it on the context.
+    const authorization = await treasurer.onPaymentRequired(request, { method: "http" })
 
     if (!authorization) {
       return { abort: true, reason: "Payment declined by treasurer" }
@@ -154,27 +148,18 @@ export function wrapWithAmpersend(client: x402Client, treasurer: X402Treasurer, 
   })
 
   client.onAfterPaymentCreation(async (context: PaymentCreatedContext) => {
-    const paymentRequired = context.paymentRequired as V2PaymentRequired
     const authorization = authorizationByRequirements.get(context.selectedRequirements)
     if (authorization) {
-      const resourceUrl =
-        typeof paymentRequired.resource === "object" ? paymentRequired.resource.url : paymentRequired.resource
-      await treasurer.onStatus("sending", authorization, {
-        method: "http",
-        params: { resource: resourceUrl },
-      })
+      await treasurer.onStatus("sending", authorization, { method: "http" })
     }
   })
 
   client.onPaymentCreationFailure(async (context: PaymentCreationFailureContext) => {
-    const paymentRequired = context.paymentRequired as V2PaymentRequired
     const authorization = authorizationByRequirements.get(context.selectedRequirements)
     if (authorization) {
-      const resourceUrl =
-        typeof paymentRequired.resource === "object" ? paymentRequired.resource.url : paymentRequired.resource
       await treasurer.onStatus("error", authorization, {
         method: "http",
-        params: { resource: resourceUrl, error: context.error.message },
+        params: { error: context.error.message },
       })
     }
     return

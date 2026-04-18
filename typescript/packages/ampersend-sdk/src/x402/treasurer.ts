@@ -1,11 +1,15 @@
 import type { PaymentAuthorization, PaymentRequest } from "./envelopes.ts"
 
 /**
- * Context information for payment decisions
+ * Context information for payment decisions.
+ *
+ * Carries loose caller context (which protocol triggered the flow and any
+ * debugging metadata) — NOT payment details. Treasurers read amount, asset,
+ * resource, etc. directly off the {@link PaymentRequest}.
  */
 export interface PaymentContext {
   method: string
-  params: any
+  params?: any
   metadata?: Record<string, unknown>
 }
 

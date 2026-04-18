@@ -1,5 +1,5 @@
 import { type JSONRPCMessage, type JSONRPCRequest } from "@modelcontextprotocol/sdk/types.js"
-import type { PaymentRequirements as V1PaymentRequirements } from "x402/types"
+import type { PaymentRequirementsV1 } from "@x402/core/schemas"
 
 import type { PaymentRequest } from "../../x402/envelopes.ts"
 import type { Authorization, PaymentStatus, X402Treasurer } from "../../x402/treasurer.ts"
@@ -75,7 +75,7 @@ export class X402Middleware {
    */
   private async decidePayment(
     request: JSONRPCRequest,
-    wireRequirements: ReadonlyArray<V1PaymentRequirements>,
+    wireRequirements: ReadonlyArray<PaymentRequirementsV1>,
   ): Promise<{ messageWithPayment: JSONRPCRequest; authorization: Authorization } | null> {
     // MCP spec uses x402-v1 wire shapes. Wrap them into a v1 PaymentRequest for the treasurer.
     const paymentRequest: PaymentRequest = {
