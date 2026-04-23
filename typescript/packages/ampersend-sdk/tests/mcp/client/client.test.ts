@@ -1,9 +1,10 @@
 import { Client } from "@/mcp/client/index.ts"
+import type { PaymentAuthorization, PaymentRequest } from "@/x402/envelopes.ts"
 import type { Authorization, X402Treasurer } from "@/x402/treasurer.ts"
 import { McpError } from "@modelcontextprotocol/sdk/types.js"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 
-// Test data
+// Wire-format 402 response embedded in the MCP error — v1-shaped per the MCP spec.
 const mockX402Response = {
   x402Version: 1,
   accepts: [
@@ -21,10 +22,16 @@ const mockX402Response = {
   ],
 }
 
-const mockPayment = {
+// The PaymentRequest envelope the treasurer should see.
+const expectedPaymentRequest: PaymentRequest = {
+  protocol: "x402-v1",
+  data: { x402Version: 1, accepts: mockX402Response.accepts as any },
+}
+
+const v1WirePayment = {
   x402Version: 1 as const,
-  scheme: "exact" as const,
-  network: "base-sepolia" as const,
+  scheme: "exact",
+  network: "base-sepolia",
   payload: {
     signature: "0x" + "a".repeat(130),
     authorization: {
@@ -38,15 +45,18 @@ const mockPayment = {
   },
 }
 
+const mockPayment: PaymentAuthorization = { protocol: "x402-v1", data: v1WirePayment }
+const expectedWirePayment = v1WirePayment
+
 const mockAuthorization: Authorization = {
   payment: mockPayment,
   authorizationId: "test-auth-id",
+  accepted: mockX402Response.accepts[0] as never,
 }
 
 const testToolParams = { name: "test_tool", arguments: { arg1: "value1" } }
 const testResourceParams = { uri: "test://resource" }
 
-// Test helpers
 function createMcpError(data: unknown) {
   return new McpError(402, "Payment required for tool execution", data)
 }
@@ -73,7 +83,7 @@ function setupClient(treasurer?: X402Treasurer) {
 }
 
 function expectPaymentRequired(treasurer: X402Treasurer, method: string, params: unknown) {
-  expect(treasurer.onPaymentRequired).toHaveBeenCalledWith(mockX402Response.accepts, { method, params })
+  expect(treasurer.onPaymentRequired).toHaveBeenCalledWith(expectedPaymentRequest, { method, params })
 }
 
 function expectRetryWithPayment(
@@ -82,7 +92,7 @@ function expectRetryWithPayment(
   isCallTool = true,
   callNumber = 2,
 ) {
-  const expectedParams = { ...params, _meta: { "x402/payment": mockPayment } }
+  const expectedParams = { ...params, _meta: { "x402/payment": expectedWirePayment } }
   if (isCallTool) {
     expect(mockFn).toHaveBeenNthCalledWith(callNumber, expectedParams, undefined, undefined)
   } else {
@@ -121,7 +131,6 @@ describe("Client", () => {
       expect(result).toBe(successResult)
       expect(mockCallTool).toHaveBeenCalledTimes(2)
 
-      // Verify status tracking
       expect(treasurer.onStatus).toHaveBeenCalledWith("sending", mockAuthorization)
       expect(treasurer.onStatus).toHaveBeenCalledWith("accepted", mockAuthorization)
     })
@@ -141,7 +150,6 @@ describe("Client", () => {
       expect(result).toBe(successResult)
       expect(mockReadResource).toHaveBeenCalledTimes(2)
 
-      // Verify status tracking
       expect(treasurer.onStatus).toHaveBeenCalledWith("sending", mockAuthorization)
       expect(treasurer.onStatus).toHaveBeenCalledWith("accepted", mockAuthorization)
     })
@@ -231,7 +239,6 @@ describe("Client", () => {
         mockCallToolTracking,
       )
 
-      // First call fails with 402, second succeeds
       mockCallToolTracking.mockRejectedValueOnce(createMcpError(mockX402Response))
       const successResult = { content: [{ type: "text", text: "success" }] }
       mockCallToolTracking.mockResolvedValueOnce(successResult)
@@ -260,7 +267,6 @@ describe("Client", () => {
         mockCallToolTracking,
       )
 
-      // First call fails with 402, second also fails (payment rejected)
       mockCallToolTracking.mockRejectedValueOnce(createMcpError(mockX402Response))
       const rejectionError = createMcpError({ ...mockX402Response, error: "Insufficient funds" })
       mockCallToolTracking.mockRejectedValueOnce(rejectionError)
@@ -289,7 +295,6 @@ describe("Client", () => {
         mockCallToolTracking,
       )
 
-      // First call fails with 402, second fails with non-payment error
       mockCallToolTracking.mockRejectedValueOnce(createMcpError(mockX402Response))
       const connectionError = new Error("Connection timeout")
       mockCallToolTracking.mockRejectedValueOnce(connectionError)

@@ -1,3 +1,5 @@
+import type { PaymentPayloadV1, PaymentRequirementsV1 } from "@x402/core/schemas"
+import type { SettleResponse } from "@x402/core/types"
 import {
   CustomMcpError,
   type AudioContent,
@@ -7,68 +9,44 @@ import {
   type ResourceLink,
   type TextContent,
 } from "fastmcp"
-import { type PaymentPayload, type PaymentRequirements, type SettleResponse } from "x402/types"
 
-/**
- * Callback to determine if payment is required for tool execution
- */
-export type OnExecute = (context: { args: unknown }) => Promise<PaymentRequirements | null>
+/** Requirements to advertise, or `null` if payment isn't required. */
+export type OnExecute = (context: { args: unknown }) => Promise<PaymentRequirementsV1 | null>
 
-/**
- * Callback when payment provided
- */
+/** Return a {@link SettleResponse} to embed in `_meta`, or `void` to accept without settling. */
 export type OnPayment = (context: {
-  payment: PaymentPayload
-  requirements: PaymentRequirements
+  payment: PaymentPayloadV1
+  requirements: PaymentRequirementsV1
 }) => Promise<SettleResponse | void>
 
-/**
- * Options for the x402 payment middleware
- */
 export interface WithX402PaymentOptions {
   onExecute: OnExecute
   onPayment: OnPayment
 }
 
-/**
- * Payment error data structure with x402 fields
- */
 interface PaymentErrorData {
   message: string
   code: number
   x402Version: number
-  accepts: Array<PaymentRequirements>
+  accepts: Array<PaymentRequirementsV1>
   error?: string
   "x402/payment-response"?: SettleResponse
 }
 
-/**
- * FastMCP context with request metadata
- */
 interface FastMCPContext {
   requestMetadata?: {
-    "x402/payment"?: PaymentPayload
+    "x402/payment"?: PaymentPayloadV1
     [key: string]: unknown
   }
   [key: string]: unknown
 }
 
-/**
- * The execute function signature from FastMCP
- */
 type ExecuteFunction<TArgs = any, TResult = any> = (args: TArgs, context: FastMCPContext) => Promise<TResult>
 
-/**
- * Creates a payment error with x402 requirements
- *
- * Workaround: Embeds x402 data as JSON in the error message for when FastMCP
- * doesn't properly propagate the data field. This allows the client to fall back
- * to parsing the data from the message.
- */
 function createPaymentError(
-  requirements: PaymentRequirements,
+  requirements: PaymentRequirementsV1,
   errorReason: string | null = null,
-  paymentResponse: SettleResponse | null = null,
+  settlement: SettleResponse | null = null,
 ): CustomMcpError {
   const data: PaymentErrorData = {
     message: "Payment required for tool execution",
@@ -79,10 +57,9 @@ function createPaymentError(
   if (errorReason) {
     data.error = errorReason
   }
-  if (paymentResponse) {
-    data["x402/payment-response"] = paymentResponse
+  if (settlement) {
+    data["x402/payment-response"] = settlement
   }
-
   return new CustomMcpError(402, data.message, data)
 }
 
@@ -105,83 +82,57 @@ function normalizeToolResult(result: ToolExecuteReturn): ContentResult {
     return { content: [{ text: result, type: "text" }] }
   }
 
-  // Check if it's an individual content type (has 'type' property)
   if ("type" in result) {
     return { content: [result] }
   }
 
-  // Already a ContentResult
   return result
 }
 
-/**
- * Middleware that wraps a FastMCP execute function to handle x402 payments
- *
- * Extracts payment from requestMetadata["x402/payment"] field and adds settlement
- * response to result _meta["x402/payment-response"] according to official MCP x402 spec.
- */
+/** Wrap a FastMCP `execute` with x402 payment handling per the MCP x402 spec. */
 export function withX402Payment<TArgs = any, TResult = any>(
   options: WithX402PaymentOptions,
 ): (execute: ExecuteFunction<TArgs, TResult>) => ExecuteFunction<TArgs, TResult> {
   return (execute: ExecuteFunction<TArgs, TResult>) => {
     return async (args: TArgs, context: FastMCPContext): Promise<TResult> => {
-      // Extract payment from MCP request metadata (via FastMCP context)
       const payment = context.requestMetadata?.["x402/payment"]
 
-      // Check if payment is required
       const requirements = await options.onExecute({ args })
-      // No payment required - execute normally
       if (!requirements) {
         return execute(args, context)
       }
 
-      // Payment is required
       if (!payment) {
-        // No payment provided - return error with requirements
         throw createPaymentError(requirements)
       }
 
-      // Payment provided
-      let onPaymentResp: SettleResponse | void
+      let settlement: SettleResponse | void
       try {
-        onPaymentResp = await options.onPayment({
-          payment,
-          requirements,
-        })
+        settlement = await options.onPayment({ payment, requirements })
       } catch (error) {
-        // Payment invalid - extract reason from error
         const reason = error instanceof Error ? error.message : String(error)
         throw createPaymentError(requirements, reason)
       }
-      if (onPaymentResp && !onPaymentResp.success) {
-        // Payment rejected - return error with reason
-        throw createPaymentError(requirements, onPaymentResp.errorReason, onPaymentResp)
+      if (settlement && !settlement.success) {
+        throw createPaymentError(requirements, settlement.errorReason ?? null, settlement)
       }
 
-      // Payment valid - proceed with execution
       const result = await execute(args, context)
 
-      // Did not settle
-      if (!onPaymentResp) {
+      if (!settlement) {
         return result
       }
 
       const normalizedResult = normalizeToolResult(result as ToolExecuteReturn)
-
-      // Add settlement response to result _meta (official spec)
       normalizedResult._meta = {
         ...normalizedResult._meta,
-        "x402/payment-response": onPaymentResp,
+        "x402/payment-response": settlement,
       }
-
       return normalizedResult as TResult
     }
   }
 }
 
-/**
- * Convenience function that directly wraps an execute function
- */
 export function createX402Execute<TArgs = any, TResult = any>(
   options: WithX402PaymentOptions,
   execute: ExecuteFunction<TArgs, TResult>,

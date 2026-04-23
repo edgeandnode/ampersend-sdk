@@ -45,7 +45,6 @@ export function createEnvSchema(envPrefix = "") {
         })
         .optional()
         .default(OWNABLE_VALIDATOR),
-      BUYER_SMART_ACCOUNT_CHAIN_ID: z.coerce.number().int().optional(),
       AMPERSEND_API_URL: z.string().url().optional(),
     })
     .refine(
@@ -107,7 +106,6 @@ export function parseEnvConfig(envPrefix = ""): ProxyEnvConfig {
     BUYER_SMART_ACCOUNT_ADDRESS: process.env[`${envPrefix}BUYER_SMART_ACCOUNT_ADDRESS`],
     BUYER_SMART_ACCOUNT_KEY_PRIVATE_KEY: process.env[`${envPrefix}BUYER_SMART_ACCOUNT_KEY_PRIVATE_KEY`],
     BUYER_SMART_ACCOUNT_VALIDATOR_ADDRESS: process.env[`${envPrefix}BUYER_SMART_ACCOUNT_VALIDATOR_ADDRESS`],
-    BUYER_SMART_ACCOUNT_CHAIN_ID: process.env[`${envPrefix}BUYER_SMART_ACCOUNT_CHAIN_ID`],
     AMPERSEND_API_URL: process.env[`${envPrefix}AMPERSEND_API_URL`],
   }
 

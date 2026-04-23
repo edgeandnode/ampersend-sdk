@@ -22,7 +22,6 @@ export interface SmartAccountWalletConfig {
   type: "smart-account"
   smartAccountAddress: Address
   sessionKeyPrivateKey: Hex
-  chainId: number
   validatorAddress: Address
   coSignerValidatorAddress?: Address
 }
@@ -47,7 +46,6 @@ export function createWalletFromConfig(config: WalletConfig): X402Wallet {
   return new SmartAccountWallet({
     smartAccountAddress: config.smartAccountAddress,
     sessionKeyPrivateKey: config.sessionKeyPrivateKey,
-    chainId: config.chainId,
     validatorAddress: config.validatorAddress,
     ...(config.coSignerValidatorAddress != null && { coSignerValidatorAddress: config.coSignerValidatorAddress }),
   })

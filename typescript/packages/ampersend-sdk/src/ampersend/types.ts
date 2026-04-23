@@ -1,5 +1,13 @@
+import {
+  PaymentPayloadV1Schema,
+  PaymentPayloadV2Schema,
+  PaymentRequiredV1Schema,
+  PaymentRequiredV2Schema,
+} from "@x402/core/schemas"
 import { Schema } from "effect"
 import { isAddress, isHex } from "viem"
+
+import { fromZod } from "./zod-bridge.js"
 
 // ============ Primitives ============
 
@@ -78,41 +86,6 @@ export class SIWELoginResponse extends Schema.Class<SIWELoginResponse>("SIWELogi
   }),
 }) {}
 
-// ============ Payment Requirements (from x402) ============
-
-export class PaymentRequirements extends Schema.Class<PaymentRequirements>("PaymentRequirements")({
-  scheme: Schema.Literal("exact").annotations({
-    description: "Payment scheme - starting with exact only for MVP",
-  }),
-  network: Schema.NonEmptyTrimmedString.annotations({
-    description: "Blockchain network identifier",
-  }),
-  maxAmountRequired: Schema.NonEmptyTrimmedString.annotations({
-    description: "Maximum payment amount in atomic units (wei/gwei)",
-  }),
-  resource: Schema.NonEmptyTrimmedString.annotations({
-    description: "Resource identifier for the payment",
-  }),
-  description: Schema.NonEmptyTrimmedString.annotations({
-    description: "Human-readable payment description",
-  }),
-  mimeType: Schema.String.annotations({
-    description: "MIME type of the resource (may be empty if not specified by the seller)",
-  }),
-  payTo: Address.annotations({
-    description: "Seller address to receive payment",
-  }),
-  maxTimeoutSeconds: Schema.Number.annotations({
-    description: "Maximum timeout for payment completion",
-  }),
-  asset: Address.annotations({
-    description: "Token contract address (e.g., USDC)",
-  }),
-  extra: Schema.optional(Schema.Record({ key: Schema.String, value: Schema.Unknown })).annotations({
-    description: "Additional payment metadata",
-  }),
-}) {}
-
 // ============ ERC-3009 Authorization (for co-signed payments) ============
 
 export class ERC3009AuthorizationData extends Schema.Class<ERC3009AuthorizationData>("ERC3009AuthorizationData")({
@@ -145,82 +118,138 @@ export class ServerAuthorizationData extends Schema.Class<ServerAuthorizationDat
   }),
 }) {}
 
-// ============ Agent Payment Authorization ============
+// ============ Protocol envelopes (wire) ============
 
-export class AgentPaymentAuthRequest extends Schema.Class<AgentPaymentAuthRequest>("AgentPaymentAuthRequest")({
-  requirements: Schema.NonEmptyArray(PaymentRequirements).annotations({
-    description: "List of payment requirements from x402",
+/** Dispatch tag on wire envelopes. Distinct from any individual protocol's internal version. */
+export const Protocol = Schema.Literal("x402-v1", "x402-v2")
+export type Protocol = typeof Protocol.Type
+
+/** Wire envelope for a {@link PaymentRequest}; `data` validated via `@x402/core/schemas` on decode. */
+export const PaymentRequestEnvelope = Schema.Union(
+  Schema.Struct({
+    protocol: Schema.Literal("x402-v1"),
+    data: fromZod(PaymentRequiredV1Schema, "PaymentRequiredV1"),
   }),
-  context: Schema.optional(
-    Schema.Struct({
-      method: Schema.optional(Schema.NonEmptyTrimmedString),
-      serverUrl: Schema.optional(Schema.NonEmptyTrimmedString),
-      params: Schema.optional(Schema.Unknown),
-    }),
-  ).annotations({
-    description: "Optional protocol call context for debugging (MCP method, A2A action, etc)",
+  Schema.Struct({
+    protocol: Schema.Literal("x402-v2"),
+    data: fromZod(PaymentRequiredV2Schema, "PaymentRequiredV2"),
+  }),
+)
+export type PaymentRequestEnvelope = typeof PaymentRequestEnvelope.Type
+
+/** Wire envelope for a signed {@link PaymentAuthorization}. */
+export const PaymentAuthorizationEnvelope = Schema.Union(
+  Schema.Struct({
+    protocol: Schema.Literal("x402-v1"),
+    data: fromZod(PaymentPayloadV1Schema, "PaymentPayloadV1"),
+  }),
+  Schema.Struct({
+    protocol: Schema.Literal("x402-v2"),
+    data: fromZod(PaymentPayloadV2Schema, "PaymentPayloadV2"),
+  }),
+)
+export type PaymentAuthorizationEnvelope = typeof PaymentAuthorizationEnvelope.Type
+
+// ============ Agent Authorize ============
+
+const AuthorizeContext = Schema.Struct({
+  method: Schema.optional(Schema.NonEmptyTrimmedString),
+  serverUrl: Schema.optional(Schema.NonEmptyTrimmedString),
+  params: Schema.optional(Schema.Unknown),
+})
+
+/** Request body for `POST /api/v1/agents/:agent/payment/authorize`. */
+export const AgentAuthorizeRequest = Schema.Struct({
+  paymentRequest: PaymentRequestEnvelope.annotations({
+    description: "The seller's 402 response, protocol-tagged",
+  }),
+  context: Schema.optional(AuthorizeContext).annotations({
+    description: "Optional protocol call context for debugging (MCP method, A2A action, HTTP URL, etc)",
+  }),
+})
+export type AgentAuthorizeRequest = typeof AgentAuthorizeRequest.Type
+
+const AuthorizedLimits = Schema.Struct({
+  dailyRemaining: Schema.NonEmptyTrimmedString.annotations({
+    description: "Remaining daily budget after this instruction (in wei)",
+  }),
+  monthlyRemaining: Schema.NonEmptyTrimmedString.annotations({
+    description: "Remaining monthly budget after this instruction (in wei)",
+  }),
+})
+
+/**
+ * ERC-3009 authorization data + server signature for co-signed agent keys;
+ * the agent signs alongside. Scheme-specific today (exact EVM).
+ */
+export class CoSignature extends Schema.Class<CoSignature>("CoSignature")({
+  authorizationData: ERC3009AuthorizationData.annotations({
+    description: "Server-generated ERC-3009 authorization data",
+  }),
+  serverSignature: Schema.String.annotations({
+    description: "Server's co-signature (65 bytes as hex string)",
   }),
 }) {}
 
-export class AgentPaymentAuthResponse extends Schema.Class<AgentPaymentAuthResponse>("AgentPaymentAuthResponse")({
+const SuggestedNonce = Schema.Struct({
+  nonce: Schema.NonEmptyTrimmedString.annotations({
+    description: "Suggested EIP-3009 nonce (0x-prefixed, 32 bytes). Use for strong reconciliation matching.",
+  }),
+  validBefore: Schema.NonEmptyTrimmedString.annotations({
+    description: "Suggested validBefore (Unix timestamp in seconds). Capped by ampersend TTL policy.",
+  }),
+})
+
+/**
+ * Response body for `POST /api/v1/agents/:agent/payment/authorize`. Returns
+ * *indices* into the request's `accepts[]` — the client has the original
+ * line-items, so byte-exact echo doesn't require re-serialization.
+ *
+ * ```
+ * {
+ *   authorized: {
+ *     selected: { acceptsIndex, limits, coSignature? } | null,
+ *     alternatives: [{ acceptsIndex, limits }],
+ *   },
+ *   rejected: [{ acceptsIndex, reason }],
+ *   suggested?: { nonce, validBefore },
+ * }
+ * ```
+ */
+export const AgentAuthorizeResponse = Schema.Struct({
   authorized: Schema.Struct({
-    recommended: Schema.NullOr(Schema.NonNegativeInt).annotations({
-      description:
-        "Index of recommended payment requirement (cheapest option). Null if no requirements are authorized.",
-    }),
-    requirements: Schema.Array(
+    selected: Schema.NullOr(
       Schema.Struct({
-        requirement: PaymentRequirements.annotations({
-          description: "Authorized payment requirement",
+        acceptsIndex: Schema.NonNegativeInt.annotations({
+          description: "Index into the request's accepts[] that the server picked",
         }),
-        limits: Schema.Struct({
-          dailyRemaining: Schema.NonEmptyTrimmedString.annotations({
-            description: "Remaining daily budget after this requirement (in wei)",
-          }),
-          monthlyRemaining: Schema.NonEmptyTrimmedString.annotations({
-            description: "Remaining monthly budget after this requirement (in wei)",
-          }),
-        }).annotations({
-          description: "Remaining spend limits after this specific requirement is used",
-        }),
+        limits: AuthorizedLimits,
+        coSignature: Schema.optional(CoSignature),
       }),
     ).annotations({
-      description: "List of authorized payment requirements. Empty if none authorized.",
+      description: "The selected authorized option, or null if none could be authorized",
     }),
-  }).annotations({
-    description: "Authorized payment requirements with recommendation",
+    alternatives: Schema.Array(
+      Schema.Struct({
+        acceptsIndex: Schema.NonNegativeInt,
+        limits: AuthorizedLimits,
+      }),
+    ).annotations({
+      description: "Other authorized options the client can fall back to",
+    }),
   }),
   rejected: Schema.Array(
     Schema.Struct({
-      requirement: PaymentRequirements.annotations({
-        description: "Rejected payment requirement",
-      }),
-      reason: Schema.NonEmptyTrimmedString.annotations({
-        description: "Reason why this requirement was rejected",
-      }),
+      acceptsIndex: Schema.NonNegativeInt,
+      reason: Schema.NonEmptyTrimmedString,
     }),
-  ).annotations({
-    description: "List of rejected payment requirements with reasons",
-  }),
-  payment: Schema.optional(
-    Schema.NullOr(
-      Schema.Struct({
-        authorizationData: ERC3009AuthorizationData.annotations({
-          description: "Server-generated ERC-3009 authorization data",
-        }),
-        serverSignature: Schema.String.annotations({
-          description: "Server's co-signature (65 bytes as hex string)",
-        }),
-        requirement: PaymentRequirements.annotations({
-          description: "The payment requirement this authorization is for",
-        }),
-      }),
-    ),
-  ).annotations({
+  ),
+  suggested: Schema.optional(SuggestedNonce).annotations({
     description:
-      "Server-generated payment data and co-signature. Present only for co-signed keys when authorization passes. Null or absent for full-access keys or when authorization fails.",
+      "Suggested EIP-3009 nonce and validBefore for full-access keys to use when signing. Present only when authorization passes and a suggestion is available.",
   }),
-}) {}
+})
+export type AgentAuthorizeResponse = typeof AgentAuthorizeResponse.Type
 
 // ============ Payment Event Types ============
 
@@ -244,68 +273,23 @@ export const PaymentEventType = Schema.Union(
 })
 export type PaymentEventType = typeof PaymentEventType.Type
 
-// ============ Exact EVM Payment ============
-
-export class ExactEvmAuthorization extends Schema.Class<ExactEvmAuthorization>("ExactEvmAuthorization")({
-  from: Address.annotations({
-    description: "Payer address",
-  }),
-  to: Address.annotations({
-    description: "Payee address",
-  }),
-  value: Schema.NonEmptyTrimmedString.annotations({
-    description: "Payment amount in wei",
-  }),
-  validAfter: Schema.NonEmptyTrimmedString.annotations({
-    description: "Valid after timestamp",
-  }),
-  validBefore: Schema.NonEmptyTrimmedString.annotations({
-    description: "Valid before timestamp",
-  }),
-  nonce: Schema.NonEmptyTrimmedString.annotations({
-    description: "Unique nonce for this authorization",
-  }),
-}) {}
-
-export class ExactEvmPayload extends Schema.Class<ExactEvmPayload>("ExactEvmPayload")({
-  signature: Schema.NonEmptyTrimmedString.annotations({
-    description: "EIP-3009 signature",
-  }),
-  authorization: ExactEvmAuthorization.annotations({
-    description: "Payment authorization details",
-  }),
-}) {}
-
-// ============ x402 Payment Payload ============
-
-export class PaymentPayload extends Schema.Class<PaymentPayload>("PaymentPayload")({
-  x402Version: Schema.Number.annotations({
-    description: "x402 protocol version",
-  }),
-  scheme: Schema.NonEmptyTrimmedString.annotations({
-    description: "Payment scheme (exact/deferred)",
-  }),
-  network: Schema.NonEmptyTrimmedString.annotations({
-    description: "Blockchain network",
-  }),
-  payload: Schema.Union(ExactEvmPayload, Schema.Unknown).annotations({
-    description: "Scheme-specific payload (ExactEvmPayload or DeferredEvmPayload)",
-  }),
-}) {}
+export type PaymentEvent = PaymentEventType
 
 // ============ Agent Payment Event Report ============
 
-export class AgentPaymentEventReport extends Schema.Class<AgentPaymentEventReport>("AgentPaymentEventReport")({
+/** Request body for `POST /api/v1/agents/:agent/payment/events`. */
+export const AgentPaymentEventReport = Schema.Struct({
   id: Schema.NonEmptyTrimmedString.annotations({
     description: "Unique event ID from client",
   }),
-  payment: PaymentPayload.annotations({
-    description: "x402 payment payload",
+  payment: PaymentAuthorizationEnvelope.annotations({
+    description: "Signed payment authorization envelope",
   }),
   event: PaymentEventType.annotations({
     description: "Payment lifecycle event",
   }),
-}) {}
+})
+export type AgentPaymentEventReport = typeof AgentPaymentEventReport.Type
 
 export class AgentPaymentEventResponse extends Schema.Class<AgentPaymentEventResponse>("AgentPaymentEventResponse")({
   received: Schema.Boolean.annotations({
@@ -340,9 +324,6 @@ export class ApiError extends Error {
     this.name = "ApiError"
   }
 }
-
-// Type alias for PaymentEvent (re-export PaymentEventType as PaymentEvent for convenience)
-export type PaymentEvent = PaymentEventType
 
 // ============ Approve Action Types ============
 
@@ -412,10 +393,6 @@ export const ApprovalStatusResolved = Schema.Struct({
   agent: Schema.optional(
     Schema.Struct({
       address: Address,
-      // TODO: API should return agent_key_address (wire: session_key_address) so clients
-      // can verify the approval matches their local key. Add mapping from API's
-      // session_key_address once API support lands, then make verification in
-      // `setup finish` non-optional.
       agent_key_address: Schema.optional(Address),
     }),
   ),
