@@ -1,4 +1,4 @@
-import { Address, Caip2ID, TxHash } from "@/ampersend/types.ts"
+import { Address, Caip2ID, Hex32Bytes, Hex65Bytes, NonNegativeIntegerString, TxHash } from "@/ampersend/types.ts"
 import { Schema } from "effect"
 import { describe, expect, it } from "vitest"
 
@@ -86,6 +86,87 @@ describe("Primitive Schema Validation Messages", () => {
         const errorMessage = String(result.left)
         expect(errorMessage).toContain("Must be a valid CAIP-2 chain ID (e.g., eip155:1)")
       }
+    })
+  })
+
+  describe("Hex32Bytes", () => {
+    it("should accept a 32-byte hex string", () => {
+      const valid = "0x" + "ab".repeat(32)
+      const result = Schema.decodeUnknownEither(Hex32Bytes)(valid)
+      expect(result._tag).toBe("Right")
+    })
+
+    it("should reject a hex string that is too short", () => {
+      const tooShort = "0x" + "ab".repeat(31)
+      const result = Schema.decodeUnknownEither(Hex32Bytes)(tooShort)
+      expect(result._tag).toBe("Left")
+      if (result._tag === "Left") {
+        expect(String(result.left)).toContain("Must be a 32-byte hex string")
+      }
+    })
+
+    it("should reject a hex string missing the 0x prefix", () => {
+      const noPrefix = "ab".repeat(32)
+      const result = Schema.decodeUnknownEither(Hex32Bytes)(noPrefix)
+      expect(result._tag).toBe("Left")
+    })
+
+    it("should reject non-hex characters", () => {
+      const notHex = "0x" + "zz".repeat(32)
+      const result = Schema.decodeUnknownEither(Hex32Bytes)(notHex)
+      expect(result._tag).toBe("Left")
+    })
+  })
+
+  describe("Hex65Bytes", () => {
+    it("should accept a 65-byte hex string (typical ECDSA signature)", () => {
+      const valid = "0x" + "ab".repeat(65)
+      const result = Schema.decodeUnknownEither(Hex65Bytes)(valid)
+      expect(result._tag).toBe("Right")
+    })
+
+    it("should reject a 64-byte hex string", () => {
+      const tooShort = "0x" + "ab".repeat(64)
+      const result = Schema.decodeUnknownEither(Hex65Bytes)(tooShort)
+      expect(result._tag).toBe("Left")
+      if (result._tag === "Left") {
+        expect(String(result.left)).toContain("Must be a 65-byte hex string")
+      }
+    })
+  })
+
+  describe("NonNegativeIntegerString", () => {
+    it("should accept a typical wei amount", () => {
+      const result = Schema.decodeUnknownEither(NonNegativeIntegerString)("1000000")
+      expect(result._tag).toBe("Right")
+    })
+
+    it("should accept zero", () => {
+      const result = Schema.decodeUnknownEither(NonNegativeIntegerString)("0")
+      expect(result._tag).toBe("Right")
+    })
+
+    it("should reject negative numbers", () => {
+      const result = Schema.decodeUnknownEither(NonNegativeIntegerString)("-1")
+      expect(result._tag).toBe("Left")
+      if (result._tag === "Left") {
+        expect(String(result.left)).toContain("Must be a non-negative integer literal")
+      }
+    })
+
+    it("should reject decimals", () => {
+      const result = Schema.decodeUnknownEither(NonNegativeIntegerString)("1.5")
+      expect(result._tag).toBe("Left")
+    })
+
+    it("should reject hex literals", () => {
+      const result = Schema.decodeUnknownEither(NonNegativeIntegerString)("0x10")
+      expect(result._tag).toBe("Left")
+    })
+
+    it("should reject scientific notation", () => {
+      const result = Schema.decodeUnknownEither(NonNegativeIntegerString)("1e6")
+      expect(result._tag).toBe("Left")
     })
   })
 })

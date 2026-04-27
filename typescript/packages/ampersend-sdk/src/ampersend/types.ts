@@ -43,6 +43,25 @@ export const Caip2ID = Schema.NonEmptyTrimmedString.pipe(
 )
 export type Caip2ID = typeof Caip2ID.Type
 
+export const Hex32Bytes = Schema.NonEmptyTrimmedString.pipe(
+  Schema.filter(
+    (val) => /^0x[a-fA-F0-9]{64}$/.test(val) || "Must be a 32-byte hex string (0x followed by 64 hex characters)",
+  ),
+)
+export type Hex32Bytes = typeof Hex32Bytes.Type
+
+export const Hex65Bytes = Schema.NonEmptyTrimmedString.pipe(
+  Schema.filter(
+    (val) => /^0x[a-fA-F0-9]{130}$/.test(val) || "Must be a 65-byte hex string (0x followed by 130 hex characters)",
+  ),
+)
+export type Hex65Bytes = typeof Hex65Bytes.Type
+
+export const NonNegativeIntegerString = Schema.NonEmptyTrimmedString.pipe(
+  Schema.filter((val) => /^\d+$/.test(val) || "Must be a non-negative integer literal (stringified bigint)"),
+)
+export type NonNegativeIntegerString = typeof NonNegativeIntegerString.Type
+
 // ============ SIWE Authentication Schemas ============
 
 export class SIWENonceResponse extends Schema.Class<SIWENonceResponse>("SIWENonceResponse")({
@@ -95,16 +114,16 @@ export class ERC3009AuthorizationData extends Schema.Class<ERC3009AuthorizationD
   to: Address.annotations({
     description: "Recipient address (seller)",
   }),
-  value: Schema.String.annotations({
+  value: NonNegativeIntegerString.annotations({
     description: "Transfer amount in wei (stringified bigint)",
   }),
-  validAfter: Schema.String.annotations({
+  validAfter: NonNegativeIntegerString.annotations({
     description: "Unix timestamp after which the authorization is valid (stringified bigint)",
   }),
-  validBefore: Schema.String.annotations({
+  validBefore: NonNegativeIntegerString.annotations({
     description: "Unix timestamp before which the authorization expires (stringified bigint)",
   }),
-  nonce: Schema.String.annotations({
+  nonce: Hex32Bytes.annotations({
     description: "Random 32-byte nonce as hex string for replay protection",
   }),
 }) {}
@@ -113,7 +132,7 @@ export class ServerAuthorizationData extends Schema.Class<ServerAuthorizationDat
   authorizationData: ERC3009AuthorizationData.annotations({
     description: "ERC-3009 TransferWithAuthorization data",
   }),
-  serverSignature: Schema.String.annotations({
+  serverSignature: Hex65Bytes.annotations({
     description: "Server's ECDSA signature (65 bytes as hex string)",
   }),
 }) {}
@@ -186,16 +205,16 @@ export class CoSignature extends Schema.Class<CoSignature>("CoSignature")({
   authorizationData: ERC3009AuthorizationData.annotations({
     description: "Server-generated ERC-3009 authorization data",
   }),
-  serverSignature: Schema.String.annotations({
+  serverSignature: Hex65Bytes.annotations({
     description: "Server's co-signature (65 bytes as hex string)",
   }),
 }) {}
 
 const SuggestedNonce = Schema.Struct({
-  nonce: Schema.NonEmptyTrimmedString.annotations({
+  nonce: Hex32Bytes.annotations({
     description: "Suggested EIP-3009 nonce (0x-prefixed, 32 bytes). Use for strong reconciliation matching.",
   }),
-  validBefore: Schema.NonEmptyTrimmedString.annotations({
+  validBefore: NonNegativeIntegerString.annotations({
     description: "Suggested validBefore (Unix timestamp in seconds). Capped by ampersend TTL policy.",
   }),
 })
