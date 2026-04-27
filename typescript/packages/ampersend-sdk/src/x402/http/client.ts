@@ -1,5 +1,11 @@
 import { x402Client } from "@x402/core/client"
-import type { PaymentPayloadV1, PaymentRequiredV1, PaymentRequiredV2 } from "@x402/core/schemas"
+import {
+  PaymentRequiredV1Schema,
+  PaymentRequiredV2Schema,
+  type PaymentPayloadV1,
+  type PaymentRequiredV1,
+  type PaymentRequiredV2,
+} from "@x402/core/schemas"
 import type {
   PaymentPayloadResult,
   SchemeNetworkClient,
@@ -172,12 +178,20 @@ class TreasurerSchemeClient implements SchemeNetworkClient {
   }
 }
 
+// `data` keeps the original reference (not `r.data`) — reference-equality on
+// `accepts[i]` is load-bearing for the WeakMap dispatch above.
 function toPaymentRequest(paymentRequired: V2PaymentRequired): PaymentRequest {
   switch (paymentRequired.x402Version) {
-    case 1:
+    case 1: {
+      const r = PaymentRequiredV1Schema.safeParse(paymentRequired)
+      if (!r.success) throw new Error(`Invalid x402 v1 PaymentRequired: ${r.error.message}`)
       return { protocol: "x402-v1", data: paymentRequired as unknown as PaymentRequiredV1 }
-    case 2:
+    }
+    case 2: {
+      const r = PaymentRequiredV2Schema.safeParse(paymentRequired)
+      if (!r.success) throw new Error(`Invalid x402 v2 PaymentRequired: ${r.error.message}`)
       return { protocol: "x402-v2", data: paymentRequired as unknown as PaymentRequiredV2 }
+    }
     default:
       throw new Error(`Unsupported x402 version: ${paymentRequired.x402Version}`)
   }

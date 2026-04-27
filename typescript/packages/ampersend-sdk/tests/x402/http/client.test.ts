@@ -198,4 +198,56 @@ describe("AmpersendX402Client", () => {
     )
     expect(treasurer.onPaymentRequired).not.toHaveBeenCalled()
   })
+
+  describe("input validation (attacker-controlled 402 body)", () => {
+    it("rejects a malformed v1 PaymentRequired before the treasurer runs", async () => {
+      const treasurer = treasurerSigning(v1AcceptA)
+      const client = new AmpersendX402Client(treasurer).withNetworks({ v1: ["base-sepolia"] })
+
+      const malformed = {
+        x402Version: 1 as const,
+        accepts: [{ ...v1AcceptA, payTo: undefined }],
+      }
+
+      await expect(client.createPaymentPayload(malformed as never)).rejects.toThrow(/Invalid x402 v1 PaymentRequired/)
+      expect(treasurer.onPaymentRequired).not.toHaveBeenCalled()
+    })
+
+    it("rejects a malformed v2 PaymentRequired before the treasurer runs", async () => {
+      const treasurer = treasurerSigning({})
+      const client = new AmpersendX402Client(treasurer).withNetworks({ v2: ["eip155:8453"] })
+
+      // No top-level `resource`.
+      const malformed = {
+        x402Version: 2 as const,
+        accepts: [
+          {
+            scheme: "exact",
+            network: "eip155:8453",
+            amount: "1000",
+            asset: "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            payTo: "0x1111111111111111111111111111111111111111",
+            maxTimeoutSeconds: 300,
+            extra: { name: "USDC", version: "2" },
+          },
+        ],
+      }
+
+      await expect(client.createPaymentPayload(malformed as never)).rejects.toThrow(/Invalid x402 v2 PaymentRequired/)
+      expect(treasurer.onPaymentRequired).not.toHaveBeenCalled()
+    })
+
+    it("rejects when accepts[i] has the wrong type for a numeric field", async () => {
+      const treasurer = treasurerSigning(v1AcceptA)
+      const client = new AmpersendX402Client(treasurer).withNetworks({ v1: ["base-sepolia"] })
+
+      const malformed = {
+        x402Version: 1 as const,
+        accepts: [{ ...v1AcceptA, maxTimeoutSeconds: "300" }],
+      }
+
+      await expect(client.createPaymentPayload(malformed as never)).rejects.toThrow(/Invalid x402 v1 PaymentRequired/)
+      expect(treasurer.onPaymentRequired).not.toHaveBeenCalled()
+    })
+  })
 })
