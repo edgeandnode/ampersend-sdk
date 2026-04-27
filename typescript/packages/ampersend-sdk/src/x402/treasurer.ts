@@ -1,76 +1,48 @@
-import type { PaymentPayload, PaymentRequirements } from "x402/types"
+import type { PaymentRequirementsV1, PaymentRequirementsV2 } from "@x402/core/schemas"
+
+import type { PaymentAuthorization, PaymentRequest } from "./envelopes.ts"
 
 /**
- * Context information for payment decisions
+ * Loose caller context — which protocol triggered the flow and any debugging
+ * metadata. NOT payment details; those live on the {@link PaymentRequest}.
  */
 export interface PaymentContext {
   method: string
-  params: any
+  params?: any
   metadata?: Record<string, unknown>
 }
 
-/**
- * Authorization linking a payment with a tracking ID
- */
 export interface Authorization {
-  payment: PaymentPayload
+  payment: PaymentAuthorization
   authorizationId: string
+  /**
+   * The `accepts[i]` the wallet signed against. Must be `===` to an element
+   * of the original `PaymentRequest.data.accepts` — reference equality is
+   * load-bearing for downstream integrations (e.g. the `x402Client` subclass).
+   */
+  accepted: PaymentRequirementsV1 | PaymentRequirementsV2
 }
 
-/**
- * Payment status types for tracking payment lifecycle
- */
 export type PaymentStatus =
-  | "sending" // Payment submitted to seller
-  | "accepted" // Payment verified and accepted
-  | "rejected" // Payment rejected by seller
-  | "declined" // Buyer declined to pay
-  | "error" // Error during payment processing
+  | "sending" // submitted to seller
+  | "accepted" // verified and accepted
+  | "rejected" // rejected by seller
+  | "declined" // declined by buyer
+  | "error"
 
 /**
- * X402Treasurer interface - Separates payment decision logic from payment creation
+ * Separates payment *decisions* from payment *creation*. Receives the seller's
+ * full 402 body, returns a signed {@link Authorization} or `null` to decline.
+ * Internally picks an index into `request.data.accepts[]` and hands the
+ * resulting `PaymentInstruction` to a wallet; use {@link firstInstructionOf}
+ * for the trivial "take the first option" case.
  *
- * An X402Treasurer decides whether to approve or reject payment requests,
- * tracks payment status, and delegates actual payment creation to an X402Wallet.
- *
- * @example
- * ```typescript
- * class BudgetTreasurer implements X402Treasurer {
- *   constructor(private wallet: X402Wallet, private dailyLimit: number) {}
- *
- *   async onPaymentRequired(requirements, context) {
- *     if (this.wouldExceedBudget(requirements[0])) {
- *       return null // Decline
- *     }
- *     const payment = await this.wallet.createPayment(requirements[0])
- *     return { payment, authorizationId: crypto.randomUUID() }
- *   }
- *
- *   async onStatus(status, authorization, context) {
- *     console.log(`Payment ${authorization.authorizationId}: ${status}`)
- *   }
- * }
- * ```
+ * Return `null` only for domain-level declines (budget exhausted, user
+ * rejected, policy said no). Infrastructure failures — network errors, auth
+ * failures, wallet signing errors — must **throw**, so callers can distinguish
+ * "you can't have this payment" from "something is broken."
  */
 export interface X402Treasurer {
-  /**
-   * Called when payment is required.
-   *
-   * @param requirements - Array of payment requirements from seller (typically use first)
-   * @param context - Optional context about the request requiring payment
-   * @returns Authorization to proceed with payment, or null to decline
-   */
-  onPaymentRequired(
-    requirements: ReadonlyArray<PaymentRequirements>,
-    context?: PaymentContext,
-  ): Promise<Authorization | null>
-
-  /**
-   * Called with payment status updates throughout the payment lifecycle.
-   *
-   * @param status - Current payment status
-   * @param authorization - The authorization returned from onPaymentRequired
-   * @param context - Optional context about the status update
-   */
+  onPaymentRequired(request: PaymentRequest, context?: PaymentContext): Promise<Authorization | null>
   onStatus(status: PaymentStatus, authorization: Authorization, context?: PaymentContext): Promise<void>
 }

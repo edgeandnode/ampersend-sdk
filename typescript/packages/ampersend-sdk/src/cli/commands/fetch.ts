@@ -279,10 +279,7 @@ async function runFetch(url: string, options: FetchOptions): Promise<void> {
   })
 
   // Wrap fetch with payment handling
-  const fetchWithPayment = wrapFetchWithPayment(
-    fetch,
-    ampersendClient as unknown as Parameters<typeof wrapFetchWithPayment>[1],
-  )
+  const fetchWithPayment = wrapFetchWithPayment(fetch, ampersendClient)
 
   // Build request
   const headers = parseHeaders(options.header)

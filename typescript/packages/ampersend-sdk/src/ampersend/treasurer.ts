@@ -1,9 +1,8 @@
 import type { Address, Hex } from "viem"
 import { privateKeyToAccount } from "viem/accounts"
-import type { PaymentPayload, PaymentRequirements } from "x402/types"
 
-import type { PaymentEvent } from "../mcp/client/index.ts"
 import { OWNABLE_VALIDATOR } from "../smart-account/index.ts"
+import { acceptedOf, resourceUrlOf, type PaymentInstruction, type PaymentRequest } from "../x402/envelopes.ts"
 import {
   createWalletFromConfig,
   type Authorization,
@@ -15,85 +14,39 @@ import {
   type X402Wallet,
 } from "../x402/index.ts"
 import { ApiClient } from "./client.ts"
-import type { PaymentRequirements as AmpersendPaymentRequirements, ServerAuthorizationData } from "./types.ts"
+import type { PaymentEvent, ServerAuthorizationData } from "./types.ts"
 
-/** Default Ampersend API URL */
 const DEFAULT_API_URL = "https://api.ampersend.ai"
 
-/** Default chain ID (Base mainnet) */
-const DEFAULT_CHAIN_ID = 8453
-
-/**
- * Simplified configuration for quick setup with smart accounts.
- * This is the recommended way to configure the treasurer for most use cases.
- *
- * @example
- * ```typescript
- * const treasurer = createAmpersendTreasurer({
- *   smartAccountAddress: "0x...",
- *   sessionKeyPrivateKey: "0x...",
- * })
- * ```
- */
+/** Simplified config for the common "smart account + session key" setup. */
 export interface SimpleAmpersendTreasurerConfig {
-  /** Smart account address */
   smartAccountAddress: Address
-  /** Session key private key for signing */
   sessionKeyPrivateKey: Hex
-  /** Ampersend API URL (defaults to production) */
+  /** Defaults to the production Ampersend API. */
   apiUrl?: string
-  /** Chain ID (defaults to Base mainnet 8453) */
-  chainId?: number
 }
 
-/**
- * Full configuration for advanced use cases with complete wallet control.
- * Use this when you need EOA wallets or custom authentication settings.
- */
+/** Full config for EOA wallets or custom SIWE auth. */
 export interface FullAmpersendTreasurerConfig {
-  /** Base URL of the Ampersend API server */
   apiUrl: string
-  /** Wallet configuration (EOA or Smart Account) */
   walletConfig: WalletConfig
-  /** Optional authentication configuration */
   authConfig?: {
-    /** SIWE domain for authentication */
+    /** SIWE domain. */
     domain?: string
-    /** SIWE statement for authentication */
+    /** SIWE statement. */
     statement?: string
   }
 }
 
-/**
- * Configuration for the Ampersend treasurer.
- * Can be either simplified (recommended) or full configuration.
- */
 export type AmpersendTreasurerConfig = SimpleAmpersendTreasurerConfig | FullAmpersendTreasurerConfig
 
-/**
- * Type guard to check if config is the simplified format
- */
 function isSimpleConfig(config: AmpersendTreasurerConfig): config is SimpleAmpersendTreasurerConfig {
   return "smartAccountAddress" in config && "sessionKeyPrivateKey" in config && !("walletConfig" in config)
 }
 
 /**
- * AmpersendTreasurer - Ampersend API-based payment authorization with X402Treasurer pattern
- *
- * This treasurer:
- * 1. Authenticates with the Ampersend API using SIWE
- * 2. Requests payment authorization from the API before creating payments
- * 3. Creates payments only when authorized by the API
- * 4. Reports payment lifecycle events back to the API for tracking
- *
- * @example
- * ```typescript
- * const treasurer = createAmpersendTreasurer({
- *   apiUrl: "https://api.example.com",
- *   walletConfig: { type: "eoa", privateKey: "0x..." }
- * })
- * await initializeProxyServer({ transport, treasurer })
- * ```
+ * Forwards the 402 to the Ampersend API, which applies budget/policy and
+ * returns an `acceptsIndex` to sign (plus optional co-signature).
  */
 export class AmpersendTreasurer implements X402Treasurer {
   constructor(
@@ -101,81 +54,43 @@ export class AmpersendTreasurer implements X402Treasurer {
     private wallet: X402Wallet,
   ) {}
 
-  /**
-   * Requests payment authorization from API before creating payment.
-   * Only creates payment if API authorizes it.
-   */
-  async onPaymentRequired(
-    requirements: ReadonlyArray<PaymentRequirements>,
-    context?: PaymentContext,
-  ): Promise<Authorization | null> {
-    try {
-      // Authorize payment with API
-      // Cast needed: x402 PaymentRequirements (zod) → ampersend PaymentRequirements (Effect Schema)
-      // Structurally compatible at runtime, different type systems
-      const response = await this.apiClient.authorizePayment(
-        requirements as unknown as readonly [AmpersendPaymentRequirements, ...Array<AmpersendPaymentRequirements>],
-        context,
-      )
+  async onPaymentRequired(request: PaymentRequest, context?: PaymentContext): Promise<Authorization | null> {
+    const response = await this.apiClient.authorizePayment(request, context)
 
-      // Check if any requirements were authorized
-      if (response.authorized.requirements.length === 0) {
-        // Log rejection reasons for debugging
-        const reasons = response.rejected.map((r) => `${r.requirement.resource}: ${r.reason}`).join(", ")
-        console.log(`[AmpersendTreasurer] No requirements authorized. Reasons: ${reasons || "None provided"}`)
-        return null // Decline
-      }
-
-      // Use recommended requirement (or first if recommended is null)
-      const recommendedIndex = response.authorized.recommended ?? 0
-      const authorizedReq = response.authorized.requirements[recommendedIndex]
-
-      if (!authorizedReq) {
-        throw new Error("Recommended requirement index out of bounds")
-      }
-
-      // Check if server provided co-signature (for co-signed keys)
-      let payment: PaymentPayload
-      if (response.payment) {
-        // Co-signed path: use server-provided authorization data and signature
-        const serverAuth: ServerAuthorizationData = {
-          authorizationData: response.payment.authorizationData,
-          serverSignature: response.payment.serverSignature,
-        }
-        payment = await this.wallet.createPayment(response.payment.requirement as PaymentRequirements, serverAuth)
-      } else {
-        // Full-access path: sign independently
-        payment = await this.wallet.createPayment(authorizedReq.requirement as PaymentRequirements)
-      }
-
-      return {
-        payment,
-        authorizationId: crypto.randomUUID(),
-      }
-    } catch (error) {
-      console.error("[AmpersendTreasurer] Payment authorization failed:", error)
+    const selected = response.authorized.selected
+    if (!selected) {
+      const reasons = response.rejected
+        .map((r) => `${resourceUrlOf(instructionFor(request, r.acceptsIndex))}: ${r.reason}`)
+        .join(", ")
+      console.log(`[AmpersendTreasurer] No options authorized. Reasons: ${reasons || "None provided"}`)
       return null
+    }
+
+    const instruction = instructionFor(request, selected.acceptsIndex)
+    const serverAuth: ServerAuthorizationData | undefined = selected.coSignature
+      ? {
+          authorizationData: selected.coSignature.authorizationData,
+          serverSignature: selected.coSignature.serverSignature,
+        }
+      : undefined
+    const payment = await this.wallet.createPayment(instruction, serverAuth)
+
+    return {
+      payment,
+      authorizationId: crypto.randomUUID(),
+      accepted: acceptedOf(instruction),
     }
   }
 
-  /**
-   * Reports payment status updates back to API for tracking.
-   * Logs errors but doesn't fail on tracking errors.
-   */
   async onStatus(status: PaymentStatus, authorization: Authorization, _context?: PaymentContext): Promise<void> {
     try {
-      // Map status to event type for API
       const event = this.mapStatusToEvent(status)
       await this.apiClient.reportPaymentEvent(authorization.authorizationId, authorization.payment, event)
     } catch (error) {
-      // Log but don't fail on event tracking errors
       console.error(`[AmpersendTreasurer] Failed to report status ${status}:`, error)
     }
   }
 
-  /**
-   * Maps X402 PaymentStatus to legacy PaymentEvent for API compatibility
-   */
   private mapStatusToEvent(status: PaymentStatus): PaymentEvent {
     switch (status) {
       case "sending":
@@ -192,42 +107,31 @@ export class AmpersendTreasurer implements X402Treasurer {
   }
 }
 
+function instructionFor(request: PaymentRequest, acceptsIndex: number): PaymentInstruction {
+  return request.protocol === "x402-v1"
+    ? { protocol: "x402-v1", request: request.data, acceptsIndex }
+    : { protocol: "x402-v2", request: request.data, acceptsIndex }
+}
+
 /**
- * Creates an Ampersend treasurer that consults the Ampersend API before making payments.
- *
- * This treasurer:
- * 1. Authenticates with the Ampersend API using SIWE
- * 2. Requests payment authorization from the API
- * 3. Creates payments only when authorized
- * 4. Reports payment lifecycle events back to the API
- *
- * @example Simple setup (recommended):
+ * @example Simple (recommended):
  * ```typescript
- * const treasurer = createAmpersendTreasurer({
- *   smartAccountAddress: "0x...",
- *   sessionKeyPrivateKey: "0x...",
- * })
+ * createAmpersendTreasurer({ smartAccountAddress: "0x...", sessionKeyPrivateKey: "0x..." })
  * ```
- *
- * @example Full control:
+ * @example Full (EOA or custom auth):
  * ```typescript
- * const treasurer = createAmpersendTreasurer({
+ * createAmpersendTreasurer({
  *   apiUrl: "https://api.ampersend.ai",
- *   walletConfig: { type: "eoa", privateKey: "0x..." }
+ *   walletConfig: { type: "eoa", privateKey: "0x..." },
  * })
  * ```
- *
- * @param config - Configuration for the Ampersend treasurer
- * @returns An X402Treasurer implementation
  */
 export function createAmpersendTreasurer(config: AmpersendTreasurerConfig): X402Treasurer {
   if (isSimpleConfig(config)) {
-    // Simple config - build wallet config automatically
     const walletConfig: SmartAccountWalletConfig = {
       type: "smart-account",
       smartAccountAddress: config.smartAccountAddress,
       sessionKeyPrivateKey: config.sessionKeyPrivateKey,
-      chainId: config.chainId ?? DEFAULT_CHAIN_ID,
       validatorAddress: OWNABLE_VALIDATOR,
     }
 
@@ -242,19 +146,15 @@ export function createAmpersendTreasurer(config: AmpersendTreasurerConfig): X402
     return new AmpersendTreasurer(apiClient, wallet)
   }
 
-  // Full config - existing behavior
   const { apiUrl, authConfig, walletConfig } = config
 
-  // Determine which private key to use for API authentication
   const authPrivateKey = walletConfig.type === "eoa" ? walletConfig.privateKey : walletConfig.sessionKeyPrivateKey
 
-  // Derive agent address from wallet config
   const agentAddress =
     walletConfig.type === "smart-account"
       ? walletConfig.smartAccountAddress
       : privateKeyToAccount(walletConfig.privateKey).address
 
-  // Create API client
   const apiClient = new ApiClient({
     baseUrl: apiUrl,
     sessionKeyPrivateKey: authPrivateKey,
@@ -263,7 +163,6 @@ export function createAmpersendTreasurer(config: AmpersendTreasurerConfig): X402
     ...authConfig,
   })
 
-  // Create wallet from configuration
   const wallet = createWalletFromConfig(walletConfig)
 
   return new AmpersendTreasurer(apiClient, wallet)
