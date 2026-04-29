@@ -1,7 +1,7 @@
 import { wrapFetchWithPayment } from "@x402/fetch"
 import type { Command } from "commander"
 
-import { NETWORKS, parseEnvConfig } from "../../ampersend/env.ts"
+import { parseEnvConfig } from "../../ampersend/env.ts"
 import { createAmpersendHttpClient } from "../../x402/http/factory.ts"
 import { getConfigStatus, getRuntimeConfig } from "../config.ts"
 import { err, ok, type JsonEnvelope } from "../envelope.ts"
@@ -37,7 +37,7 @@ interface InspectData {
 function loadConfig():
   | {
       ok: true
-      config: { agentAccount: `0x${string}`; agentKey: `0x${string}`; network: string; apiUrl?: string }
+      config: { agentAccount: `0x${string}`; agentKey: `0x${string}`; apiUrl?: string }
     }
   | { ok: false; error: JsonEnvelope<never> } {
   // Try env vars first (takes precedence)
@@ -48,7 +48,6 @@ function loadConfig():
       config: {
         agentAccount: envConfig.AGENT_ACCOUNT as `0x${string}`,
         agentKey: envConfig.AGENT_KEY as `0x${string}`,
-        network: envConfig.NETWORK,
         ...(envConfig.API_URL ? { apiUrl: envConfig.API_URL } : {}),
       },
     }
@@ -70,13 +69,11 @@ function loadConfig():
     if (fileConfig.status === "ready" && fileConfig.agentAccount && fileConfig.agentKey) {
       // Env var takes precedence over file config
       const apiUrl = process.env.AMPERSEND_API_URL ?? fileConfig.apiUrl
-      const network = process.env.AMPERSEND_NETWORK ?? fileConfig.network ?? "base"
       return {
         ok: true,
         config: {
           agentAccount: fileConfig.agentAccount,
           agentKey: fileConfig.agentKey,
-          network,
           ...(apiUrl ? { apiUrl } : {}),
         },
       }
@@ -275,7 +272,6 @@ async function runFetch(url: string, options: FetchOptions): Promise<void> {
     smartAccountAddress: config.agentAccount,
     sessionKeyPrivateKey: config.agentKey,
     apiUrl: config.apiUrl ?? "https://api.ampersend.ai",
-    network: config.network as "base" | "base-sepolia",
   })
 
   // Wrap fetch with payment handling
@@ -330,7 +326,6 @@ export function registerFetchCommand(program: Command): void {
 Configuration:
   Run 'ampersend config init' to set up, or use environment variables:
   AMPERSEND_AGENT_SECRET           Combined format: agent_key:::agent_account
-  AMPERSEND_NETWORK                Network: ${NETWORKS.join(", ")} (default: base)
   AMPERSEND_API_URL                Ampersend API URL (optional)
 
 Examples:

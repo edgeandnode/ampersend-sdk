@@ -156,8 +156,6 @@ Manage local configuration.
 ampersend config set <key:::account>                             # Set active config manually
 ampersend config set --api-url https://api.sandbox.ampersend.ai  # Set sandbox API URL
 ampersend config set --clear-api-url                             # Revert to production API
-ampersend config set --network base-sepolia                      # Set network (base, base-sepolia)
-ampersend config set --clear-network                             # Revert to default network (base)
 ampersend config set <key:::account> --api-url <url>             # Set both at once
 ampersend config status                                          # Show current status
 ```
