@@ -120,7 +120,7 @@ def v2_to_v1_payment_required(
 def _v1_requirement_to_v2_accepted(req: PaymentRequirements) -> dict[str, Any]:
     """Reconstruct a v2 ``accepted`` dict from a v1 PaymentRequirements."""
     chain_id = NETWORK_TO_ID[req.network]
-    return {
+    result: dict[str, Any] = {
         "scheme": req.scheme,
         "network": f"eip155:{chain_id}",
         "amount": req.max_amount_required,
@@ -128,6 +128,9 @@ def _v1_requirement_to_v2_accepted(req: PaymentRequirements) -> dict[str, Any]:
         "payTo": req.pay_to,
         "maxTimeoutSeconds": req.max_timeout_seconds,
     }
+    if req.extra:
+        result["extra"] = req.extra
+    return result
 
 
 def v1_to_v2_payment_payload(

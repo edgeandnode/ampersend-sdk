@@ -158,3 +158,16 @@ class TestV1ToV2PaymentPayload:
         assert result["accepted"]["amount"] == "1000"
         assert result["payload"]["signature"] == "0xdeadbeef"
         assert "authorization" in result["payload"]
+
+    def test_extra_field_round_trips(self) -> None:
+        """The ``extra`` field (EIP-712 domain name/version) must survive
+        the v2→v1→v2 conversion so the facilitator can match the payment
+        against its requirements."""
+        v1_resp, v2_ctx = v2_to_v1_payment_required(V2_DECODED)
+        selected = v1_resp.accepts[0]
+
+        assert selected.extra == {"name": "USD Coin", "version": "2"}
+
+        result = v1_to_v2_payment_payload(MOCK_PAYMENT, v2_ctx, selected)
+
+        assert result["accepted"]["extra"] == {"name": "USD Coin", "version": "2"}
