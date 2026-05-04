@@ -9,6 +9,21 @@ export {
 } from "./management.ts"
 export { ApprovalClient, type ApprovalClientOptions } from "./approval.ts"
 export {
+  AddProxyHeaderRequest,
+  AddRequiredHeaderRequest,
+  AllowedMethod,
+  BulkCreateResponse,
+  HostedEndpointClient,
+  HostedEndpointDTO,
+  HostedEndpointInput,
+  HostedEndpointList,
+  HostedEndpointUpdate,
+  Network as HostedEndpointNetwork,
+  RotateSecretResponse,
+  TestResponse as HostedEndpointTestResponse,
+  type HostedEndpointClientOptions,
+} from "./hosted-endpoint.ts"
+export {
   AmpersendTreasurer,
   createAmpersendTreasurer,
   type AmpersendTreasurerConfig,

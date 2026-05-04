@@ -14,13 +14,11 @@ import type { PaymentRequirements } from "x402/types"
 import type { Authorization, X402Treasurer } from "../treasurer.ts"
 import { v1NetworkToCaip2, v1PayloadToV2, v2RequirementsToV1, type V2PaymentContext } from "./v2-adapter.ts"
 
-/** Store entry for v1 payments */
 interface V1StoreEntry {
   version: 1
   authorization: Authorization
 }
 
-/** Store entry for v2 payments (includes context for payload conversion) */
 interface V2StoreEntry {
   version: 2
   authorization: Authorization

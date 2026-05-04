@@ -17,11 +17,8 @@ import {
 import { ApiClient } from "./client.ts"
 import type { PaymentRequirements as AmpersendPaymentRequirements, ServerAuthorizationData } from "./types.ts"
 
-/** Default Ampersend API URL */
 const DEFAULT_API_URL = "https://api.ampersend.ai"
-
-/** Default chain ID (Base mainnet) */
-const DEFAULT_CHAIN_ID = 8453
+const DEFAULT_CHAIN_ID = 8453 // Base mainnet
 
 /**
  * Simplified configuration for quick setup with smart accounts.
