@@ -1,6 +1,6 @@
 [project]
 name = "langchain-ampersend"
-version = "0.0.19"
+version = "0.0.21"
 description = "LangChain integration for Ampersend x402 payments"
 readme = "README.md"
 license = "Apache-2.0"
