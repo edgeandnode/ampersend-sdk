@@ -10,7 +10,6 @@ export type Network = typeof Network.Type
 export const AllowedMethod = Schema.Literal("GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS")
 export type AllowedMethod = typeof AllowedMethod.Type
 
-/** Mirrors server `InsertHostedEndpoint` minus `agent_address` (carried in the URL). */
 export const HostedEndpointInput = Schema.Struct({
   name: Schema.NonEmptyTrimmedString,
   price_usd: Schema.Number.pipe(Schema.positive()),
@@ -47,8 +46,7 @@ export const AddRequiredHeaderRequest = Schema.Struct({
 })
 export type AddRequiredHeaderRequest = typeof AddRequiredHeaderRequest.Type
 
-// Mirrors the server's `Common.ConvertedTimestamp` — epoch millis transported as number
-// or numeric string across the JSON boundary.
+// Server transports epoch millis as either number or numeric string across JSON.
 const ConvertedTimestamp = Schema.Union(
   Schema.NonNegativeInt,
   Schema.NumberFromString.pipe(Schema.int(), Schema.nonNegative()),
