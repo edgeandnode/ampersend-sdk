@@ -263,13 +263,10 @@ export class HostedEndpointClient {
       const response = await globalThis.fetch(url, init)
 
       if (!response.ok) {
-        let errorMessage = `HTTP ${response.status} ${response.statusText}`
-        try {
-          const errorBody = await response.text()
-          if (errorBody) {
-            errorMessage += `: ${errorBody}`
-          }
-        } catch {}
+        const errorBody = await response.text().catch(() => "")
+        const errorMessage = errorBody
+          ? `HTTP ${response.status} ${response.statusText}: ${errorBody}`
+          : `HTTP ${response.status} ${response.statusText}`
         throw new ApiError(errorMessage, response.status, response)
       }
 
