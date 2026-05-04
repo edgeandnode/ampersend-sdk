@@ -3,20 +3,19 @@ import { DateTime, Schema } from "effect"
 import { SiweMessage } from "siwe"
 import { privateKeyToAccount } from "viem/accounts"
 
+import type { PaymentAuthorization, PaymentRequest } from "../x402/envelopes.ts"
 import {
-  AgentPaymentAuthResponse,
+  AgentAuthorizeRequest,
+  AgentAuthorizeResponse,
+  AgentPaymentEventReport,
   AgentPaymentEventResponse,
   ApiError,
   SIWELoginResponse,
   SIWENonceResponse,
   type Address,
-  type AgentPaymentAuthRequest,
-  type AgentPaymentEventReport,
   type ApiClientOptions,
   type AuthenticationState,
   type PaymentEvent,
-  type PaymentPayload,
-  type PaymentRequirements,
   type SIWELoginRequest,
 } from "./types.js"
 
@@ -116,21 +115,16 @@ export class ApiClient {
     }
   }
 
-  /**
-   * Request authorization for a payment
-   */
   async authorizePayment(
-    requirements: readonly [PaymentRequirements, ...Array<PaymentRequirements>],
-    context?: AgentPaymentAuthRequest["context"],
-  ): Promise<AgentPaymentAuthResponse> {
+    paymentRequest: PaymentRequest,
+    context?: AgentAuthorizeRequest["context"],
+  ): Promise<typeof AgentAuthorizeResponse.Type> {
     await this.ensureAuthenticated()
 
-    const request: AgentPaymentAuthRequest = {
-      requirements,
-      context,
-    }
+    const request: AgentAuthorizeRequest = { paymentRequest, context }
+    const wireBody = Schema.encodeSync(AgentAuthorizeRequest)(request)
 
-    return this.fetch(
+    const response = await this.fetch(
       `/api/v1/agents/${this.agentAddress}/payment/authorize`,
       {
         method: "POST",
@@ -138,27 +132,37 @@ export class ApiClient {
           "Content-Type": "application/json",
           Authorization: `Bearer ${this.auth.token}`,
         },
-        body: JSON.stringify(request),
+        body: JSON.stringify(wireBody),
       },
-      AgentPaymentAuthResponse,
+      AgentAuthorizeResponse,
     )
+
+    // A bad acceptsIndex from the server would silently point the wallet at
+    // the wrong line-item. Catch it here rather than letting it fall through.
+    const acceptsLen = paymentRequest.data.accepts.length
+    const checkIndex = (idx: number, where: string): void => {
+      if (!Number.isInteger(idx) || idx < 0 || idx >= acceptsLen) {
+        throw new ApiError(
+          `authorize response: ${where} acceptsIndex=${idx} out of bounds (accepts.length=${acceptsLen})`,
+        )
+      }
+    }
+    if (response.authorized.selected) checkIndex(response.authorized.selected.acceptsIndex, "selected")
+    for (const alt of response.authorized.alternatives) checkIndex(alt.acceptsIndex, "alternatives")
+    for (const rej of response.rejected) checkIndex(rej.acceptsIndex, "rejected")
+
+    return response
   }
 
-  /**
-   * Report a payment lifecycle event
-   */
   async reportPaymentEvent(
     eventId: string,
-    payment: PaymentPayload,
+    payment: PaymentAuthorization,
     event: PaymentEvent,
   ): Promise<AgentPaymentEventResponse> {
     await this.ensureAuthenticated()
 
-    const report: AgentPaymentEventReport = {
-      id: eventId,
-      payment,
-      event,
-    }
+    const report: AgentPaymentEventReport = { id: eventId, payment, event }
+    const wireBody = Schema.encodeSync(AgentPaymentEventReport)(report)
 
     return this.fetch(
       `/api/v1/agents/${this.agentAddress}/payment/events`,
@@ -168,7 +172,7 @@ export class ApiClient {
           "Content-Type": "application/json",
           Authorization: `Bearer ${this.auth.token}`,
         },
-        body: JSON.stringify(report),
+        body: JSON.stringify(wireBody),
       },
       AgentPaymentEventResponse,
     )

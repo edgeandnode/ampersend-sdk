@@ -14,9 +14,6 @@ import { Client } from "./client.ts"
 /** Default Ampersend API URL */
 const DEFAULT_API_URL = "https://api.ampersend.ai"
 
-/** Default chain ID (Base Sepolia) */
-const DEFAULT_CHAIN_ID = 84532
-
 /**
  * Simplified options for Ampersend MCP client.
  * Only requires client info and smart account credentials.
@@ -32,8 +29,6 @@ export interface SimpleClientOptions {
   sessionKeyPrivateKey: Hex
   /** Ampersend API URL (defaults to production) */
   apiUrl?: string
-  /** Chain ID (defaults to Base Sepolia 84532) */
-  chainId?: number
 }
 
 /**
@@ -70,7 +65,6 @@ export function createAmpersendMcpClient(options: SimpleClientOptions): Client {
     smartAccountAddress: options.smartAccountAddress,
     sessionKeyPrivateKey: options.sessionKeyPrivateKey,
     apiUrl: options.apiUrl ?? DEFAULT_API_URL,
-    chainId: options.chainId ?? DEFAULT_CHAIN_ID,
   })
 
   return new Client(options.clientInfo, {

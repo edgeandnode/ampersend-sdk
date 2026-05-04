@@ -1,43 +1,31 @@
 /**
- * Simplified factory for Ampersend HTTP client.
- *
- * Provides one-liner setup for wrapping x402 HTTP clients with Ampersend payment support.
+ * Returns an `x402Client` subclass, so the result drops into
+ * `wrapFetchWithPayment` unchanged. For advanced setups, construct
+ * `AmpersendX402Client` directly.
  */
 
-import { x402Client } from "@x402/core/client"
+import { EVM_NETWORK_CHAIN_ID_MAP } from "@x402/evm/v1"
 import type { Address, Hex } from "viem"
-import { EvmNetworkToChainId, type Network } from "x402/types"
 
 import { createAmpersendTreasurer } from "../../ampersend/treasurer.ts"
-import { wrapWithAmpersend } from "./adapter.ts"
+import { AmpersendX402Client } from "./client.ts"
 
-/** Default Ampersend API URL */
 const DEFAULT_API_URL = "https://api.ampersend.ai"
+const DEFAULT_NETWORK = "base"
 
-/** Default network (Base mainnet for production) */
-const DEFAULT_NETWORK: Network = "base"
-
-/**
- * Simplified options for Ampersend HTTP client wrapper.
- */
 export interface SimpleHttpClientOptions {
-  /** Smart account address */
+  /** Smart account address. */
   smartAccountAddress: Address
-  /** Session key private key for signing */
+  /** Session key private key for signing. */
   sessionKeyPrivateKey: Hex
-  /** The x402Client instance to wrap (created automatically if not provided) */
-  client?: x402Client
-  /** Ampersend API URL (defaults to production) */
+  /** Ampersend API URL. Defaults to production. */
   apiUrl?: string
-  /** Network to use (defaults to "base"). Chain ID is inferred from this. */
-  network?: Network
+  /** v1 network name (e.g. `"base"`). v1 and v2 (CAIP-2) are both registered. */
+  network?: string
 }
 
 /**
- * Create an x402 HTTP client with Ampersend payment support.
- *
- * This integrates ampersend-sdk with Coinbase's x402 SDK, allowing you to use
- * sophisticated payment authorization logic with the standard x402 HTTP client ecosystem.
+ * Create an `AmpersendX402Client` wired to the Ampersend API.
  *
  * @example
  * ```typescript
@@ -48,18 +36,13 @@ export interface SimpleHttpClientOptions {
  *   smartAccountAddress: "0x...",
  *   sessionKeyPrivateKey: "0x...",
  * })
- *
  * const fetchWithPay = wrapFetchWithPayment(fetch, client)
  * const response = await fetchWithPay("https://paid-api.com/endpoint")
  * ```
- *
- * @param options - Simplified HTTP client configuration
- * @returns The configured x402Client instance
  */
-export function createAmpersendHttpClient(options: SimpleHttpClientOptions): x402Client {
+export function createAmpersendHttpClient(options: SimpleHttpClientOptions): AmpersendX402Client {
   const network = options.network ?? DEFAULT_NETWORK
-  const chainId = EvmNetworkToChainId.get(network)
-
+  const chainId = (EVM_NETWORK_CHAIN_ID_MAP as Readonly<Record<string, number>>)[network]
   if (chainId === undefined) {
     throw new Error(`Unknown network: ${network}`)
   }
@@ -68,12 +51,10 @@ export function createAmpersendHttpClient(options: SimpleHttpClientOptions): x40
     smartAccountAddress: options.smartAccountAddress,
     sessionKeyPrivateKey: options.sessionKeyPrivateKey,
     apiUrl: options.apiUrl ?? DEFAULT_API_URL,
-    chainId,
   })
 
-  const client = options.client ?? new x402Client()
-  return wrapWithAmpersend(client, treasurer, [network])
+  return new AmpersendX402Client(treasurer).withNetworks({
+    v1: [network],
+    v2: [`eip155:${chainId}`],
+  })
 }
-
-// Re-export original for advanced use cases
-export { wrapWithAmpersend } from "./adapter.ts"

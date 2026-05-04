@@ -10,10 +10,7 @@ export type Network = typeof Network.Type
 export const AllowedMethod = Schema.Literal("GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS")
 export type AllowedMethod = typeof AllowedMethod.Type
 
-/**
- * Input schema for creating a hosted endpoint.
- * Mirrors the server-side `InsertHostedEndpoint` (minus `agent_address`, which is in the URL).
- */
+/** Mirrors server `InsertHostedEndpoint` minus `agent_address` (carried in the URL). */
 export const HostedEndpointInput = Schema.Struct({
   name: Schema.NonEmptyTrimmedString,
   price_usd: Schema.Number.pipe(Schema.positive()),
@@ -27,9 +24,6 @@ export const HostedEndpointInput = Schema.Struct({
 })
 export type HostedEndpointInput = typeof HostedEndpointInput.Type
 
-/**
- * Update payload — every field optional.
- */
 export const HostedEndpointUpdate = Schema.Struct({
   allowed_methods: Schema.optional(Schema.Array(AllowedMethod)),
   description: Schema.optional(Schema.String),
@@ -60,17 +54,11 @@ const ConvertedTimestamp = Schema.Union(
   Schema.NumberFromString.pipe(Schema.int(), Schema.nonNegative()),
 )
 
-/**
- * Response DTO for a hosted endpoint.
- * Mirrors the server-side `HostedEndpointDTO`.
- */
 export class HostedEndpointDTO extends Schema.Class<HostedEndpointDTO>("HostedEndpointDTO")({
   id: Schema.NonEmptyTrimmedString,
   agent_address: Address,
   agent_slug: Schema.NullOr(Schema.NonEmptyTrimmedString),
-  // Fully-qualified public gateway URL. Server-computed from proxy base + namespace +
-  // agent slug + endpoint slug. Null when the owner's namespace or agent slug is not
-  // yet claimed — callers should treat a null value as "endpoint not yet reachable".
+  /** Null until the owner's namespace + agent slug are claimed; treat null as "not yet reachable". */
   access_url: Schema.NullOr(Schema.NonEmptyTrimmedString),
   slug: Schema.NonEmptyTrimmedString,
   name: Schema.NonEmptyTrimmedString,
@@ -92,19 +80,15 @@ export class HostedEndpointDTO extends Schema.Class<HostedEndpointDTO>("HostedEn
 export const HostedEndpointList = Schema.Array(HostedEndpointDTO)
 export type HostedEndpointList = typeof HostedEndpointList.Type
 
-// Server's BulkCreateAgentHostedEndpoints returns a plain array; keep the alias for callers
-// that want a named type for the bulk result.
 export const BulkCreateResponse = Schema.Array(HostedEndpointDTO)
 export type BulkCreateResponse = typeof BulkCreateResponse.Type
 
-// Mirrors server's TestAgentHostedEndpoint response.
 export const TestResponse = Schema.Struct({
   latencyMs: Schema.Number,
   status: Schema.Number,
 })
 export type TestResponse = typeof TestResponse.Type
 
-// Mirrors server's RotateAgentSigningSecret response.
 export const RotateSecretResponse = Schema.Struct({
   signingSecret: Schema.NonEmptyTrimmedString,
 })
@@ -287,9 +271,7 @@ export class HostedEndpointClient {
           if (errorBody) {
             errorMessage += `: ${errorBody}`
           }
-        } catch {
-          // Ignore body parsing failures
-        }
+        } catch {}
         throw new ApiError(errorMessage, response.status, response)
       }
 

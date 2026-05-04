@@ -84,12 +84,13 @@ describe("CLI Setup Commands", () => {
 
       const output = getLastOutput() as {
         ok: boolean
-        data: { token: string; user_approve_url: string; agentKeyAddress: string }
+        data: { token: string; user_approve_url: string; agentKeyAddress: string; verificationCode: string }
       }
       expect(output.ok).toBe(true)
       expect(output.data.token).toBe("test-token-123")
       expect(output.data.user_approve_url).toBe("https://app.ampersend.ai/approvals/create-agent/test-token-123")
       expect(output.data.agentKeyAddress).toMatch(/^0x[a-fA-F0-9]{40}$/)
+      expect(output.data.verificationCode).toMatch(/^\d{6}$/)
 
       // Verify pending was stored
       const config = readConfig()

@@ -9,20 +9,20 @@ metadata: { "openclaw": { "requires": { "bins": ["ampersend"] } } }
 Ampersend enables autonomous agent payments. Agents can make payments within user-defined spending limits without
 requiring human approval for each transaction. Payments use stablecoins via the x402 protocol.
 
-This skill requires `ampersend` v0.0.21. Run `ampersend --version` to check your installed version.
+This skill requires `ampersend` v0.0.20. Run `ampersend --version` to check your installed version.
 
 ## Installation
 
 Install the CLI globally via npm:
 
 ```bash
-npm install -g @ampersend_ai/ampersend-sdk@0.0.21
+npm install -g @ampersend_ai/ampersend-sdk@0.0.20
 ```
 
 To update from a previously installed version:
 
 ```bash
-npm install -g @ampersend_ai/ampersend-sdk@0.0.21 --force
+npm install -g @ampersend_ai/ampersend-sdk@0.0.20 --force
 ```
 
 ## Security
@@ -41,9 +41,12 @@ Two-step flow: `setup start` generates a key and requests approval, `setup finis
 ```bash
 # Step 1: Request agent creation — returns immediately with approval URL
 ampersend setup start --name "my-agent"
-# {"ok": true, "data": {"token": "...", "user_approve_url": "https://...", "agentKeyAddress": "0x..."}}
+# {"ok": true, "data": {"token": "...", "user_approve_url": "https://...", "agentKeyAddress": "0x...", "verificationCode": "123456"}}
 
-# Show the user_approve_url to the user so they can approve in their browser.
+# Show the user_approve_url AND the verificationCode to the user.
+# The user opens the URL in their browser and confirms the code in the
+# dashboard matches the one you showed them before approving. The code
+# protects against MITM key substitution.
 
 # Step 2: Poll for approval and activate config
 ampersend setup finish
@@ -105,7 +108,8 @@ ampersend setup start [--mode <create|connect>] [--name <name>] [--agent <addres
 | `--per-transaction-limit <amt>` | Per-transaction spending limit in atomic units (create mode only)                   |
 | `--auto-topup`                  | Allow automatic balance top-up from main account (create mode only)                 |
 
-Returns `token`, `user_approve_url`, and `agentKeyAddress`. Show the `user_approve_url` to the user.
+Returns `token`, `user_approve_url`, `agentKeyAddress`, and `verificationCode`. Show the `user_approve_url` and
+`verificationCode` to the user — they confirm the code shown in the dashboard matches before approving.
 
 #### setup finish
 

@@ -1,10 +1,6 @@
-import type { PaymentPayload, PaymentRequirements } from "x402/types"
-
+import type { PaymentAuthorization, PaymentInstruction } from "./envelopes.ts"
 import type { ServerAuthorizationData } from "./types.ts"
 
-/**
- * Error thrown when wallet cannot create a payment
- */
 export class WalletError extends Error {
   constructor(
     message: string,
@@ -16,38 +12,16 @@ export class WalletError extends Error {
 }
 
 /**
- * X402Wallet interface - Creates payment payloads from requirements
+ * Signs a {@link PaymentInstruction} into a {@link PaymentAuthorization}.
  *
- * An X402Wallet is responsible for creating cryptographically signed payment payloads
- * that can be submitted to sellers. Different wallet implementations support
- * different account types (EOA, smart accounts, etc.).
- *
- * @example
- * ```typescript
- * class AccountWallet implements X402Wallet {
- *   constructor(private account: Account) {}
- *
- *   async createPayment(requirements: PaymentRequirements): Promise<PaymentPayload> {
- *     if (requirements.scheme !== "exact") {
- *       throw new WalletError(`Unsupported scheme: ${requirements.scheme}`)
- *     }
- *     // Create and sign payment
- *     return signedPayment
- *   }
- * }
- * ```
+ * Implementations read fields via {@link acceptedOf} / {@link amountOf} and
+ * return via {@link buildAuthorization}, which handles the v1/v2 envelope
+ * packaging (including v2's `resource`/`accepted`/`extensions` echo).
  */
 export interface X402Wallet {
-  /**
-   * Creates a payment payload from requirements.
-   *
-   * @param requirements - Payment requirements from seller
-   * @param serverAuthorization - Optional server co-signature data (for co-signed smart account keys)
-   * @returns Signed payment payload ready for submission
-   * @throws {WalletError} If unable to create payment (unsupported scheme, insufficient funds, etc.)
-   */
+  /** @throws {WalletError} for unsupported schemes, insufficient funds, etc. */
   createPayment(
-    requirements: PaymentRequirements,
+    instruction: PaymentInstruction,
     serverAuthorization?: ServerAuthorizationData,
-  ): Promise<PaymentPayload>
+  ): Promise<PaymentAuthorization>
 }
