@@ -150,11 +150,16 @@ ampersend fetch --inspect https://api.example.com/paid-endpoint
 
 ### endpoint
 
-Manage hosted endpoints for the authenticated agent. Hosted endpoints let your agent sell access to an upstream API through Ampersend's x402 proxy: Ampersend collects payment, forwards the request, and returns the upstream response.
+Manage hosted endpoints for the authenticated agent. Hosted endpoints let your agent sell access to an upstream API
+through Ampersend's x402 proxy: Ampersend collects payment, forwards the request, and returns the upstream response.
 
-All `endpoint` commands require an active config (run `ampersend setup` first). Commands return `JsonOk` / `JsonErr` envelopes like the rest of the CLI.
+All `endpoint` commands require an active config (run `ampersend setup` first). Commands return `JsonOk` / `JsonErr`
+envelopes like the rest of the CLI.
 
-Every endpoint DTO includes an `access_url` field: the fully-qualified public x402 gateway URL buyers hit to invoke the endpoint. Use that exact string when quoting the URL to users or passing it to `ampersend fetch <url>` — do not hand-assemble the URL from pieces. `access_url` is `null` only when the owner's namespace or agent slug has not been claimed yet (run `ampersend setup finish` to claim).
+Every endpoint DTO includes an `access_url` field: the fully-qualified public x402 gateway URL buyers hit to invoke the
+endpoint. Use that exact string when quoting the URL to users or passing it to `ampersend fetch <url>` — do not
+hand-assemble the URL from pieces. `access_url` is `null` only when the owner's namespace or agent slug has not been
+claimed yet (run `ampersend setup finish` to claim).
 
 #### endpoint list
 
@@ -180,17 +185,17 @@ Create a new hosted endpoint.
 ampersend endpoint create --name <name> --price-usd <usd> --proxy-url <url> [options]
 ```
 
-| Option                               | Description                                                                    |
-| ------------------------------------ | ------------------------------------------------------------------------------ |
-| `--name <name>`                      | Display name (required)                                                        |
-| `--price-usd <usd>`                  | Per-call price in USD (required, positive number)                              |
-| `--proxy-url <url>`                  | Upstream URL Ampersend proxies to (required, http/https)                       |
-| `--description <text>`               | Optional description                                                           |
-| `--methods <csv>`                    | Allowed HTTP methods, comma-separated (default: `GET`)                         |
-| `--rate-limit <n>`                   | Global rate limit per minute                                                   |
-| `--timeout <ms>`                     | Proxy timeout in milliseconds (5000–60000, default 30000)                      |
-| `--proxy-header "<name>: <value>"`   | Header Ampersend forwards to the upstream. Repeat for multiple.                |
-| `--required-header <name>`           | Header name the buyer must include on the incoming request. Repeat for multiple. |
+| Option                             | Description                                                                      |
+| ---------------------------------- | -------------------------------------------------------------------------------- |
+| `--name <name>`                    | Display name (required)                                                          |
+| `--price-usd <usd>`                | Per-call price in USD (required, positive number)                                |
+| `--proxy-url <url>`                | Upstream URL Ampersend proxies to (required, http/https)                         |
+| `--description <text>`             | Optional description                                                             |
+| `--methods <csv>`                  | Allowed HTTP methods, comma-separated (default: `GET`)                           |
+| `--rate-limit <n>`                 | Global rate limit per minute                                                     |
+| `--timeout <ms>`                   | Proxy timeout in milliseconds (5000–60000, default 30000)                        |
+| `--proxy-header "<name>: <value>"` | Header Ampersend forwards to the upstream. Repeat for multiple.                  |
+| `--required-header <name>`         | Header name the buyer must include on the incoming request. Repeat for multiple. |
 
 To create an endpoint in the disabled state, create it and then call `ampersend endpoint disable <id>`.
 
@@ -240,11 +245,13 @@ ampersend endpoint headers add-required <id> --name <header>                  # 
 ampersend endpoint headers remove-required <id> <name>
 ```
 
-`remove-proxy` and `remove-required` take the header name as a positional argument. `add-proxy` and `add-required` use named flags.
+`remove-proxy` and `remove-required` take the header name as a positional argument. `add-proxy` and `add-required` use
+named flags.
 
 #### endpoint rotate-secret
 
-Rotate the per-endpoint shared secret Ampersend uses to sign upstream requests. Previous secret is immediately invalidated.
+Rotate the per-endpoint shared secret Ampersend uses to sign upstream requests. Previous secret is immediately
+invalidated.
 
 ```bash
 ampersend endpoint rotate-secret <id>
@@ -252,28 +259,29 @@ ampersend endpoint rotate-secret <id>
 
 #### endpoint import
 
-Bulk-create endpoints from an OpenAPI 3.0 / 3.1 JSON spec. One endpoint is created per path+method pair. YAML is not parsed — convert to JSON first.
+Bulk-create endpoints from an OpenAPI 3.0 / 3.1 JSON spec. One endpoint is created per path+method pair. YAML is not
+parsed — convert to JSON first.
 
 ```bash
 ampersend endpoint import <spec.json> [--default-price <usd>] [--base-url <url>] [--timeout <ms>] [--dry-run]
 ```
 
-| Option                    | Description                                                                                                                          |
-| ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
-| `<spec.json>`             | Path to an OpenAPI 3.0 / 3.1 JSON spec file                                                                                          |
-| `--default-price <usd>`   | Fallback per-call price when the operation has no `x-ampersend-price`. Defaults to `0.01` — always pass an explicit value for production imports. |
-| `--base-url <url>`        | Override the base URL from the spec (wins over `servers[0].url`)                                                                     |
-| `--timeout <ms>`          | Proxy timeout applied to every imported endpoint                                                                                     |
-| `--dry-run`               | Parse and validate the spec without creating endpoints                                                                               |
+| Option                  | Description                                                                                                                                       |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `<spec.json>`           | Path to an OpenAPI 3.0 / 3.1 JSON spec file                                                                                                       |
+| `--default-price <usd>` | Fallback per-call price when the operation has no `x-ampersend-price`. Defaults to `0.01` — always pass an explicit value for production imports. |
+| `--base-url <url>`      | Override the base URL from the spec (wins over `servers[0].url`)                                                                                  |
+| `--timeout <ms>`        | Proxy timeout applied to every imported endpoint                                                                                                  |
+| `--dry-run`             | Parse and validate the spec without creating endpoints                                                                                            |
 
 Recognised per-operation vendor extensions:
 
-| Extension                   | Type    | Effect                           |
-| --------------------------- | ------- | -------------------------------- |
-| `x-ampersend-price`         | number  | Per-call price in USD            |
-| `x-ampersend-name`          | string  | Endpoint display name override   |
-| `x-ampersend-description`   | string  | Description override             |
-| `x-ampersend-rate-limit`    | integer | Rate limit per minute            |
+| Extension                 | Type    | Effect                         |
+| ------------------------- | ------- | ------------------------------ |
+| `x-ampersend-price`       | number  | Per-call price in USD          |
+| `x-ampersend-name`        | string  | Endpoint display name override |
+| `x-ampersend-description` | string  | Description override           |
+| `x-ampersend-rate-limit`  | integer | Rate limit per minute          |
 
 ### config
 
