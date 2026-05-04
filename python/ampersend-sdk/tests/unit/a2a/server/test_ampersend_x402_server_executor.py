@@ -35,6 +35,10 @@ from x402_a2a.types import (
 
 def _make_payment_payload() -> PaymentPayload:
     """Standard fixture — a signed EIP-3009 transfer authorization."""
+    # `from` is reserved in Python, so we pass it via the pydantic
+    # alias using dict-spread. The field is declared as
+    # `from_: str = Field(alias="from")` in x402.types and the
+    # pydantic-mypy plugin types only the alias.
     return PaymentPayload(
         x402_version=1,
         scheme="exact",
@@ -42,7 +46,7 @@ def _make_payment_payload() -> PaymentPayload:
         payload=ExactPaymentPayload(
             signature="0x" + "ab" * 65,
             authorization=EIP3009Authorization(
-                from_="0xPayer000000000000000000000000000000000001",
+                **{"from": "0xPayer000000000000000000000000000000000001"},
                 to="0xSeller00000000000000000000000000000000000",
                 value="10000",
                 valid_after="0",
@@ -104,7 +108,9 @@ class TestAmpersendX402ServerExecutor:
         executor._facilitator = MagicMock()
         executor._facilitator.verify = AsyncMock(
             return_value=VerifyResponse(
-                isValid=True, payer="0xPayer000000000000000000000000000000000001"
+                isValid=True,
+                invalidReason=None,
+                payer="0xPayer000000000000000000000000000000000001",
             )
         )
 
