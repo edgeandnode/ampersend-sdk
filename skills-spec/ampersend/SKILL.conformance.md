@@ -1,8 +1,9 @@
 # SKILL.md conformance
 
-Latest verdict for each rule in [`SKILL.spec.md`](SKILL.spec.md). Regenerate when `SKILL.md` or `SKILL.spec.md` changes.
+Latest verdict for each rule in [`SKILL.spec.md`](SKILL.spec.md). Regenerate when
+[`skills/ampersend/SKILL.md`](../../skills/ampersend/SKILL.md) or `SKILL.spec.md` changes.
 
-- **Generated against:** `SKILL.md` at HEAD
+- **Generated against:** `skills/ampersend/SKILL.md` at HEAD
 - **Date:** 2026-05-06
 - **By:** Claude
 

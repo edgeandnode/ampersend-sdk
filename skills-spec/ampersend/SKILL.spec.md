@@ -1,6 +1,6 @@
 # SKILL.md spec
 
-Rules the `SKILL.md` in this directory must follow. Latest verdict per rule lives in
+Rules the [`skills/ampersend/SKILL.md`](../../skills/ampersend/SKILL.md) must follow. Latest verdict per rule lives in
 [`SKILL.conformance.md`](SKILL.conformance.md).
 
 When writing the conformance file: one line per rule, formatted `N. PASS|FAIL — short evidence.` No headings, no extra
