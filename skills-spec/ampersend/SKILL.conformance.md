@@ -12,7 +12,7 @@ Latest verdict for each rule in [`SKILL.spec.md`](SKILL.spec.md). Regenerate whe
 3. PASS — Description leads with the imperative "Give an agent…" and triggers on "Use when…", not passive "can be used
    for…".
 4. PASS — Frontmatter `name: ampersend` matches the parent directory `skills/ampersend/`.
-5. PASS — Body is 135 lines.
+5. PASS — Body is 137 lines.
 6. PASS — Order is orientation → scope → user explainer → install → security → setup → payment → output → config; setup
    and payment workflows are numbered steps.
 7. PASS — `references/` contains one file (`commands.md`); no subdirectories.
@@ -28,3 +28,7 @@ Latest verdict for each rule in [`SKILL.spec.md`](SKILL.spec.md). Regenerate whe
     only in tier 3 after the user asks about underlying tech.
 14. PASS — Security section forbids dashboard login from a controlled browser; setup workflow requires showing
     `verificationCode` alongside `user_approve_url` and having the user confirm it matches.
+15. PASS — Hard imperatives ("NEVER", "never", "Always show", "must confirm") appear only in the Security section, where
+    they guard MITM/key-substitution boundaries. Style and product-explanation guidance ("just 'ampersend'", "the
+    explanations below are how the product team prefers it described", "the third tier is reserved for users who
+    explicitly ask…") is framed as preference with reasoning.

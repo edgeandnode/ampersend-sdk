@@ -30,3 +30,6 @@ prose.
     "stablecoin"; tier-3 may, only when the user asks about underlying tech.
 14. The skill instructs the agent never to log into the ampersend dashboard from a browser it controls, and to always
     show the verification code alongside the approval URL.
+15. Directive language ("don't", "never", "must") is reserved for safety boundaries where the agent has no judgment call
+    to make. Style, tone, and product-explanation preferences are framed as guidance ("prefer X because Y", "the user
+    typically expects Z") so the agent can adapt when context calls for it.

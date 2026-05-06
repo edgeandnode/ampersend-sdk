@@ -8,14 +8,14 @@ description:
 # ampersend CLI
 
 ampersend gives an agent a way to pay for things online. The user creates an ampersend agent account once, sets spending
-limits in the [ampersend dashboard](https://www.ampersend.ai/), and the agent can then pay within those limits without
+limits in the [ampersend dashboard](https://app.ampersend.ai/), and the agent can then pay within those limits without
 prompting per request.
 
 **Two things share the name "ampersend."**
 
 - **The ampersend service** — holds one of two keys needed to spend from the agent's account, and co-signs each payment
   only if it satisfies the user's policy (spending limits, auto-topup rules, alerts). The user manages that policy
-  through the [ampersend dashboard](https://www.ampersend.ai/).
+  through the [ampersend dashboard](https://app.ampersend.ai/).
 - **The `ampersend` CLI** — a thin local binary the agent runs. Holds the other key. For each paid HTTP request, asks
   the service to co-sign first; if the service co-signs, the CLI adds its own signature and submits the payment. Also
   stores local config (API URL, agent key).
@@ -23,7 +23,8 @@ prompting per request.
 The user's funds live in a smart account on-chain that they own. Both keys must sign for any payment to go through, so
 neither the agent nor ampersend can spend on their own.
 
-To the user, all of this is just "ampersend" — don't introduce "service," "CLI," "key," or "smart account" to them.
+To the user, all of this is just "ampersend" — the service/CLI split, keys, and smart accounts are internal plumbing
+they don't need unless they ask.
 
 **Scope of this CLI**: HTTP-only. It does three things: initial agent + CLI setup, runs `ampersend fetch <url>` (pays
 via [x402](https://x402.org/)), and manage local config. **Not in this CLI**: spending limits, auto-topup, auto-collect,
@@ -34,8 +35,8 @@ you need flag-level detail.
 
 ## Explaining ampersend to the user
 
-If the user asks what ampersend is or how it works, prefer this language over your own paraphrase. The user is likely
-not crypto-savvy; keep it that way.
+If the user asks what ampersend is or how it works, the explanations below are how the product team prefers it
+described. They're written in plain, non-technical language so they work for any user, regardless of crypto background.
 
 **One sentence**: "ampersend is a way to give your agent a small spending allowance so it can pay for things online
 without asking you every time."
@@ -47,8 +48,9 @@ account you own."
 **Only if they ask about the underlying tech**: "Today it uses a payment standard called x402 with USDC, a stablecoin
 worth one US dollar, on a network called Base. More payment methods are coming."
 
-Don't volunteer the third tier. Avoid the words "crypto," "wallet," "blockchain," "smart account," and "stablecoin" in
-the first two tiers — accurate, but unhelpful for a user who just wants to use their agent.
+The third tier is reserved for users who explicitly ask about the underlying tech — words like "crypto," "wallet,"
+"blockchain," "smart account," and "stablecoin" tend to confuse rather than help users who just want to use their agent,
+so the first two tiers stay free of them by default.
 
 ## Installation
 
@@ -121,7 +123,7 @@ Run when the user asks to call a paid endpoint, or when an HTTP call returns 402
 
 ## Output format
 
-All commands return JSON. Always check `ok` first.
+All commands return JSON. Check `ok` first.
 
 ```json
 { "ok": true, "data": { ... } }
