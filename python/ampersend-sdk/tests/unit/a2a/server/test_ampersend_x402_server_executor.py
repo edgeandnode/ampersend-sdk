@@ -5,11 +5,23 @@ Verifies that the executor:
     fields extracted from the payment payload.
   - On compliance allow, delegates to the facilitator's verify_payment.
   - On compliance deny, returns VerifyResponse(is_valid=False) with
-    the reason carried through; does NOT call the facilitator.
+    a deliberately generic invalid_reason and never calls the
+    facilitator. The full deny detail (reason, code, screening_id)
+    must NOT leak to the client — server-side audit only.
+  - On compliance API error / timeout, the exception propagates so
+    the upstream task layer 500s. Translating to a structured deny
+    would silently swallow outages.
   - Settle is unchanged — always goes straight to the facilitator
     (a settlement for a payment that compliance already allowed).
+
+These tests reach into `executor._facilitator` (a private attr on
+the parent `FacilitatorX402ServerExecutor`) to mock the facilitator
+client without standing up a real one. If the parent class renames
+that attribute, these tests will hard-fail — accept the brittleness
+in exchange for not restructuring the parent for testability.
 """
 
+import asyncio
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -17,7 +29,10 @@ from ampersend_sdk.a2a.server import (
     AmpersendX402ServerExecutor,
     create_ampersend_executor_factory,
 )
-from ampersend_sdk.ampersend import ApiClient
+from ampersend_sdk.a2a.server.ampersend_x402_server_executor import (
+    GENERIC_DENY_REASON,
+)
+from ampersend_sdk.ampersend import ApiClient, ApiError
 from ampersend_sdk.ampersend.types import ApiResponseAuthorizeReceipt
 from x402.types import (
     EIP3009Authorization,
@@ -103,8 +118,9 @@ class TestAmpersendX402ServerExecutor:
             config=x402_config,
             api_client=api_client,
         )
-        # Don't actually let the facilitator do anything — patch through
-        # the parent's verify_payment.
+        # Don't actually let the facilitator do anything — patch
+        # through the parent's verify_payment via its private
+        # _facilitator attribute (see the module docstring).
         executor._facilitator = MagicMock()
         executor._facilitator.verify = AsyncMock(
             return_value=VerifyResponse(
@@ -133,15 +149,18 @@ class TestAmpersendX402ServerExecutor:
         executor._facilitator.verify.assert_awaited_once_with(payload, requirements)
         assert result.is_valid is True
 
-    async def test_verify_payment_returns_invalid_on_compliance_deny(
+    async def test_verify_payment_returns_generic_deny_on_compliance_deny(
         self,
         mock_delegate: AgentExecutor,
         x402_config: x402ExtensionConfig,
     ) -> None:
-        """A deny from the API short-circuits — returns
-        VerifyResponse(is_valid=False) with the human-readable reason
-        and never calls the facilitator."""
+        """A deny short-circuits with a deliberately generic
+        invalid_reason — the API's reason / reason_code / screening_id
+        must NOT be echoed to the client. Telling a sanctioned wallet
+        the category that flagged it lets them wallet-shop or feel out
+        thresholds. The facilitator is never consulted on deny."""
         api_client = AsyncMock(spec=ApiClient)
+        # API returns rich detail. The executor must drop it.
         api_client.authorize_receipt = AsyncMock(
             return_value=ApiResponseAuthorizeReceipt(
                 authorized=False,
@@ -164,21 +183,32 @@ class TestAmpersendX402ServerExecutor:
         )
 
         assert result.is_valid is False
-        assert "Sanctions" in (result.invalid_reason or "")
+        assert result.invalid_reason == GENERIC_DENY_REASON
+        # No-leak: every detail field from the API must be absent
+        # from the visible response. Anchored on absence so a future
+        # refactor that adds a leak surface (e.g., new reason field)
+        # has to actively decide whether to expose it.
+        assert "Sanctions" not in (result.invalid_reason or "")
+        assert "compliance_high_risk" not in (result.invalid_reason or "")
+        # screening_id appears in audit logs only.
+        assert "00000000-0000-0000-0000-000000000002" not in (
+            result.invalid_reason or ""
+        )
+        # `payer` is echoed (unverified, for client-side error display).
         assert result.payer == "0xPayer000000000000000000000000000000000001"
 
         # Facilitator never consulted on deny.
         executor._facilitator.verify.assert_not_awaited()
 
-    async def test_verify_payment_falls_back_when_reason_missing(
+    async def test_verify_payment_uses_generic_deny_when_reason_missing(
         self,
         mock_delegate: AgentExecutor,
         x402_config: x402ExtensionConfig,
     ) -> None:
-        """If the API somehow returns authorized=False with no reason,
-        the executor falls back to a generic message rather than
-        leaving invalidReason as None (which downstream consumers may
-        not handle gracefully)."""
+        """Same generic deny posture even when the API returns a deny
+        with no reason. invalid_reason is always the constant — we
+        don't differentiate between "deny with detail" and "deny
+        without"."""
         api_client = AsyncMock(spec=ApiClient)
         api_client.authorize_receipt = AsyncMock(
             return_value=ApiResponseAuthorizeReceipt(authorized=False)
@@ -194,7 +224,76 @@ class TestAmpersendX402ServerExecutor:
             _make_payment_payload(), _make_payment_requirements()
         )
         assert result.is_valid is False
-        assert result.invalid_reason == "Payment denied by compliance"
+        assert result.invalid_reason == GENERIC_DENY_REASON
+
+    async def test_verify_payment_propagates_api_error(
+        self,
+        mock_delegate: AgentExecutor,
+        x402_config: x402ExtensionConfig,
+    ) -> None:
+        """A compliance API failure (5xx, auth failure, malformed
+        response) propagates as an exception rather than being
+        swallowed as a structured deny. Pinning this contract — the
+        docstring says so, and a future "improvement" that wraps the
+        call in `try/except: return deny(...)` would silently invert
+        fail-closed-by-exception into fail-closed-by-deny, which
+        looks the same to the buyer but masks the API outage from
+        operators."""
+        api_client = AsyncMock(spec=ApiClient)
+        api_client.authorize_receipt = AsyncMock(
+            side_effect=ApiError("Compliance API 503", status=503)
+        )
+
+        executor = AmpersendX402ServerExecutor(
+            delegate=mock_delegate,
+            config=x402_config,
+            api_client=api_client,
+        )
+        executor._facilitator = MagicMock()
+        executor._facilitator.verify = AsyncMock()
+
+        with pytest.raises(ApiError):
+            await executor.verify_payment(
+                _make_payment_payload(), _make_payment_requirements()
+            )
+        # And the facilitator must not be touched on the error path.
+        executor._facilitator.verify.assert_not_awaited()
+
+    async def test_verify_payment_propagates_compliance_timeout(
+        self,
+        mock_delegate: AgentExecutor,
+        x402_config: x402ExtensionConfig,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """If the compliance call hangs past the timeout budget, the
+        `asyncio.TimeoutError` propagates out — same posture as any
+        other transport failure (the upstream task layer 500s rather
+        than masking the outage as a deny)."""
+
+        async def hang(*args: object, **kwargs: object) -> None:
+            await asyncio.sleep(60)
+
+        api_client = AsyncMock(spec=ApiClient)
+        api_client.authorize_receipt = AsyncMock(side_effect=hang)
+
+        # Compress the timeout so the test runs in milliseconds.
+        from ampersend_sdk.a2a.server import ampersend_x402_server_executor as mod
+
+        monkeypatch.setattr(mod, "COMPLIANCE_API_TIMEOUT_SECONDS", 0.05)
+
+        executor = AmpersendX402ServerExecutor(
+            delegate=mock_delegate,
+            config=x402_config,
+            api_client=api_client,
+        )
+        executor._facilitator = MagicMock()
+        executor._facilitator.verify = AsyncMock()
+
+        with pytest.raises(asyncio.TimeoutError):
+            await executor.verify_payment(
+                _make_payment_payload(), _make_payment_requirements()
+            )
+        executor._facilitator.verify.assert_not_awaited()
 
     async def test_verify_payment_rejects_unsupported_scheme(
         self,

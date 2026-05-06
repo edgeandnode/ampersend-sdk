@@ -163,7 +163,6 @@ class ApiRequestAuthorizeReceipt(BaseModel):
     )
     nonce: str
     payment_signature: str = Field(serialization_alias="paymentSignature")
-    context: Optional[Dict[str, Any]] = None
 
     model_config = ConfigDict(
         populate_by_name=True,

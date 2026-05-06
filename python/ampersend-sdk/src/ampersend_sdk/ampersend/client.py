@@ -174,19 +174,22 @@ class ApiClient:
         payment_requirements: PaymentRequirements,
         nonce: str,
         payment_signature: str,
-        context: Optional[Dict[str, Any]] = None,
     ) -> ApiResponseAuthorizeReceipt:
         """Run seller-side compliance screening on an incoming payment.
 
-        Called by the seller's x402 middleware after decoding the
-        X-PAYMENT header and before honoring the payment. The
-        configured `agent_address` is the seller agent (the receiver);
-        SIWE auth is performed under that agent's identity.
+        Called by the seller's x402 middleware (HTTP or A2A) after
+        decoding the X-PAYMENT header and before honoring the
+        payment. The configured `agent_address` is the seller agent
+        (the receiver); SIWE auth is performed under that agent's
+        identity.
 
         Returns an `ApiResponseAuthorizeReceipt` with `authorized=True`
-        for allow and `authorized=False` (plus `reason`, `reason_code`)
-        for deny. HTTP 200 in both branches; the caller decides
-        whether to 402 the upstream client.
+        for allow and `authorized=False` (plus `reason`, `reason_code`,
+        `screening_id`) for deny. HTTP 200 in both branches; the
+        caller decides how to surface the deny — the FastAPI middleware
+        returns a generic 403, the A2A executor returns
+        `VerifyResponse(is_valid=False)`. The deny detail must NOT be
+        echoed to the buyer; it's for server-side audit only.
         """
         await self._ensure_authenticated()
 
@@ -195,7 +198,6 @@ class ApiClient:
             payment_requirements=payment_requirements,
             nonce=nonce,
             payment_signature=payment_signature,
-            context=context,
         )
 
         response = await self._fetch(

@@ -4,15 +4,22 @@ compliance API before delegating to the facilitator.
 The executor wraps `FacilitatorX402ServerExecutor`. On `verify_payment`
 it first calls Ampersend's `POST /v1/agents/:address/payment/authorize-
 receipt` over a SIWE-authenticated bearer token; if compliance denies,
-it returns a `VerifyResponse` with `is_valid=False` and the
-human-readable reason carried through. If compliance allows, it
-delegates to the facilitator's verify path so on-chain settlement
-still happens via the configured facilitator.
+it returns a `VerifyResponse` with `is_valid=False` and a deliberately
+generic `invalid_reason`. If compliance allows, it delegates to the
+facilitator's verify path so on-chain settlement still happens via the
+configured facilitator.
 
 Settlement is unchanged — it still goes straight to the facilitator
-because by the time we settle, the gate has already approved.
+because by the time we settle, the gate has already approved. Note: a
+future deferred-scheme settlement (arbitrary delay between verify and
+settle) would invalidate this assumption and require a settle-time
+re-screen; today's `exact` scheme settles within the same x402
+round-trip so the existing approval is fresh.
 """
 
+import asyncio
+import logging
+import os
 from typing import Any
 
 from x402.types import (
@@ -32,6 +39,26 @@ from x402_a2a.types import (
 from ...ampersend.client import ApiClient
 from .facilitator_x402_server_executor import FacilitatorX402ServerExecutor
 from .x402_server_executor import X402ServerExecutorFactory
+
+logger = logging.getLogger(__name__)
+
+# Hard timeout on the compliance API call. Without this, a hung
+# Ampersend API takes every paid verify with it until upstream
+# transport limits cut. 5s is comfortable for a local API, an SSH
+# tunnel, and a tailscale-routed staging API; bump via
+# AMPERSEND_COMPLIANCE_API_TIMEOUT_SECONDS if real-world latency
+# floors creep up. Same posture/value as the FastAPI middleware in
+# `ampersend_sdk.x402.http.fastapi`.
+COMPLIANCE_API_TIMEOUT_SECONDS = float(
+    os.environ.get("AMPERSEND_COMPLIANCE_API_TIMEOUT_SECONDS", "5.0")
+)
+
+# Generic deny shown to the buyer. The full detail (reason,
+# reason_code, screening_id, payer) is logged server-side so the
+# operator has the audit trail without leaking it to the buyer —
+# telling a sanctioned wallet which category flagged it lets them
+# wallet-shop or feel out our thresholds.
+GENERIC_DENY_REASON = "Payment rejected"
 
 
 class AmpersendX402ServerExecutor(FacilitatorX402ServerExecutor):
@@ -73,11 +100,12 @@ class AmpersendX402ServerExecutor(FacilitatorX402ServerExecutor):
     ) -> VerifyResponse:
         """Compliance-gate the payment, then delegate to the facilitator.
 
-        On compliance deny, returns `VerifyResponse(is_valid=False,
-        invalid_reason=<reason>)` so the upstream task layer surfaces
-        a 402 with the structured reason. On allow, the call falls
-        through to the facilitator's normal verify (signature, amount,
-        nonce reuse, etc.).
+        On compliance deny, returns
+        `VerifyResponse(is_valid=False, invalid_reason="Payment rejected")`
+        and never consults the facilitator. The deny reason is
+        deliberately generic — see `GENERIC_DENY_REASON`. On allow,
+        falls through to the facilitator's normal verify (signature,
+        amount, nonce reuse, etc.).
 
         Failure modes:
           - Unsupported payment scheme: returns a structured deny.
@@ -91,6 +119,10 @@ class AmpersendX402ServerExecutor(FacilitatorX402ServerExecutor):
             upstream task layer 500 / alert. This is fail-closed
             as a class — a deny because we can't reach the gate —
             just at a different layer than a structured deny.
+          - Compliance API timeout: same posture as a transport
+            failure — the `asyncio.TimeoutError` propagates out and
+            the upstream task layer 500s. Without the timeout, a
+            hung API would hang every verify.
 
         Note on the `payer` field: on a deny, we echo back
         `authorization.from_` *unverified*. The EIP-3009 signature
@@ -115,18 +147,34 @@ class AmpersendX402ServerExecutor(FacilitatorX402ServerExecutor):
         # EIP3009Authorization.from_ uses an underscore because
         # `from` is a Python keyword; the field's wire alias is "from".
         authorization = payload.payload.authorization
-        compliance_result = await self._api_client.authorize_receipt(
-            payer_address=authorization.from_,
-            payment_requirements=requirements,
-            nonce=authorization.nonce,
-            payment_signature=payload.payload.signature,
+        compliance_result = await asyncio.wait_for(
+            self._api_client.authorize_receipt(
+                payer_address=authorization.from_,
+                payment_requirements=requirements,
+                nonce=authorization.nonce,
+                payment_signature=payload.payload.signature,
+            ),
+            timeout=COMPLIANCE_API_TIMEOUT_SECONDS,
         )
 
         if not compliance_result.authorized:
+            # Operator-side audit trail — the buyer gets the generic
+            # deny string; the full detail (incl. screening_id for
+            # support-ticket correlation) stays server-side. Mirrors
+            # the FastAPI middleware's logging shape so a single
+            # log query catches denies across both surfaces.
+            logger.info(
+                "Compliance denied payment",
+                extra={
+                    "payer_address": authorization.from_,
+                    "reason_code": compliance_result.reason_code,
+                    "reason": compliance_result.reason,
+                    "screening_id": compliance_result.screening_id,
+                },
+            )
             return VerifyResponse(
                 isValid=False,
-                invalidReason=compliance_result.reason
-                or "Payment denied by compliance",
+                invalidReason=GENERIC_DENY_REASON,
                 payer=authorization.from_,
             )
 
@@ -138,7 +186,6 @@ class AmpersendX402ServerExecutor(FacilitatorX402ServerExecutor):
 def create_ampersend_executor_factory(
     api_client: ApiClient,
     facilitator_config: FacilitatorConfig | None = None,
-    **kwargs: Any,
 ) -> X402ServerExecutorFactory:
     """Create a factory for `AmpersendX402ServerExecutor` instances.
 
@@ -146,8 +193,6 @@ def create_ampersend_executor_factory(
         api_client: The Ampersend API client (configured with the
             seller agent's address + session-key private key).
         facilitator_config: Optional facilitator configuration.
-        **kwargs: Additional kwargs forwarded to the executor
-            constructor.
 
     Returns:
         Factory function suitable for `X402A2aAgentExecutor.x402_executor_factory`.
@@ -177,7 +222,6 @@ def create_ampersend_executor_factory(
             config=config,
             api_client=api_client,
             facilitator_config=facilitator_config,
-            **kwargs,
         )
 
     return factory
