@@ -14,6 +14,19 @@ Supports both buyer (client) and seller (server) roles with flexible payment ver
 - **TypeScript** - MCP protocol integration with client, proxy, and server implementations
   - [TypeScript SDK Documentation](./typescript/README.md)
 
+## 🤖 Teach Your Agent To Use Ampersend
+
+If you just want your coding agent (Claude Code, Cursor, Codex, etc.) to be able to pay for things online, install the
+ampersend skill:
+
+```bash
+npx skills add edgeandnode/ampersend-sdk
+```
+
+This uses the [`skills` CLI](https://github.com/vercel-labs/skills) to install the skill into your agent's skills
+directory. The skill handles setup, payment, and configuration — your agent will know what to do when it sees a 402
+response or you ask it to call a paid endpoint.
+
 ## 🚀 Quick Start
 
 ### Python
