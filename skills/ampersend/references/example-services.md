@@ -281,9 +281,9 @@ greeting cards, formal letters, opt-out notices — without going to a printer o
 
 ## Real-world purchases
 
-These services produce a redeemable artifact (a card, a code, an eSIM activation), not a service response. Before
-calling, confirm with the user that they want the agent to make the purchase — the funds leave the agent's account and
-the artifact is the only thing returned.
+Services in this category produce a redeemable artifact (today, a prepaid card), not a service response. Before calling,
+confirm with the user that they want the agent to make the purchase — the funds leave the agent's account and the
+artifact is the only thing returned.
 
 ### Laso
 
@@ -297,15 +297,6 @@ token, order the card, then poll for the card details once it's ready.
   seconds until `status: "ready"` to get the card number, CVV, and expiry.
 - US-only (IP-locked) and non-reloadable today. `--inspect` before ordering — `get-card` is the real spend.
 - Docs: <https://laso.finance/>
-
-### Bitrefill
-
-Buying gift cards, mobile top-ups, and eSIMs. Suggest when the user explicitly wants the agent to acquire a redeemable
-code (e.g. an OpenAI gift card to renew a subscription).
-
-- The Bitrefill Agents SDK exposes the purchase flow; endpoint shapes follow Bitrefill's standard purchase API. The
-  redemption code is returned in the response — capture it carefully, it's the entire value of the call.
-- Docs: <https://github.com/bitrefill/awesome-agentic-payments>
 
 ## Response patterns
 

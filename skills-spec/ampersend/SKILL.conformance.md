@@ -14,11 +14,11 @@ Latest verdict for each rule in [`SKILL.spec.md`](SKILL.spec.md). Regenerate whe
    concrete recognition cues ("names a capability they want without a specific URL in mind", "is asking what the agent
    can pay for") rather than passive dispositions.
 4. PASS — Frontmatter `name: ampersend` matches the parent directory `skills/ampersend/`.
-5. PASS — Body is 178 lines.
+5. PASS — Body is 179 lines.
 6. PASS — Order is orientation → scope → suggesting things to try → user explainer → install → security → setup →
    payment → output → config; setup and payment workflows are numbered steps.
 7. PASS — `references/` contains two files (`commands.md`, `example-services.md`); no subdirectories.
-8. PASS — `references/commands.md` is 116 lines and starts with "Contents". `references/example-services.md` is 325
+8. PASS — `references/commands.md` is 116 lines and starts with "Contents". `references/example-services.md` is 316
    lines and starts with a Contents section listing all 16 capability headings plus the Response patterns section.
 9. PASS — Body content is system-specific. The body's capability list names categories in user-voice (no "pay-per-...",
    "API-key relationship", or "x402-paid" framing leaking from the agent-economy register); curated third-party services
@@ -40,12 +40,12 @@ Latest verdict for each rule in [`SKILL.spec.md`](SKILL.spec.md). Regenerate whe
 15. PASS — Hard imperatives appear only where they guard real safety boundaries: Security section (MITM/key
     substitution); "don't recommend from training" (agent inventing services); "Real-world purchases" (irreversible
     spend); Physical mail (irreversible mailing). Style and product-explanation guidance remains framed as preference.
-16. PASS — 16 capabilities in the body, 17 entries under those capabilities in `references/example-services.md`, plus
+16. PASS — 16 capabilities in the body, 16 entries under those capabilities in `references/example-services.md`, plus
     one entry in the Response patterns section. Mapping: Web search → Firecrawl; Email → AgentMail; Email lookup and
     verification → Apollo people-enrich + Hunter email-verifier (via StableEnrich); Voice calls → StablePhone; Flight
     tracking → FlightAware (via StableEnrich); Property valuation → RentCast (via StableEnrich); Domain registration →
     Bloomfilter; File hosting → StableUpload; Image and video generation → StableStudio; LLM inference → BlockRun;
     Social data → StableSocial; News and market data → Gloria; Job search → StableJobs; Travel search → StableTravel;
-    Physical mail → PostalForm; Real-world purchases → Laso (direct) + Bitrefill. Pinata sits in the Response patterns
-    section (it's a URL-shape the agent must handle, not a thing the agent suggests). No orphan capabilities, no orphan
-    suggestable services.
+    Physical mail → PostalForm; Real-world purchases → Laso. Pinata sits in the Response patterns section (it's a
+    URL-shape the agent must handle, not a thing the agent suggests). No orphan capabilities, no orphan suggestable
+    services.
