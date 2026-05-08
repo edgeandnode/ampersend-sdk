@@ -285,14 +285,18 @@ These services produce a redeemable artifact (a card, a code, an eSIM activation
 calling, confirm with the user that they want the agent to make the purchase — the funds leave the agent's account and
 the artifact is the only thing returned.
 
-### Laso (via Locus)
+### Laso
 
-Ordering a prepaid virtual Visa card the agent can then use for online purchases. Card lookups, balance, and status are
-free; ordering and topping up go through Locus's x402 proxy and cost real money.
+Ordering a prepaid virtual Visa card the agent can then use for online purchases. Three calls total: pay for an auth
+token, order the card, then poll for the card details once it's ready.
 
-- Order, top-up, and lookup endpoints are documented upstream. `--inspect` before ordering — the order itself is
-  non-trivial spend.
-- Docs: <https://docs.paywithlocus.com/features/laso>
+- `GET https://laso.finance/auth` — pays a tiny x402 cost, returns an `id_token` (1-hour Bearer) plus a refresh token.
+- `GET https://laso.finance/get-card?amount=<usd>` — pays via x402, returns a `card_id` with `status: "pending"`.
+  `amount` is in USD, $5–$1000.
+- `GET https://laso.finance/get-card-data?card_id=<id>` — uses the Bearer token from `/auth`, free, poll every 2–3
+  seconds until `status: "ready"` to get the card number, CVV, and expiry.
+- US-only (IP-locked) and non-reloadable today. `--inspect` before ordering — `get-card` is the real spend.
+- Docs: <https://laso.finance/>
 
 ### Bitrefill
 

@@ -18,7 +18,7 @@ Latest verdict for each rule in [`SKILL.spec.md`](SKILL.spec.md). Regenerate whe
 6. PASS — Order is orientation → scope → suggesting things to try → user explainer → install → security → setup →
    payment → output → config; setup and payment workflows are numbered steps.
 7. PASS — `references/` contains two files (`commands.md`, `example-services.md`); no subdirectories.
-8. PASS — `references/commands.md` is 116 lines and starts with "Contents". `references/example-services.md` is 321
+8. PASS — `references/commands.md` is 116 lines and starts with "Contents". `references/example-services.md` is 325
    lines and starts with a Contents section listing all 16 capability headings plus the Response patterns section.
 9. PASS — Body content is system-specific. The body's capability list names categories in user-voice (no "pay-per-...",
    "API-key relationship", or "x402-paid" framing leaking from the agent-economy register); curated third-party services
@@ -46,6 +46,6 @@ Latest verdict for each rule in [`SKILL.spec.md`](SKILL.spec.md). Regenerate whe
     tracking → FlightAware (via StableEnrich); Property valuation → RentCast (via StableEnrich); Domain registration →
     Bloomfilter; File hosting → StableUpload; Image and video generation → StableStudio; LLM inference → BlockRun;
     Social data → StableSocial; News and market data → Gloria; Job search → StableJobs; Travel search → StableTravel;
-    Physical mail → PostalForm; Real-world purchases → Laso + Bitrefill. Pinata sits in the Response patterns section
-    (it's a URL-shape the agent must handle, not a thing the agent suggests). No orphan capabilities, no orphan
+    Physical mail → PostalForm; Real-world purchases → Laso (direct) + Bitrefill. Pinata sits in the Response patterns
+    section (it's a URL-shape the agent must handle, not a thing the agent suggests). No orphan capabilities, no orphan
     suggestable services.
