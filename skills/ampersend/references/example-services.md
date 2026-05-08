@@ -11,9 +11,9 @@ Two ground rules before suggesting any service:
 - **Don't recommend providers from training.** If a capability the user wants isn't covered below, say so — don't fill
   the gap with a service from training data, since it may not be reachable from ampersend or may have moved.
 
-Some services expose their own paid endpoints; others (Apollo, Hunter, FlightAware, RentCast) are reached through
-StableEnrich, an aggregator gateway that fronts several upstream APIs behind one paid surface. The URL in each entry is
-what the agent actually calls.
+Some services expose their own paid endpoints; others (Apollo, Hunter, RentCast) are reached through StableEnrich, an
+aggregator gateway that fronts several upstream APIs behind one paid surface. The URL in each entry is what the agent
+actually calls.
 
 Each entry below gives the endpoint, body shape, and one runnable `ampersend fetch` invocation. Read the upstream docs
 linked in each entry before relying on field semantics — this file captures the shape of the call, not full schemas.
@@ -27,7 +27,6 @@ proactively but should know how to handle when the user pastes a specific URL sh
 - [Email](#email)
 - [Email lookup and verification](#email-lookup-and-verification)
 - [Voice calls](#voice-calls)
-- [Flight tracking](#flight-tracking)
 - [Property valuation](#property-valuation)
 - [Domain registration](#domain-registration)
 - [File hosting](#file-hosting)
@@ -37,7 +36,6 @@ proactively but should know how to handle when the user pastes a specific URL sh
 - [News and market data](#news-and-market-data)
 - [Job search](#job-search)
 - [Travel search](#travel-search)
-- [Physical mail](#physical-mail)
 - [Real-world purchases](#real-world-purchases)
 - [Response patterns](#response-patterns)
 
@@ -65,11 +63,18 @@ feeding results into a downstream prompt.
 Giving the agent its own working email address — create an inbox, send mail, receive mail. Suggest when the user wants
 the agent to handle a back-and-forth conversation by email.
 
-- Base URL for paid endpoints: `https://x402.api.agentmail.to` (this replaces the standard base URL; payment is
-  negotiated automatically on each request).
-- Endpoints follow AgentMail's public API (e.g. inbox creation, message send). Check the upstream docs for the path and
-  body shape for the action you want.
-- Inspect first against the specific endpoint to confirm price.
+- Base URL for x402 endpoints: `https://x402.api.agentmail.to`. This replaces AgentMail's standard host; x402 payment on
+  each request is the entire authentication, no API key needed.
+- Two-call flow: create an inbox, then send from it.
+- Create an inbox: `POST https://x402.api.agentmail.to/inboxes`
+- Send a message: `POST https://x402.api.agentmail.to/inboxes/<inbox_id>/messages/send` with body fields `to`,
+  `subject`, `text` (required) and optional `html`, `cc`, `bcc`, `reply_to`, `attachments`.
+- Example send:
+  ```bash
+  ampersend fetch -X POST -H "Content-Type: application/json" \
+    -d '{"to":"jane@example.com","subject":"Hello","text":"Sent by my agent."}' \
+    https://x402.api.agentmail.to/inboxes/<inbox_id>/messages/send
+  ```
 - Docs: <https://docs.agentmail.to/integrations/x402>
 
 ## Email lookup and verification
@@ -128,19 +133,6 @@ or quick info-gathering — but warn the user that the called party may detect t
   ```
 - Docs: <https://stablephone.dev/>
 
-## Flight tracking
-
-### FlightAware (via StableEnrich)
-
-Checking whether a flight is on time, delayed, or cancelled — including history for past flights. Suggest when the user
-mentions a specific flight and wants the actual outcome, not the airline's cheerful estimate.
-
-- StableEnrich exposes FlightAware data behind `https://stableenrich.dev/api/flightaware/...` paths covering live
-  status, history, and airport routes. The exact path depends on the lookup; consult the upstream docs.
-- Body shape mirrors the underlying FlightAware AeroAPI (typically a flight identifier or airport pair).
-- Inspect first to confirm the path and price for the specific lookup type.
-- Docs: <https://stableenrich.dev/> and <https://www.flightaware.com/aeroapi/portal>
-
 ## Property valuation
 
 ### RentCast (via StableEnrich)
@@ -168,9 +160,14 @@ the user is considering renting or buying a place and wants a reality check on t
 Searching, registering, renewing, and configuring DNS for domains. Suggest when the user wants the agent to acquire a
 domain end-to-end without setting up a registrar account.
 
-- Endpoints cover availability search, registration, renewal, and DNS management across 400+ TLDs. Auth is wallet-based
-  (SIWE); no signup.
-- Inspect the specific endpoint to confirm price before registering — registration is a real, non-refundable purchase.
+- Search availability: `GET https://api.bloomfilter.xyz/domains/search?query=<name>&tlds=<csv>`
+- Register: `POST https://api.bloomfilter.xyz/domains/register` with body `{"domain": "acme.io", "years": 1}`.
+- Example search:
+  ```bash
+  ampersend fetch \
+    "https://api.bloomfilter.xyz/domains/search?query=acme&tlds=com,io"
+  ```
+- Inspect the register endpoint before calling — registration is a real, non-refundable purchase.
 - Docs: <https://bloomfilter.xyz/>
 
 ## File hosting
@@ -180,8 +177,13 @@ domain end-to-end without setting up a registrar account.
 Uploading a file and getting back a shareable link. Suggest when the user wants to drop a file somewhere quickly without
 provisioning storage.
 
-- `POST https://stableupload.dev/api/upload` to mint an upload session; the response includes the actual upload command.
-- Two-step shape: first call mints the session (paid), second call uploads bytes against the returned URL.
+- `POST https://stableupload.dev/api/upload` mints an upload session (paid). The response includes a dynamic URL and
+  curl example for the actual byte upload — the upload URL is per-session, not a fixed path.
+- Example (mint the session):
+  ```bash
+  ampersend fetch -X POST https://stableupload.dev/api/upload
+  ```
+- Then `ampersend fetch` the URL returned in the response with the file body.
 - Docs: <https://stableupload.dev/>
 
 ## Image and video generation
@@ -191,8 +193,16 @@ provisioning storage.
 Making an image or short video to a prompt, across multiple models. Suggest when the user wants a one-off image or clip
 without standing up a generation account.
 
-- Models range from fast and cheap to slow and expensive — `--inspect` matters more here than usual.
-- Endpoint paths and body shapes are model-specific; consult upstream docs before composing the request.
+- Generate an image: `POST https://stablestudio.dev/api/generate/<model>/generate`. Default-recommended model is
+  `gpt-image-2`. Body: `prompt` (required), optional `quality` (`low`/`medium`/`high`), `size`, `output_format`.
+- Example:
+  ```bash
+  ampersend fetch -X POST -H "Content-Type: application/json" \
+    -d '{"prompt":"a watercolor of a fox in autumn leaves","size":"1024x1024","output_format":"png"}' \
+    https://stablestudio.dev/api/generate/gpt-image-2/generate
+  ```
+- The response includes a `jobId`. Poll `GET https://stablestudio.dev/api/jobs/<jobId>` until completion. Cost varies
+  wildly by model — `--inspect` matters more here than usual.
 - Docs: <https://stablestudio.dev/>
 
 ## LLM inference
@@ -237,8 +247,14 @@ POST, flat per-request price.
 Getting real-time news and market intelligence feeds (crypto, macro, AI). Suggest when the user wants up-to-the-minute
 news as input to a downstream task.
 
-- Endpoints include `/news`, `/recaps`, `/news-by-keyword`. Request shape is documented upstream; inspect first to
-  confirm both the path and the price.
+- Base URL: `https://api.itsgloria.ai`.
+- `GET /news?feed_categories=<csv>` — latest headlines by category. Optional `from_date`, `to_date` (`YYYY-MM-DD`).
+- `GET /recaps?feed_category=<one>` — 12–24h recap. Optional `timeframe` (`12h` or `24h`).
+- `GET /news-by-keyword?keyword=<term>` — keyword search.
+- Example:
+  ```bash
+  ampersend fetch "https://api.itsgloria.ai/news?feed_categories=crypto,macro"
+  ```
 - Docs: <https://gloriaai.gitbook.io/gloria/gloria-data-platform/x402-integration>
 
 ## Job search
@@ -260,24 +276,18 @@ paywall.
 Searching flights, hotels, activities, and transfers via Amadeus's distribution system, no signup. Suggest for trip
 planning when the user wants live availability, not a booking.
 
-- One endpoint covers all four trip-element types; check the Swagger UI for the exact path and body.
-- This is a _search_ endpoint — booking is not part of the call.
+- Flight search: `GET https://stabletravel.dev/api/flights/search` with required `originLocationCode`,
+  `destinationLocationCode`, `departureDate` (`YYYY-MM-DD`), `adults`. Optional `returnDate`, `travelClass`, `nonStop`,
+  `currencyCode`, `maxPrice`.
+- Hotel search: `GET https://stabletravel.dev/api/hotels/list` with `cityCode` (e.g. `SFO`).
+- Example:
+  ```bash
+  ampersend fetch \
+    "https://stabletravel.dev/api/flights/search?originLocationCode=SFO&destinationLocationCode=JFK&departureDate=2026-08-15&adults=1"
+  ```
+- StableTravel also exposes flight `price`, `book`, and `cancel` endpoints — those are real spend; `--inspect` and
+  user-confirm before calling.
 - Docs: <https://stabletravel.dev/docs>
-
-## Physical mail
-
-### PostalForm
-
-Printing a letter and mailing it through USPS. Suggest when the user wants to send a real piece of paper to someone —
-greeting cards, formal letters, opt-out notices — without going to a printer or post office.
-
-- `POST https://postalform.com/api/machine/orders` is the order endpoint. Body includes `request_id` (UUID), buyer info,
-  sender and recipient details, and a `pdf` field referencing an `upload_token` from a prior upload step.
-- Sending a letter is two calls: first upload the PDF to get an `upload_token`, then submit the order referencing that
-  token. The upload endpoint and full body schema aren't captured here — consult upstream docs before composing.
-- Once submitted, the letter cannot be cancelled. Show the user the full submission and get explicit confirmation before
-  calling.
-- Docs: <https://postalform.com/developers>
 
 ## Real-world purchases
 

@@ -50,7 +50,6 @@ Categories of things the agent can do via ampersend today:
 - **Email** — giving the agent its own working email address to send and receive mail.
 - **Email lookup and verification** — finding someone's work email and checking whether it actually delivers.
 - **Voice calls** — making an AI-driven phone call to a number with a task to carry out.
-- **Flight tracking** — checking whether a flight ran on time, including past flights.
 - **Property valuation** — looking up an estimated value, rent, and comparable sales for a US address.
 - **Domain registration** — searching, registering, and configuring DNS for domains.
 - **File hosting** — uploading a file and getting back a shareable link.
@@ -60,7 +59,6 @@ Categories of things the agent can do via ampersend today:
 - **News and market data** — getting real-time news and market intelligence feeds.
 - **Job search** — querying live job openings with structured filters.
 - **Travel search** — searching flights, hotels, activities, and transfers in one place.
-- **Physical mail** — printing and mailing a letter through USPS.
 - **Real-world purchases** — buying things that come back as a redeemable artifact (today, a prepaid card the agent can
   then use for online purchases). The agent gets back the artifact, not a service response — flag this to the user
   before suggesting.
