@@ -22,7 +22,11 @@ prose.
    rather than in `SKILL.md`.
 8. Reference files longer than 100 lines start with a table of contents.
 9. Every claim in the body is system-specific — security boundaries, calling conventions, gotchas, judgment calls, or
-   how to talk about the product to users — and not something the model already knows from training.
+   how to talk about the product to users — and not something the model already knows from training. Exception: a
+   curated showcase of third-party services known to accept ampersend payments may live in `references/`, since the
+   value is curation (we vouched for these), not training-derivable facts. Response patterns — services the agent must
+   know how to handle when the user provides a matching URL but doesn't suggest proactively — are also allowed there.
+   The body of `SKILL.md` itself stays system-specific and may name capability categories but not specific services.
 10. Terminology is consistent throughout — the same concept uses the same word every time.
 11. There are no hard version pins; install commands use `@latest` and version floors are prose, not `@x.y.z`.
 12. Every product-specific term is glossed in one line the first time it appears.
@@ -33,3 +37,8 @@ prose.
 15. Directive language ("don't", "never", "must") is reserved for safety boundaries where the agent has no judgment call
     to make. Style, tone, and product-explanation preferences are framed as guidance ("prefer X because Y", "the user
     typically expects Z") so the agent can adapt when context calls for it.
+16. Capability categories in `SKILL.md` and entries in `references/example-services.md` stay aligned: every capability
+    named in the body has at least one example service in the references file, and every example service either maps
+    back to a named capability or sits in a separate "response patterns" section for services the agent doesn't suggest
+    proactively but must know how to handle when the user provides a matching URL. A capability with no example is a
+    dead end for the agent, so prune it from the body until an example lands.

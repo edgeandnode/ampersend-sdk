@@ -2,7 +2,9 @@
 name: ampersend
 description:
   Give an agent a way to pay for things on the internet. Use when the user wants the agent to be able to pay for things
-  online, when an HTTP call returns 402 Payment Required, or when calling an endpoint that charges per request.
+  online, when an HTTP call returns 402 Payment Required, when calling an endpoint that charges per request, when the
+  user names a capability they want without a specific URL in mind, or when the user is asking what the agent can pay
+  for.
 ---
 
 # ampersend CLI
@@ -32,6 +34,38 @@ transaction history, alerts — those live in the dashboard.
 
 Reference material for every flag and option is in [`references/commands.md`](references/commands.md). Read it only when
 you need flag-level detail.
+
+## Suggesting things to try
+
+When the user names something they want to do but doesn't have a specific URL in mind, or is asking what the agent can
+pay for, surface the categories below and then look up curated services and example invocations in
+[`references/example-services.md`](references/example-services.md).
+
+In explore mode (the user has nothing specific in mind), don't dump the full list — pick a handful of the more
+distinctive capabilities that tend to get a reaction, and offer to show the rest if the user wants more.
+
+Categories of things the agent can do via ampersend today:
+
+- **Web search** — searching the web and getting back full page content, not just links.
+- **Email** — giving the agent its own working email address to send and receive mail.
+- **Email lookup and verification** — finding someone's work email and checking whether it actually delivers.
+- **Voice calls** — making an AI-driven phone call to a number with a task to carry out.
+- **Flight tracking** — checking whether a flight ran on time, including past flights.
+- **Property valuation** — looking up an estimated value, rent, and comparable sales for a US address.
+- **Domain registration** — searching, registering, and configuring DNS for domains.
+- **File hosting** — uploading a file and getting back a shareable link.
+- **Image and video generation** — making images or short videos to a prompt.
+- **LLM inference** — calling models like GPT or Claude without setting up an account with each provider.
+- **Social data** — looking up profiles, posts, comments, or running searches on major social platforms.
+- **News and market data** — getting real-time news and market intelligence feeds.
+- **Job search** — querying live job openings with structured filters.
+- **Travel search** — searching flights, hotels, activities, and transfers in one place.
+- **Physical mail** — printing and mailing a letter through USPS.
+- **Real-world purchases** — buying things that come back as a code or card (prepaid cards, gift cards, mobile top-ups,
+  eSIMs). The agent gets back the code, not a service response — flag this to the user before suggesting.
+
+Look up the references file before naming a specific service — don't recommend providers from training, since the
+curated list is what we have actually validated against ampersend.
 
 ## Explaining ampersend to the user
 
