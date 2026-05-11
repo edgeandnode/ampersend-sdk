@@ -1,7 +1,7 @@
 import type { Command } from "commander"
 
 import { MarketplaceClient, type CuratedAgentSource, type ListMarketplaceAgentsFilters } from "../../ampersend/index.ts"
-import { DEFAULT_API_URL } from "../config.ts"
+import { DEFAULT_API_URL, getRuntimeConfig } from "../config.ts"
 import { err, ok, type JsonEnvelope } from "../envelope.ts"
 
 const VALID_SOURCES: ReadonlyArray<CuratedAgentSource> = ["catalog", "bazaar", "ampersend"]
@@ -19,7 +19,8 @@ interface ShowOptions {
 }
 
 function resolveApiUrl(): string {
-  return process.env.AMPERSEND_API_URL ?? DEFAULT_API_URL
+  // Precedence: env var > config file > default. Mirrors `fetch.ts`.
+  return process.env.AMPERSEND_API_URL ?? getRuntimeConfig()?.apiUrl ?? DEFAULT_API_URL
 }
 
 function isCuratedAgentSource(value: string): value is CuratedAgentSource {
