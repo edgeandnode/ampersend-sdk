@@ -66,6 +66,9 @@ Categories of things the agent can do via ampersend today:
 Look up the references file before naming a specific service — don't recommend providers from training, since the
 curated list is what we have actually validated against ampersend.
 
+For broader exploration beyond this hand-picked set, the live marketplace covers a wider catalog of known services — see
+the [Discovery workflow](#discovery-workflow) above.
+
 ## Explaining ampersend to the user
 
 If the user asks what ampersend is or how it works, the explanations below are how the product team prefers it
@@ -153,6 +156,33 @@ Run when the user asks to call a paid endpoint, or when an HTTP call returns 402
    co-sign rejection — the agent and the CLI cannot bypass this.
 3. On success, the result includes `data.status`, `data.body`, and `data.payment` (when a payment was made). Report what
    was actually spent from `data.payment`.
+
+## Discovery workflow
+
+Run when the user (or you) has a workflow or capability in mind and wants to see what is available. The marketplace is
+the live, broad-but-curated list of services known to ampersend — useful for exploring, not for a hand-held first
+experience.
+
+```bash
+ampersend marketplace list                            # Browse everything
+ampersend marketplace list --search "<keyword>"       # Fuzzy match across name, description, tags, category
+ampersend marketplace list --category <category>      # Filter by category
+ampersend marketplace show <id>                       # Inspect endpoints + pricing for one provider
+```
+
+No setup required — the marketplace endpoints are unauthenticated. Each provider carries one or more `endpoints[]` with
+a `url`, `methods`, and a `pricing_config.amount` in atomic units (USDC has 6 decimals, so `1000` is $0.001). Pick an
+endpoint and `ampersend fetch <url>` it as usual.
+
+Three discovery tiers, by intent:
+
+- **First-try / hand-held**: use [`references/example-services.md`](references/example-services.md) — the
+  marketing-curated set with concrete invocations, vetted to work end-to-end.
+- **Exploring known services**: use `ampersend marketplace list` — the broader live catalog.
+- **Anything else**: `ampersend fetch` works against any x402 endpoint, whether it is in the marketplace or not. The
+  marketplace is a discovery aid, never a whitelist.
+
+Full flag reference: [`references/marketplace.md`](references/marketplace.md).
 
 ## Output format
 
