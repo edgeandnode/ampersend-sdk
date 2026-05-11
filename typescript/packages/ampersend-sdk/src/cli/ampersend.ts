@@ -4,6 +4,7 @@ import { Command } from "commander"
 import { VERSION } from "../version.ts"
 import { registerConfigCommand } from "./commands/config.ts"
 import { registerFetchCommand } from "./commands/fetch.ts"
+import { registerMarketplaceCommand } from "./commands/marketplace.ts"
 import { registerSetupCommand } from "./commands/setup.ts"
 
 async function main(): Promise<void> {
@@ -12,6 +13,7 @@ async function main(): Promise<void> {
   registerConfigCommand(program)
   registerSetupCommand(program)
   registerFetchCommand(program)
+  registerMarketplaceCommand(program)
 
   await program.parseAsync()
 }
