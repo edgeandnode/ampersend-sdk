@@ -98,13 +98,20 @@ class RejectedRequirement(BaseModel):
     Optional on the wire for backwards compatibility with older API
     versions that only emit ``reason``; consumers should fall back to a
     default branch when an unknown code arrives.
+
+    The field is declared with ``validation_alias`` + ``serialization_alias``
+    rather than the dual-purpose ``alias`` so mypy (without the pydantic
+    plugin) still sees the Python field name ``reason_code`` on
+    construction — ``alias`` would shadow it and break call-site type
+    checking in strict mode.
     """
 
     requirement: PaymentRequirements = Field(description="Rejected payment requirement")
     reason: str = Field(description="Why this requirement was rejected")
     reason_code: Optional[str] = Field(
         default=None,
-        alias="reasonCode",
+        validation_alias="reasonCode",
+        serialization_alias="reasonCode",
         description=(
             "Stable identifier for the rejection category "
             "(e.g., 'per_tx_limit_exceeded'). Optional for back-compat "
@@ -112,6 +119,13 @@ class RejectedRequirement(BaseModel):
         ),
     )
 
+    # `populate_by_name` lets python-name construction
+    # (`RejectedRequirement(reason_code=...)`) work at runtime even
+    # with `validation_alias` set — without it, pydantic would only
+    # accept the camelCase wire name on construction. The split
+    # between this and the `validation_alias`-only approach above is
+    # what keeps both mypy (which reads the python field name) and
+    # pydantic (which would otherwise require the alias) happy.
     model_config = ConfigDict(
         populate_by_name=True,
     )
