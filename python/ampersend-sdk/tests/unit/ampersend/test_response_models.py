@@ -187,6 +187,84 @@ class TestApiResponseAgentPaymentAuth:
             == "500000000000000000"
         )
 
+    def test_rejected_decodes_reason_code_from_wire(self) -> None:
+        """API responses with `reasonCode` populate `reason_code` on the model."""
+        data = {
+            "authorized": {"recommended": None, "requirements": []},
+            "rejected": [
+                {
+                    "requirement": {
+                        "scheme": "exact",
+                        "network": "base",
+                        "maxAmountRequired": "100000",
+                        "resource": "test",
+                        "description": "Test",
+                        "mimeType": "application/json",
+                        "payTo": "0x1234567890123456789012345678901234567890",
+                        "maxTimeoutSeconds": 300,
+                        "asset": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+                    },
+                    "reason": "Daily spend limit exceeded",
+                    "reasonCode": "daily_limit_exceeded",
+                }
+            ],
+        }
+
+        response = ApiResponseAgentPaymentAuthorization.model_validate(data)
+
+        assert len(response.rejected) == 1
+        assert response.rejected[0].reason == "Daily spend limit exceeded"
+        assert response.rejected[0].reason_code == "daily_limit_exceeded"
+
+    def test_rejected_without_reason_code_back_compat(self) -> None:
+        """Older API responses lacking `reasonCode` still decode (default None)."""
+        data = {
+            "authorized": {"recommended": None, "requirements": []},
+            "rejected": [
+                {
+                    "requirement": {
+                        "scheme": "exact",
+                        "network": "base",
+                        "maxAmountRequired": "100000",
+                        "resource": "test",
+                        "description": "Test",
+                        "mimeType": "application/json",
+                        "payTo": "0x1234567890123456789012345678901234567890",
+                        "maxTimeoutSeconds": 300,
+                        "asset": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+                    },
+                    "reason": "Daily spend limit exceeded",
+                }
+            ],
+        }
+
+        response = ApiResponseAgentPaymentAuthorization.model_validate(data)
+
+        assert response.rejected[0].reason_code is None
+
+    def test_rejected_round_trip_serializes_reason_code_as_camel_case(self) -> None:
+        """`model_dump(by_alias=True)` emits `reasonCode`, not `reason_code`."""
+        requirement = PaymentRequirements(
+            scheme="exact",
+            network="base",
+            max_amount_required="100000",
+            resource="test",
+            description="Test",
+            mime_type="application/json",
+            pay_to="0x1234567890123456789012345678901234567890",
+            max_timeout_seconds=300,
+            asset="0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+        )
+        rejected = RejectedRequirement(
+            requirement=requirement,
+            reason="Sanctions exposure (High)",
+            reason_code="compliance_high_risk",
+        )
+
+        dumped = rejected.model_dump(by_alias=True)
+        assert dumped["reason"] == "Sanctions exposure (High)"
+        assert dumped["reasonCode"] == "compliance_high_risk"
+
 
 class TestApiResponseAgentPaymentEvent:
     """Test ApiResponseAgentPaymentEvent model."""

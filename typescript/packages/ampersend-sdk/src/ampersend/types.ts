@@ -239,10 +239,16 @@ const SuggestedNonce = Schema.Struct({
  *     selected: { acceptsIndex, limits, coSignature? } | null,
  *     alternatives: [{ acceptsIndex, limits }],
  *   },
- *   rejected: [{ acceptsIndex, reason }],
+ *   rejected: [{ acceptsIndex, reason, reasonCode? }],
  *   suggested?: { nonce, validBefore },
  * }
  * ```
+ *
+ * `reasonCode` on rejected items is a stable string identifier for the
+ * rejection category (e.g., `per_tx_limit_exceeded`,
+ * `compliance_high_risk`). Optional for backwards compatibility with
+ * older API versions that only emit `reason`; consumers should fall
+ * back to a default branch when an unknown code arrives.
  */
 export const AgentAuthorizeResponse = Schema.Struct({
   authorized: Schema.Struct({
@@ -270,6 +276,10 @@ export const AgentAuthorizeResponse = Schema.Struct({
     Schema.Struct({
       acceptsIndex: Schema.NonNegativeInt,
       reason: Schema.NonEmptyTrimmedString,
+      reasonCode: Schema.optional(Schema.NonEmptyTrimmedString).annotations({
+        description:
+          "Stable identifier for the rejection category (e.g., 'per_tx_limit_exceeded'). Optional for back-compat with older APIs.",
+      }),
     }),
   ),
   suggested: Schema.optional(SuggestedNonce).annotations({

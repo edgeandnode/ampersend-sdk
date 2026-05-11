@@ -1,4 +1,12 @@
-import { Address, Caip2ID, Hex32Bytes, Hex65Bytes, NonNegativeIntegerString, TxHash } from "@/ampersend/types.ts"
+import {
+  Address,
+  AgentAuthorizeResponse,
+  Caip2ID,
+  Hex32Bytes,
+  Hex65Bytes,
+  NonNegativeIntegerString,
+  TxHash,
+} from "@/ampersend/types.ts"
 import { Schema } from "effect"
 import { describe, expect, it } from "vitest"
 
@@ -168,5 +176,46 @@ describe("Primitive Schema Validation Messages", () => {
       const result = Schema.decodeUnknownEither(NonNegativeIntegerString)("1e6")
       expect(result._tag).toBe("Left")
     })
+  })
+})
+
+describe("AgentAuthorizeResponse", () => {
+  // Minimal wire payload shape the API would produce. Tests below
+  // vary only the `rejected[].reasonCode` presence.
+  const wireWithoutReasonCode = {
+    authorized: { selected: null, alternatives: [] },
+    rejected: [{ acceptsIndex: 0, reason: "Daily spend limit exceeded" }],
+  }
+  const wireWithReasonCode = {
+    authorized: { selected: null, alternatives: [] },
+    rejected: [
+      {
+        acceptsIndex: 0,
+        reason: "Daily spend limit exceeded",
+        reasonCode: "daily_limit_exceeded",
+      },
+    ],
+  }
+
+  it("decodes a rejected item with reasonCode set", () => {
+    const result = Schema.decodeUnknownEither(AgentAuthorizeResponse)(wireWithReasonCode)
+    expect(result._tag).toBe("Right")
+    if (result._tag === "Right") {
+      expect(result.right.rejected[0].reasonCode).toBe("daily_limit_exceeded")
+    }
+  })
+
+  it("decodes a rejected item without reasonCode (back-compat with older APIs)", () => {
+    const result = Schema.decodeUnknownEither(AgentAuthorizeResponse)(wireWithoutReasonCode)
+    expect(result._tag).toBe("Right")
+    if (result._tag === "Right") {
+      expect(result.right.rejected[0].reasonCode).toBeUndefined()
+    }
+  })
+
+  it("round-trips a reasonCode through encode/decode unchanged", () => {
+    const decoded = Schema.decodeUnknownSync(AgentAuthorizeResponse)(wireWithReasonCode)
+    const reEncoded = Schema.encodeSync(AgentAuthorizeResponse)(decoded)
+    expect((reEncoded.rejected[0] as { reasonCode?: string }).reasonCode).toBe("daily_limit_exceeded")
   })
 })

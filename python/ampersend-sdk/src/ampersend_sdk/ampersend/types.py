@@ -91,10 +91,30 @@ class AuthorizedRequirement(BaseModel):
 
 
 class RejectedRequirement(BaseModel):
-    """Single rejected payment requirement with reason."""
+    """Single rejected payment requirement with reason.
+
+    `reason_code` is a stable string identifier for the rejection
+    category (e.g., ``per_tx_limit_exceeded``, ``compliance_high_risk``).
+    Optional on the wire for backwards compatibility with older API
+    versions that only emit ``reason``; consumers should fall back to a
+    default branch when an unknown code arrives.
+    """
 
     requirement: PaymentRequirements = Field(description="Rejected payment requirement")
     reason: str = Field(description="Why this requirement was rejected")
+    reason_code: Optional[str] = Field(
+        default=None,
+        alias="reasonCode",
+        description=(
+            "Stable identifier for the rejection category "
+            "(e.g., 'per_tx_limit_exceeded'). Optional for back-compat "
+            "with older APIs."
+        ),
+    )
+
+    model_config = ConfigDict(
+        populate_by_name=True,
+    )
 
 
 class AuthorizedResponse(BaseModel):
