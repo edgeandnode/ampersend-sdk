@@ -6,7 +6,7 @@ import { Schema } from "effect"
 import { isAddress } from "viem"
 import { privateKeyToAddress } from "viem/accounts"
 
-import { NETWORKS, parseEnvConfig, type Network } from "../ampersend/env.ts"
+import { parseEnvConfig } from "../ampersend/env.ts"
 import { err, ok, type ConfigStatus, type JsonEnvelope } from "./envelope.ts"
 
 /** Config directory and file paths */
@@ -37,7 +37,6 @@ export interface StoredConfigV1 {
   version: 1
   agentKey?: `0x${string}`
   agentAccount?: `0x${string}`
-  network?: Network
   apiUrl?: string
   pendingApproval?: PendingApproval
 }
@@ -47,12 +46,14 @@ export type StoredConfig = StoredConfigV1
 
 const HexString = Schema.TemplateLiteral(Schema.Literal("0x"), Schema.String)
 
-/** Schema for validating stored config read from disk */
+/** Schema for validating stored config read from disk.
+ *
+ * Effect Schema strips unknown keys, so legacy fields like `network` written
+ * by older versions are silently dropped on next write. */
 const StoredConfigSchema = Schema.Struct({
   version: Schema.Literal(1),
   agentKey: Schema.optional(HexString),
   agentAccount: Schema.optional(HexString),
-  network: Schema.optional(Schema.Literal(...NETWORKS)),
   apiUrl: Schema.optional(Schema.String),
   pendingApproval: Schema.optional(
     Schema.Struct({
@@ -67,7 +68,6 @@ const StoredConfigSchema = Schema.Struct({
 export interface RuntimeConfig {
   agentKey?: `0x${string}`
   agentAccount?: `0x${string}`
-  network?: Network
   apiUrl?: string
   pendingApproval?: PendingApproval
   status: ConfigStatus
@@ -173,7 +173,6 @@ export function setConfig(
   writeConfig({
     agentKey: agentKey as `0x${string}`,
     agentAccount: agentAccount as `0x${string}`,
-    ...(existing?.network ? { network: existing.network } : {}),
     ...(existing?.apiUrl ? { apiUrl: existing.apiUrl } : {}),
     // Preserve pending approval if any
     ...(existing?.pendingApproval ? { pendingApproval: existing.pendingApproval } : {}),
@@ -204,32 +203,11 @@ export function setApiUrl(apiUrl: string | undefined): JsonEnvelope<{ apiUrl: st
   writeConfig({
     ...(existing?.agentKey ? { agentKey: existing.agentKey } : {}),
     ...(existing?.agentAccount ? { agentAccount: existing.agentAccount } : {}),
-    ...(existing?.network ? { network: existing.network } : {}),
     ...(existing?.pendingApproval ? { pendingApproval: existing.pendingApproval } : {}),
     ...(apiUrl != null ? { apiUrl } : {}),
   })
 
   return ok({ apiUrl: apiUrl ?? DEFAULT_API_URL })
-}
-
-/**
- * Set network in config. Pass undefined to clear (revert to default "base").
- */
-export function setNetwork(network: string | undefined): JsonEnvelope<{ network: Network }> {
-  if (network != null && !NETWORKS.includes(network as Network)) {
-    return err("INVALID_NETWORK", `Invalid network. Must be one of: ${NETWORKS.join(", ")}`)
-  }
-
-  const existing = readConfig()
-  writeConfig({
-    ...(existing?.agentKey ? { agentKey: existing.agentKey } : {}),
-    ...(existing?.agentAccount ? { agentAccount: existing.agentAccount } : {}),
-    ...(existing?.apiUrl ? { apiUrl: existing.apiUrl } : {}),
-    ...(existing?.pendingApproval ? { pendingApproval: existing.pendingApproval } : {}),
-    ...(network != null ? { network: network as Network } : {}),
-  })
-
-  return ok({ network: (network as Network) ?? "base" })
 }
 
 /**
@@ -241,7 +219,6 @@ export function storePendingApproval(pending: PendingApproval): void {
   writeConfig({
     ...(existing?.agentKey ? { agentKey: existing.agentKey } : {}),
     ...(existing?.agentAccount ? { agentAccount: existing.agentAccount } : {}),
-    ...(existing?.network ? { network: existing.network } : {}),
     ...(existing?.apiUrl ? { apiUrl: existing.apiUrl } : {}),
     pendingApproval: pending,
   })
@@ -299,7 +276,6 @@ export interface StatusData {
   configPath?: string
   agentKeyAddress?: string
   agentAccount?: string
-  network?: Network
   apiUrl?: string
   pendingApproval?: {
     agentKeyAddress: string
@@ -324,7 +300,6 @@ export function getStatus(): JsonEnvelope<StatusData> {
       credentialSource: "env",
       agentKeyAddress,
       agentAccount,
-      network: envConfig.NETWORK,
     }
 
     if (existsSync(CONFIG_FILE)) {
@@ -362,13 +337,6 @@ export function getStatus(): JsonEnvelope<StatusData> {
 
   if (config.agentAccount) {
     result.agentAccount = config.agentAccount
-  }
-
-  // Determine effective network (env var takes precedence over file)
-  const envNetwork = process.env.AMPERSEND_NETWORK as Network | undefined
-  const effectiveNetwork = envNetwork ?? config.network
-  if (effectiveNetwork) {
-    result.network = effectiveNetwork
   }
 
   if (effectiveApiUrl && effectiveApiUrl !== DEFAULT_API_URL) {

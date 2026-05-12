@@ -143,6 +143,61 @@ class ApiResponseAgentPaymentAuthorization(BaseModel):
     )
 
 
+class ApiRequestAuthorizeReceipt(BaseModel):
+    """Seller-side authorize-receipt request.
+
+    Sent by the seller's middleware before honoring an incoming
+    payment. The Ampersend API runs compliance screening on the
+    payer wallet (and its ERC-8004 owner if registered) and returns
+    a decision; the receipt audit row is persisted regardless.
+
+    Both nonce and payment_signature are required: by the time the
+    middleware gets here it has already decoded the X-PAYMENT
+    header and has both values in hand. The nonce is the strong
+    reconciliation key; the signature is the audit snapshot.
+    """
+
+    payer_address: str = Field(serialization_alias="payerAddress")
+    payment_requirements: PaymentRequirements = Field(
+        serialization_alias="paymentRequirements"
+    )
+    nonce: str
+    payment_signature: str = Field(serialization_alias="paymentSignature")
+
+    model_config = ConfigDict(
+        populate_by_name=True,
+    )
+
+
+class ApiResponseAuthorizeReceipt(BaseModel):
+    """Seller-side authorize-receipt response.
+
+    HTTP 200 in both branches (the API call itself succeeded). The
+    caller's middleware decides whether to 402 the upstream client
+    based on `authorized`. `screening_id` references the
+    audit/display row in `screening_result` — the offending row on
+    deny, the counterparty row on allow.
+
+    The flat-with-optional shape is deliberate: the wire spec is a
+    discriminated union (`reason`/`reason_code` only present on
+    deny), but we model the two sides as one struct with optional
+    fields and let the caller fall back when a deny lacks a reason
+    rather than parse-failing. This is more permissive than the
+    spec — a future tightening to `Union[Authorized, Denied]` with
+    a discriminator would catch wire-shape regressions earlier;
+    today, regressions surface via the caller's fallback string.
+    """
+
+    authorized: bool
+    screening_id: Optional[str] = Field(default=None, validation_alias="screeningId")
+    reason: Optional[str] = None
+    reason_code: Optional[str] = Field(default=None, validation_alias="reasonCode")
+
+    model_config = ConfigDict(
+        validate_by_name=True,
+    )
+
+
 class ApiRequestAgentPaymentEvent(BaseModel):
     """Agent payment event report."""
 

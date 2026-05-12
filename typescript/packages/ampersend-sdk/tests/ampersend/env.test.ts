@@ -9,7 +9,6 @@ describe("Ampersend Env Config", () => {
     delete process.env.AMPERSEND_AGENT_ACCOUNT
     delete process.env.AMPERSEND_AGENT_KEY
     delete process.env.AMPERSEND_VALIDATOR_ADDRESS
-    delete process.env.AMPERSEND_NETWORK
     delete process.env.AMPERSEND_API_URL
   })
 
@@ -23,7 +22,6 @@ describe("Ampersend Env Config", () => {
 
         expect(config.AGENT_ACCOUNT).toBe("0x1234567890123456789012345678901234567890")
         expect(config.AGENT_KEY).toBe("0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890")
-        expect(config.NETWORK).toBe("base") // default
         expect(config.VALIDATOR_ADDRESS).toBe(OWNABLE_VALIDATOR) // default
       })
 
@@ -93,24 +91,6 @@ describe("Ampersend Env Config", () => {
     })
 
     describe("optional fields", () => {
-      it("should use custom network", () => {
-        process.env.AMPERSEND_AGENT_ACCOUNT = "0x1234567890123456789012345678901234567890"
-        process.env.AMPERSEND_AGENT_KEY = "0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890"
-        process.env.AMPERSEND_NETWORK = "base-sepolia"
-
-        const config = parseEnvConfig()
-
-        expect(config.NETWORK).toBe("base-sepolia")
-      })
-
-      it("should reject invalid network", () => {
-        process.env.AMPERSEND_AGENT_ACCOUNT = "0x1234567890123456789012345678901234567890"
-        process.env.AMPERSEND_AGENT_KEY = "0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890"
-        process.env.AMPERSEND_NETWORK = "invalid-network"
-
-        expect(() => parseEnvConfig()).toThrow()
-      })
-
       it("should use custom validator address", () => {
         process.env.AMPERSEND_AGENT_ACCOUNT = "0x1234567890123456789012345678901234567890"
         process.env.AMPERSEND_AGENT_KEY = "0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890"

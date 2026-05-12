@@ -12,11 +12,6 @@ import { OWNABLE_VALIDATOR } from "../smart-account/constants.ts"
  * The combined format is checked first. Error if both formats are present.
  */
 
-/** Supported networks (Ampersend smart accounts only support Base) */
-export const NETWORKS = ["base", "base-sepolia"] as const
-
-export type Network = (typeof NETWORKS)[number]
-
 /** Separator for AMPERSEND_AGENT_SECRET format */
 const AGENT_SECRET_SEPARATOR = ":::"
 
@@ -56,7 +51,6 @@ const configSchema = z.object({
       message: "VALIDATOR_ADDRESS must start with 0x",
     })
     .default(OWNABLE_VALIDATOR),
-  NETWORK: z.enum(NETWORKS).default("base"),
   API_URL: z.string().url().optional(),
 })
 
@@ -115,7 +109,6 @@ export function parseEnvConfig(): AmpersendEnvConfig {
     AGENT_ACCOUNT: account,
     AGENT_KEY: key,
     VALIDATOR_ADDRESS: process.env.AMPERSEND_VALIDATOR_ADDRESS,
-    NETWORK: process.env.AMPERSEND_NETWORK,
     API_URL: process.env.AMPERSEND_API_URL,
   })
 }

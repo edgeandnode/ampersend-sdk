@@ -1,6 +1,6 @@
 [project]
 name = "ampersend-sdk-python"
-version = "0.0.19"
+version = "0.0.21"
 requires-python = ">=3.13"
 dependencies = [
     "ampersend-sdk",
@@ -25,6 +25,14 @@ explicit_package_bases = true
 
 [[tool.mypy.overrides]]
 module = ["x402_a2a.*"]
+follow_untyped_imports = true
+
+[[tool.mypy.overrides]]
+# Match the main monorepo's mypy posture (also has this override).
+# Without it, `siwe.siwe` triggers `import-untyped` and the SDK
+# carries a `# type: ignore[import-untyped]`. With it, the ignore
+# becomes redundant — keep them in sync so neither side warns.
+module = ["siwe.*"]
 follow_untyped_imports = true
 
 [[tool.mypy.overrides]]

@@ -11,7 +11,11 @@ import { createAmpersendTreasurer } from "../../ampersend/treasurer.ts"
 import { AmpersendX402Client } from "./client.ts"
 
 const DEFAULT_API_URL = "https://api.ampersend.ai"
-const DEFAULT_NETWORK = "base"
+
+// Ampersend smart accounts run on Base. Register both mainnet and testnet so
+// the buyer can pay sellers on either without per-call configuration; the API
+// arbitrates which one is actually authorized.
+const SUPPORTED_V1_NETWORKS = ["base", "base-sepolia"] as const
 
 export interface SimpleHttpClientOptions {
   /** Smart account address. */
@@ -20,8 +24,6 @@ export interface SimpleHttpClientOptions {
   sessionKeyPrivateKey: Hex
   /** Ampersend API URL. Defaults to production. */
   apiUrl?: string
-  /** v1 network name (e.g. `"base"`). v1 and v2 (CAIP-2) are both registered. */
-  network?: string
 }
 
 /**
@@ -41,11 +43,13 @@ export interface SimpleHttpClientOptions {
  * ```
  */
 export function createAmpersendHttpClient(options: SimpleHttpClientOptions): AmpersendX402Client {
-  const network = options.network ?? DEFAULT_NETWORK
-  const chainId = (EVM_NETWORK_CHAIN_ID_MAP as Readonly<Record<string, number>>)[network]
-  if (chainId === undefined) {
-    throw new Error(`Unknown network: ${network}`)
-  }
+  const chainIds = SUPPORTED_V1_NETWORKS.map((network) => {
+    const chainId = (EVM_NETWORK_CHAIN_ID_MAP as Readonly<Record<string, number>>)[network]
+    if (chainId === undefined) {
+      throw new Error(`Unknown network: ${network}`)
+    }
+    return chainId
+  })
 
   const treasurer = createAmpersendTreasurer({
     smartAccountAddress: options.smartAccountAddress,
@@ -54,7 +58,7 @@ export function createAmpersendHttpClient(options: SimpleHttpClientOptions): Amp
   })
 
   return new AmpersendX402Client(treasurer).withNetworks({
-    v1: [network],
-    v2: [`eip155:${chainId}`],
+    v1: SUPPORTED_V1_NETWORKS,
+    v2: chainIds.map((id) => `eip155:${id}`),
   })
 }

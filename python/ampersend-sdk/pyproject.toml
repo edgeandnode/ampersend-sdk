@@ -1,6 +1,6 @@
 [project]
 name = "ampersend-sdk"
-version = "0.0.19"
+version = "0.0.21"
 description = "Python SDK for ampersend"
 readme = "README.md"
 license = "Apache-2.0"
@@ -14,6 +14,17 @@ dependencies = [
     "eth-account>=0.11.0",
     "eth-utils>=2.0.0",
     "pydantic>=2.0.0",
+]
+
+# Optional surfaces. Buyer-side (`X402HttpTransport`,
+# `AmpersendTreasurer`) and A2A users don't pay the FastAPI import
+# cost. `pip install ampersend-sdk[http]` pulls fastapi for sellers
+# building paid HTTP APIs via `require_payment`.
+# We rely on `x402[standard]` to bring fastapi transitively today —
+# declaring it here decouples us from upstream's dep choices.
+[project.optional-dependencies]
+http = [
+    "fastapi>=0.115",
 ]
 
 [build-system]
