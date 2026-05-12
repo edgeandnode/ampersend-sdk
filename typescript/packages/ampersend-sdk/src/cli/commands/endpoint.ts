@@ -177,7 +177,7 @@ function buildCreateInput(options: CreateOptions): HostedEndpointInput {
     ...(options.description != null ? { description: options.description } : {}),
     ...(methods && methods.length > 0 ? { allowed_methods: methods } : {}),
     ...(timeout != null ? { proxy_timeout_ms: timeout } : {}),
-    ...(rateLimit != null ? { global_rate_limit_per_minute: rateLimit } : {}),
+    ...(rateLimit != null ? { rate_limit_per_minute: rateLimit } : {}),
     ...(Object.keys(proxyHeaders).length > 0 ? { proxy_headers: proxyHeaders } : {}),
     ...(Object.keys(required_headers).length > 0 ? { required_headers } : {}),
   }
@@ -224,7 +224,7 @@ function buildUpdatePayload(options: UpdateOptions): HostedEndpointUpdate {
     ...(options.description != null ? { description: options.description } : {}),
     ...(methods && methods.length > 0 ? { allowed_methods: methods } : {}),
     ...(timeout != null ? { proxy_timeout_ms: timeout } : {}),
-    ...(rateLimit != null ? { global_rate_limit_per_minute: rateLimit } : {}),
+    ...(rateLimit != null ? { rate_limit_per_minute: rateLimit } : {}),
     ...(options.enabled != null ? { enabled: options.enabled } : {}),
   }
 }

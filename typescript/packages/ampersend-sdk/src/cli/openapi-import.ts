@@ -102,7 +102,7 @@ export function importFromOpenApi(raw: unknown, options: OpenApiImportOptions): 
         ],
         ...(description != null && description.length > 0 ? { description } : {}),
         ...(rateLimit != null && Number.isFinite(rateLimit) && rateLimit >= 0
-          ? { global_rate_limit_per_minute: rateLimit }
+          ? { rate_limit_per_minute: rateLimit }
           : {}),
         ...(options.proxyTimeoutMs != null ? { proxy_timeout_ms: options.proxyTimeoutMs } : {}),
       }

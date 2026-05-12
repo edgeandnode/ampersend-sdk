@@ -10,15 +10,19 @@ export type Network = typeof Network.Type
 export const AllowedMethod = Schema.Literal("GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS")
 export type AllowedMethod = typeof AllowedMethod.Type
 
+export const Instructions = Schema.Struct({ markdown: Schema.String })
+export type Instructions = typeof Instructions.Type
+
 export const HostedEndpointInput = Schema.Struct({
   name: Schema.NonEmptyTrimmedString,
   price_usd: Schema.Number.pipe(Schema.positive()),
   proxy_url: Schema.NonEmptyTrimmedString,
   allowed_methods: Schema.optional(Schema.Array(AllowedMethod)),
   description: Schema.optional(Schema.String),
-  global_rate_limit_per_minute: Schema.optional(Schema.NonNegativeInt),
+  instructions: Schema.optional(Schema.NullOr(Instructions)),
   proxy_headers: Schema.optional(Schema.Record({ key: Schema.String, value: Schema.String })),
   proxy_timeout_ms: Schema.optional(Schema.Number.pipe(Schema.between(5000, 60000))),
+  rate_limit_per_minute: Schema.optional(Schema.NonNegativeInt),
   required_headers: Schema.optional(Schema.Record({ key: Schema.String, value: Schema.Unknown })),
 })
 export type HostedEndpointInput = typeof HostedEndpointInput.Type
@@ -27,11 +31,12 @@ export const HostedEndpointUpdate = Schema.Struct({
   allowed_methods: Schema.optional(Schema.Array(AllowedMethod)),
   description: Schema.optional(Schema.String),
   enabled: Schema.optional(Schema.Boolean),
-  global_rate_limit_per_minute: Schema.optional(Schema.NonNegativeInt),
+  instructions: Schema.optional(Schema.NullOr(Instructions)),
   name: Schema.optional(Schema.NonEmptyTrimmedString),
   price_usd: Schema.optional(Schema.Number.pipe(Schema.positive())),
   proxy_timeout_ms: Schema.optional(Schema.Number.pipe(Schema.between(5000, 60000))),
   proxy_url: Schema.optional(Schema.NonEmptyTrimmedString),
+  rate_limit_per_minute: Schema.optional(Schema.NonNegativeInt),
 })
 export type HostedEndpointUpdate = typeof HostedEndpointUpdate.Type
 
@@ -68,7 +73,8 @@ export class HostedEndpointDTO extends Schema.Class<HostedEndpointDTO>("HostedEn
   allowed_methods: Schema.Array(Schema.NonEmptyTrimmedString),
   proxy_header_names: Schema.Array(Schema.NonEmptyTrimmedString),
   required_header_names: Schema.Array(Schema.NonEmptyTrimmedString),
-  global_rate_limit_per_minute: Schema.NonNegativeInt,
+  rate_limit_per_minute: Schema.NonNegativeInt,
+  instructions: Schema.NullOr(Instructions),
   enabled: Schema.Boolean,
   created_at: ConvertedTimestamp,
   updated_at: ConvertedTimestamp,
