@@ -131,7 +131,7 @@ Run when the user wants their agent to be able to pay for things, or when comman
 5. Confirm the agent is ready before attempting any payments.
 
 Optional: pass `--daily-limit`, `--monthly-limit`, `--per-transaction-limit`, or `--auto-topup` to `setup start` to
-configure spending controls during creation. Limits are atomic units (`1000000` = 1 USDC).
+configure spending controls during creation. Limits are integers in millionths of a dollar — `1000000` = $1.00.
 
 For other setup paths — connecting a key to an existing agent, or pasting a key+account manually — see
 [`references/commands.md`](references/commands.md).
@@ -170,17 +170,17 @@ ampersend marketplace list --category <category>      # Filter by category
 ampersend marketplace show <id>                       # Inspect endpoints + pricing for one provider
 ```
 
-No setup required — the marketplace endpoints are unauthenticated. Each provider carries one or more `endpoints[]` with
-a `url`, `methods`, and a `pricing_config.amount` in atomic units (USDC has 6 decimals, so `1000` is $0.001). Pick an
-endpoint and `ampersend fetch <url>` it as usual.
+No setup needed to look around. Each provider carries one or more `endpoints[]` with a `url`, `methods`, and a
+`pricing_config.amount`. The price comes as an integer in millionths of a dollar — `1000` is $0.001, `1000000` is $1.00.
+Pick an endpoint and `ampersend fetch <url>` it as usual.
 
-Three discovery tiers, by intent:
+Three ways to find services, by intent:
 
-- **First-try / hand-held**: use [`references/example-services.md`](references/example-services.md) — the
-  marketing-curated set with concrete invocations, vetted to work end-to-end.
+- **First-try / hand-held**: use [`references/example-services.md`](references/example-services.md) — a hand-picked set
+  with ready-to-run examples, the ones we know work well.
 - **Exploring known services**: use `ampersend marketplace list` — the broader live catalog.
 - **Anything else**: `ampersend fetch` works against any x402 endpoint, whether it is in the marketplace or not. The
-  marketplace is a discovery aid, never a whitelist.
+  marketplace is one way to find services, not the only place they can come from.
 
 Full flag reference: [`references/marketplace.md`](references/marketplace.md).
 
@@ -200,8 +200,13 @@ All commands return JSON. Check `ok` first.
 
 ```bash
 ampersend config status                                          # Show current state
-ampersend config set --api-url https://api.sandbox.ampersend.ai  # Switch to sandbox
-ampersend config set --clear-api-url                             # Back to production API
+ampersend config set --api-url https://api.sandbox.ampersend.ai  # Use the sandbox (no real money)
+ampersend config set --clear-api-url                             # Back to the real one
 ```
+
+The API URL decides which side of ampersend your agent talks to: the real one with real money, or the sandbox with play
+money for trying things out. Switching the URL after setup does **not** carry your existing agent across — each side is
+its own agent, set up separately. Most people start with the sandbox, then set up a fresh agent on the real side when
+they are ready to spend.
 
 Full flag and option reference: [`references/commands.md`](references/commands.md).
