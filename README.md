@@ -8,7 +8,6 @@ Supports both buyer (client) and seller (server) roles with flexible payment ver
 ## 📦 Language Support
 
 - **Python** - A2A protocol integration with wallet implementations and payment middleware
-
   - [Python SDK Documentation](./python/ampersend-sdk/README.md)
   - [LangChain Integration](./python/langchain-ampersend/README.md)
 
