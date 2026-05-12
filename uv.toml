@@ -1,0 +1,8 @@
+# Block packages published <10 days ago
+exclude-newer = "10 days"
+# Pin exact versions when running `uv add`
+add-bounds = "exact"
+# Use first matching index, don't merge — prevents dependency confusion
+index-strategy = "first-index"
+# Enforce minimum uv version
+required-version = ">=0.8"

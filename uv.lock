@@ -6,6 +6,10 @@ resolution-markers = [
     "platform_python_implementation == 'PyPy'",
 ]
 
+[options]
+exclude-newer = "2026-05-02T17:09:17.970314Z"
+exclude-newer-span = "P10D"
+
 [manifest]
 members = [
     "ampersend-sdk",
