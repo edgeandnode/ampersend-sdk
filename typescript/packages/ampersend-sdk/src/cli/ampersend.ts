@@ -3,6 +3,7 @@ import { Command } from "commander"
 
 import { VERSION } from "../version.ts"
 import { registerConfigCommand } from "./commands/config.ts"
+import { registerEndpointCommand } from "./commands/endpoint.ts"
 import { registerFetchCommand } from "./commands/fetch.ts"
 import { registerSetupCommand } from "./commands/setup.ts"
 
@@ -12,6 +13,7 @@ async function main(): Promise<void> {
   registerConfigCommand(program)
   registerSetupCommand(program)
   registerFetchCommand(program)
+  registerEndpointCommand(program)
 
   await program.parseAsync()
 }

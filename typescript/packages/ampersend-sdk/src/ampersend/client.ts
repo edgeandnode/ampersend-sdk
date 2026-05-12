@@ -214,6 +214,19 @@ export class ApiClient {
   }
 
   /**
+   * Ensure authentication and return the current bearer token.
+   * Useful for passing the token to other authenticated clients
+   * (e.g. `HostedEndpointClient`) without duplicating SIWE auth.
+   */
+  async getAuthToken(): Promise<string> {
+    await this.ensureAuthenticated()
+    if (!this.auth.token) {
+      throw new ApiError("Authentication succeeded but no token is available")
+    }
+    return this.auth.token
+  }
+
+  /**
    * Internal fetch wrapper with error handling and schema decoding
    */
   private async fetch<A, I>(path: string, init: RequestInit, schema: Schema.Schema<A, I>): Promise<A> {

@@ -29,17 +29,15 @@ pnpm --filter ampersend-sdk proxy:dev
 class ProxyServer {
   constructor(treasurer: X402Treasurer)
 
-  async start(port: number): Promise<void>
-  async stop(): Promise<void>
+  async start(port: number): Promise
+  async stop(): Promise
 }
 ```
 
 ### initializeProxyServer
 
 ```typescript
-function initializeProxyServer(options: ProxyServerOptions): Promise<{
-  server: ProxyServer
-}>
+function initializeProxyServer(options: ProxyServerOptions): Promise
 ```
 
 ### ProxyServerOptions
@@ -59,9 +57,9 @@ interface ProxyServerOptions {
 class X402BridgeTransport {
   constructor(options: { leftTransport: Transport; rightTransport: Transport; treasurer: X402Treasurer })
 
-  async start(): Promise<void>
-  async close(): Promise<void>
-  async handleRequest(req: Request, res: Response, body: any): Promise<void>
+  async start(): Promise
+  async close(): Promise
+  async handleRequest(req: Request, res: Response, body: any): Promise
 }
 ```
 

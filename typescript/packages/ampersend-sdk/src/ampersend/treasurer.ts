@@ -17,7 +17,6 @@ import { ApiClient } from "./client.ts"
 import type { PaymentEvent, ServerAuthorizationData } from "./types.ts"
 
 const DEFAULT_API_URL = "https://api.ampersend.ai"
-
 /** Simplified config for the common "smart account + session key" setup. */
 export interface SimpleAmpersendTreasurerConfig {
   smartAccountAddress: Address

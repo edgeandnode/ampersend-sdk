@@ -11,14 +11,12 @@ Integrates ampersend-sdk treasurers with Coinbase's x402 v2 SDK (`@x402/fetch`),
 ## Quick Start
 
 ```typescript
-import { createAmpersendHttpClient } from "@ampersend_ai/ampersend-sdk"
-
+import { value createAmpersendHttpClient } from "@ampersend_ai/ampersend-sdk"
 // Create HTTP client (one-liner setup)
 const fetchWithPayment = await createAmpersendHttpClient({
   smartAccountAddress: "0x...",
   sessionKeyPrivateKey: "0x...",
 })
-
 const response = await fetchWithPayment("https://paid-api.example.com/resource")
 ```
 
@@ -27,7 +25,7 @@ const response = await fetchWithPayment("https://paid-api.example.com/resource")
 ### wrapWithAmpersend
 
 ```typescript
-function wrapWithAmpersend(client: x402Client, treasurer: X402Treasurer, networks: Array<string>): x402Client
+function wrapWithAmpersend(client: x402Client, treasurer: X402Treasurer, networks: Array): x402Client
 ```
 
 Configures an x402Client to use an Ampersend treasurer for payment authorization.

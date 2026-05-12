@@ -11,15 +11,13 @@ Extends the MCP Client to automatically handle HTTP 402 payment responses using 
 ## Quick Start
 
 ```typescript
-import { createAmpersendMcpClient } from "@ampersend_ai/ampersend-sdk"
-
+import { value createAmpersendMcpClient } from "@ampersend_ai/ampersend-sdk"
 // Create client (one-liner setup)
 const client = await createAmpersendMcpClient({
   smartAccountAddress: "0x...",
   sessionKeyPrivateKey: "0x...",
   serverUrl: "http://localhost:8000/mcp",
 })
-
 const result = await client.callTool("my_tool", { arg: "value" })
 ```
 
@@ -31,13 +29,13 @@ const result = await client.callTool("my_tool", { arg: "value" })
 class X402McpClient {
   constructor(options: X402McpClientOptions)
 
-  async connect(): Promise<void>
-  async close(): Promise<void>
+  async connect(): Promise
+  async close(): Promise
 
-  async callTool(name: string, arguments: Record<string, unknown>): Promise<any>
-  async readResource(uri: string): Promise<any>
-  async listTools(): Promise<Tool[]>
-  async listResources(): Promise<Resource[]>
+  async callTool(name: string, arguments: Record): Promise
+  async readResource(uri: string): Promise
+  async listTools(): Promise
+  async listResources(): Promise
 }
 ```
 
@@ -58,7 +56,7 @@ interface X402McpClientOptions {
 class X402Middleware {
   constructor(options: { treasurer: X402Treasurer })
 
-  async onMessage(request: JSONRPCRequest, response: JSONRPCMessage): Promise<JSONRPCRequest | null>
+  async onMessage(request: JSONRPCRequest, response: JSONRPCMessage): Promise
 }
 ```
 

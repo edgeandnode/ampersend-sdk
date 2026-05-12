@@ -16,15 +16,13 @@ pnpm build
 ### MCP Client
 
 ```typescript
-import { createAmpersendMcpClient } from "@ampersend_ai/ampersend-sdk"
-
+import { value createAmpersendMcpClient } from "@ampersend_ai/ampersend-sdk"
 // Create client (one-liner setup)
 const client = await createAmpersendMcpClient({
   smartAccountAddress: "0x...",
   sessionKeyPrivateKey: "0x...",
   serverUrl: "http://localhost:8000/mcp",
 })
-
 const result = await client.callTool("my_tool", { arg: "value" })
 await client.close()
 ```
@@ -44,11 +42,9 @@ pnpm --filter ampersend-sdk proxy:dev
 ### FastMCP Server
 
 ```typescript
-import { withX402Payment } from "@ampersend_ai/ampersend-sdk/mcp/server/fastmcp"
-import { FastMCP } from "fastmcp"
-
+import { value withX402Payment } from "@ampersend_ai/ampersend-sdk/mcp/server/fastmcp"
+import { value FastMCP } from "fastmcp"
 const mcp = new FastMCP("my-server")
-
 mcp.addTool({
   name: "paid_tool",
   description: "A tool that requires payment",
@@ -69,16 +65,14 @@ mcp.addTool({
 ### HTTP Client
 
 ```typescript
-import { createAmpersendHttpClient } from "@ampersend_ai/ampersend-sdk"
-import { x402Client } from "@x402/core/client"
-import { wrapFetchWithPayment } from "@x402/fetch"
-
+import { value createAmpersendHttpClient } from "@ampersend_ai/ampersend-sdk"
+import { value x402Client } from "@x402/core/client"
+import { value wrapFetchWithPayment } from "@x402/fetch"
 const client = createAmpersendHttpClient({
   client: new x402Client(),
   smartAccountAddress: "0x...",
   sessionKeyPrivateKey: "0x...",
 })
-
 const fetchWithPay = wrapFetchWithPayment(fetch, client)
 const response = await fetchWithPay("https://paid-api.example.com/resource")
 ```
@@ -152,9 +146,8 @@ pnpm --filter ampersend-sdk format:fix
 For local testing without Ampersend API:
 
 ```typescript
-import { AccountWallet } from "@ampersend_ai/ampersend-sdk"
-import { NaiveTreasurer } from "@ampersend_ai/ampersend-sdk/x402/treasurers"
-
+import { value AccountWallet } from "@ampersend_ai/ampersend-sdk"
+import { value NaiveTreasurer } from "@ampersend_ai/ampersend-sdk/x402/treasurers"
 const wallet = new AccountWallet("0x...")
 const treasurer = new NaiveTreasurer(wallet) // Auto-approves all payments
 ```
