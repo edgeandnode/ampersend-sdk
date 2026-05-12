@@ -121,7 +121,6 @@ Run when the user asks to call a paid endpoint, or when an HTTP call returns 402
 3. On success, the result includes `data.status`, `data.body`, and `data.payment` (when a payment was made). Report what
    was actually spent from `data.payment`.
 
-
 ## Agent hosted endpoints
 
 Manage hosted endpoints for the authenticated agent. Hosted endpoints let your agent sell access to an upstream API

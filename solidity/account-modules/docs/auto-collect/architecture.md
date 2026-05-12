@@ -101,11 +101,13 @@ configId = keccak256(abi.encode("CollectConfig", serviceAccount, asset))
 ## Security Considerations
 
 1. **Access Control**
+
    - Only service account (msg.sender) can configure its own collections
    - Anyone can trigger collections (permissionless)
    - Module can only transfer FROM the account it's installed on
 
 2. **Reentrancy Protection**
+
    - CEI (Checks-Effects-Interactions) pattern
    - State updates before external calls
    - ReentrancyGuard on execution functions
@@ -150,6 +152,7 @@ event CollectionDisabled(address indexed account, address indexed asset);
 ## Edge Cases & Validation
 
 1. **Collection Validation**
+
    - If balance < threshold: Skip collection, emit CollectionSkipped event
    - If balance = 0: Skip collection, emit CollectionSkipped event
    - If balance < minimumRemaining: Skip collection, emit CollectionSkipped event
@@ -158,17 +161,20 @@ event CollectionDisabled(address indexed account, address indexed asset);
    - minimumRemaining = 0 means collect full balance (default behavior)
 
 2. **Valid Configurations**
+
    - minimumRemaining > threshold: Valid (effective threshold is minimumRemaining)
    - minimumRemaining = threshold: Valid (collect when balance exactly at or above threshold)
    - minimumRemaining = 0, threshold = 0: Valid (collect any non-zero balance)
    - minimumRemaining > 0, threshold = 0: Valid (collect when balance > minimumRemaining)
 
 3. **Invalid Configuration**
+
    - Target cannot be zero address
    - Asset must be valid ERC-20 contract
    - Threshold and minimumRemaining can both be 0
 
 4. **Date Boundaries**
+
    - Month transitions handled correctly
    - Year transitions handled correctly
    - Leap years considered
@@ -181,6 +187,7 @@ event CollectionDisabled(address indexed account, address indexed asset);
 ## Gas Optimization
 
 1. **Storage Patterns**
+
    - Separate config and state structs for efficient updates
    - Pack struct fields for optimal storage slots
    - Use mappings instead of arrays where possible
@@ -219,12 +226,14 @@ Safe Service Account
 ## Testing Strategy
 
 1. **Unit Tests**
+
    - All configuration functions
    - Collection execution logic
    - Calendar day calculations
    - Edge cases and error conditions
 
 2. **Integration Tests (ModuleKit)**
+
    - Module installation/uninstallation
    - Cross-account interactions
    - Real Safe account testing
