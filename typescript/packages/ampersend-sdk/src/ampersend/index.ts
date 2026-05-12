@@ -18,6 +18,7 @@ export {
   HostedEndpointInput,
   HostedEndpointList,
   HostedEndpointUpdate,
+  Instructions as HostedEndpointInstructions,
   Network as HostedEndpointNetwork,
   RotateSecretResponse,
   TestResponse as HostedEndpointTestResponse,
