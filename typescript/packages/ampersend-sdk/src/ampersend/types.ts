@@ -62,6 +62,15 @@ export const NonNegativeIntegerString = Schema.NonEmptyTrimmedString.pipe(
 )
 export type NonNegativeIntegerString = typeof NonNegativeIntegerString.Type
 
+export const ID = Schema.UUID.pipe(Schema.brand("ID"))
+export type ID = typeof ID.Type
+
+export const ConvertedTimestamp = Schema.Union(
+  Schema.NonNegativeInt,
+  Schema.NumberFromString.pipe(Schema.int(), Schema.nonNegative()),
+)
+export type ConvertedTimestamp = typeof ConvertedTimestamp.Type
+
 // ============ SIWE Authentication Schemas ============
 
 export class SIWENonceResponse extends Schema.Class<SIWENonceResponse>("SIWENonceResponse")({
