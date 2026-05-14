@@ -90,13 +90,13 @@ so the first two tiers stay free of them by default.
 
 ## Installation
 
-This skill targets `ampersend` v0.0.21 or newer. Check the installed version first:
+This skill targets `ampersend` v0.0.22 or newer. Check the installed version first:
 
 ```bash
 ampersend --version
 ```
 
-If the command is missing or the version is below 0.0.21, install or upgrade:
+If the command is missing or the version is below 0.0.22, install or upgrade:
 
 ```bash
 npm install -g @ampersend_ai/ampersend-sdk@latest --force
