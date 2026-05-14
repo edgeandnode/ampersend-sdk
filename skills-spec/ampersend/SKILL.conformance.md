@@ -26,7 +26,7 @@ Latest verdict for each rule in [`SKILL.spec.md`](SKILL.spec.md). Regenerate whe
 10. PASS — "co-sign" is hyphenated consistently in prose; `CoSignerValidator` is a code identifier and does not count.
     The new section uses "service", "capability", and "endpoint" consistently. Aggregator-routed services (Apollo,
     Hunter, RentCast) are consistently described as "via StableEnrich".
-11. PASS — Floor stated as prose ("v0.0.21 or newer"); install command uses `@latest`; no `@x.y.z` strings. Examples
+11. PASS — Floor stated as prose ("v0.0.22 or newer"); install command uses `@latest`; no `@x.y.z` strings. Examples
     file does not pin third-party versions.
 12. PASS — "ampersend service", "ampersend CLI", co-sign, smart account, x402, USDC, and Base are each glossed on first
     mention in `SKILL.md`. Capability categories are glossed inline in user-voice. In `references/example-services.md`,
