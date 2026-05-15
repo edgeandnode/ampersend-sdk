@@ -11,25 +11,30 @@ import { fromZod } from "./zod-bridge.js"
 
 // ============ Primitives ============
 
-export const Scheme = Schema.Literal("exact", "deferred")
+export const NonEmptyTrimmedString = Schema.NonEmptyString.check(Schema.isTrimmed())
+export type NonEmptyTrimmedString = typeof NonEmptyTrimmedString.Type
+
+export const NonNegativeInt = Schema.Int.check(Schema.isGreaterThanOrEqualTo(0))
+export type NonNegativeInt = typeof NonNegativeInt.Type
+
+export const Scheme = Schema.Literals(["exact", "deferred"])
 export type Scheme = typeof Scheme.Type
 
-export const Address = Schema.NonEmptyTrimmedString.pipe(
-  Schema.filter(
+export const Address = NonEmptyTrimmedString.check(
+  Schema.makeFilter(
     (val) => isAddress(val, { strict: false }) || "Must be a valid Ethereum address (0x followed by 40 hex characters)",
   ),
-  Schema.annotations({
-    jsonSchema: {
-      type: "string",
-      pattern: "^0x[a-fA-F0-9]{40}$",
-      description: "Ethereum address",
-    },
-  }),
-)
+).annotate({
+  jsonSchema: {
+    type: "string",
+    pattern: "^0x[a-fA-F0-9]{40}$",
+    description: "Ethereum address",
+  },
+})
 export type Address = typeof Address.Type
 
-export const TxHash = Schema.NonEmptyTrimmedString.pipe(
-  Schema.filter((val) => isHex(val) || "Must be a valid transaction hash (0x followed by hex characters)"),
+export const TxHash = NonEmptyTrimmedString.check(
+  Schema.makeFilter((val) => isHex(val) || "Must be a valid transaction hash (0x followed by hex characters)"),
 )
 export type TxHash = typeof TxHash.Type
 
@@ -38,73 +43,73 @@ function isCaip2ID(val: string): val is Caip2IDFormat {
   return /^eip155:[0-9]{1,32}$/.test(val)
 }
 
-export const Caip2ID = Schema.NonEmptyTrimmedString.pipe(
-  Schema.filter((val) => isCaip2ID(val) || "Must be a valid CAIP-2 chain ID (e.g., eip155:1)"),
+export const Caip2ID = NonEmptyTrimmedString.check(
+  Schema.makeFilter((val) => isCaip2ID(val) || "Must be a valid CAIP-2 chain ID (e.g., eip155:1)"),
 )
 export type Caip2ID = typeof Caip2ID.Type
 
-export const Hex32Bytes = Schema.NonEmptyTrimmedString.pipe(
-  Schema.filter(
+export const Hex32Bytes = NonEmptyTrimmedString.check(
+  Schema.makeFilter(
     (val) => /^0x[a-fA-F0-9]{64}$/.test(val) || "Must be a 32-byte hex string (0x followed by 64 hex characters)",
   ),
 )
 export type Hex32Bytes = typeof Hex32Bytes.Type
 
-export const Hex65Bytes = Schema.NonEmptyTrimmedString.pipe(
-  Schema.filter(
+export const Hex65Bytes = NonEmptyTrimmedString.check(
+  Schema.makeFilter(
     (val) => /^0x[a-fA-F0-9]{130}$/.test(val) || "Must be a 65-byte hex string (0x followed by 130 hex characters)",
   ),
 )
 export type Hex65Bytes = typeof Hex65Bytes.Type
 
-export const NonNegativeIntegerString = Schema.NonEmptyTrimmedString.pipe(
-  Schema.filter((val) => /^\d+$/.test(val) || "Must be a non-negative integer literal (stringified bigint)"),
+export const NonNegativeIntegerString = NonEmptyTrimmedString.check(
+  Schema.makeFilter((val) => /^\d+$/.test(val) || "Must be a non-negative integer literal (stringified bigint)"),
 )
 export type NonNegativeIntegerString = typeof NonNegativeIntegerString.Type
 
-export const ID = Schema.UUID.pipe(Schema.brand("ID"))
+export const ID = Schema.String.check(Schema.isUUID()).pipe(Schema.brand("ID"))
 export type ID = typeof ID.Type
 
-export const ConvertedTimestamp = Schema.Union(
-  Schema.NonNegativeInt,
-  Schema.NumberFromString.pipe(Schema.int(), Schema.nonNegative()),
-)
+export const ConvertedTimestamp = Schema.Union([
+  NonNegativeInt,
+  Schema.NumberFromString.pipe(Schema.decodeTo(NonNegativeInt)),
+])
 export type ConvertedTimestamp = typeof ConvertedTimestamp.Type
 
 // ============ SIWE Authentication Schemas ============
 
 export class SIWENonceResponse extends Schema.Class<SIWENonceResponse>("SIWENonceResponse")({
-  nonce: Schema.NonEmptyTrimmedString.annotations({
+  nonce: NonEmptyTrimmedString.annotate({
     description: "Random nonce for SIWE message",
   }),
-  sessionId: Schema.NonEmptyTrimmedString.annotations({
+  sessionId: NonEmptyTrimmedString.annotate({
     description: "Session identifier for nonce validation",
   }),
 }) {}
 
 export class SIWELoginRequest extends Schema.Class<SIWELoginRequest>("SIWELoginRequest")({
-  signature: Schema.NonEmptyTrimmedString.annotations({
+  signature: NonEmptyTrimmedString.annotate({
     description: "SIWE signature signed by session key",
   }),
-  message: Schema.NonEmptyTrimmedString.annotations({
+  message: NonEmptyTrimmedString.annotate({
     description: "SIWE message that was signed",
   }),
-  sessionId: Schema.NonEmptyTrimmedString.annotations({
+  sessionId: NonEmptyTrimmedString.annotate({
     description: "Session identifier from nonce response",
   }),
-  agentAddress: Address.annotations({
+  agentAddress: Address.annotate({
     description: "Agent smart account address",
   }),
 }) {}
 
 export class SIWELoginResponse extends Schema.Class<SIWELoginResponse>("SIWELoginResponse")({
-  token: Schema.NonEmptyTrimmedString.annotations({
+  token: NonEmptyTrimmedString.annotate({
     description: "Random session token for agent",
   }),
-  agentAddress: Address.annotations({
+  agentAddress: Address.annotate({
     description: "Agent smart account address (looked up from session key)",
   }),
-  expiresAt: Schema.DateTimeUtc.annotations({
+  expiresAt: Schema.DateTimeUtc.annotate({
     description: "Token expiration time",
     jsonSchema: {
       type: "string",
@@ -117,7 +122,7 @@ export class SIWELoginResponse extends Schema.Class<SIWELoginResponse>("SIWELogi
 // ============ Sign-In-With-X co-sign ============
 
 export class SignSiwxResponse extends Schema.Class<SignSiwxResponse>("SignSiwxResponse")({
-  serverSignature: Hex65Bytes.annotations({
+  serverSignature: Hex65Bytes.annotate({
     description: "Server-key ECDSA signature over hashMessage(message) — 65 bytes as 0x-prefixed hex",
   }),
 }) {}
@@ -125,31 +130,31 @@ export class SignSiwxResponse extends Schema.Class<SignSiwxResponse>("SignSiwxRe
 // ============ ERC-3009 Authorization (for co-signed payments) ============
 
 export class ERC3009AuthorizationData extends Schema.Class<ERC3009AuthorizationData>("ERC3009AuthorizationData")({
-  from: Address.annotations({
+  from: Address.annotate({
     description: "Sender address (agent smart account)",
   }),
-  to: Address.annotations({
+  to: Address.annotate({
     description: "Recipient address (seller)",
   }),
-  value: NonNegativeIntegerString.annotations({
+  value: NonNegativeIntegerString.annotate({
     description: "Transfer amount in wei (stringified bigint)",
   }),
-  validAfter: NonNegativeIntegerString.annotations({
+  validAfter: NonNegativeIntegerString.annotate({
     description: "Unix timestamp after which the authorization is valid (stringified bigint)",
   }),
-  validBefore: NonNegativeIntegerString.annotations({
+  validBefore: NonNegativeIntegerString.annotate({
     description: "Unix timestamp before which the authorization expires (stringified bigint)",
   }),
-  nonce: Hex32Bytes.annotations({
+  nonce: Hex32Bytes.annotate({
     description: "Random 32-byte nonce as hex string for replay protection",
   }),
 }) {}
 
 export class ServerAuthorizationData extends Schema.Class<ServerAuthorizationData>("ServerAuthorizationData")({
-  authorizationData: ERC3009AuthorizationData.annotations({
+  authorizationData: ERC3009AuthorizationData.annotate({
     description: "ERC-3009 TransferWithAuthorization data",
   }),
-  serverSignature: Hex65Bytes.annotations({
+  serverSignature: Hex65Bytes.annotate({
     description: "Server's ECDSA signature (65 bytes as hex string)",
   }),
 }) {}
@@ -157,11 +162,11 @@ export class ServerAuthorizationData extends Schema.Class<ServerAuthorizationDat
 // ============ Protocol envelopes (wire) ============
 
 /** Dispatch tag on wire envelopes. Distinct from any individual protocol's internal version. */
-export const Protocol = Schema.Literal("x402-v1", "x402-v2")
+export const Protocol = Schema.Literals(["x402-v1", "x402-v2"])
 export type Protocol = typeof Protocol.Type
 
 /** Wire envelope for a {@link PaymentRequest}; `data` validated via `@x402/core/schemas` on decode. */
-export const PaymentRequestEnvelope = Schema.Union(
+export const PaymentRequestEnvelope = Schema.Union([
   Schema.Struct({
     protocol: Schema.Literal("x402-v1"),
     data: fromZod(PaymentRequiredV1Schema, "PaymentRequiredV1"),
@@ -170,11 +175,11 @@ export const PaymentRequestEnvelope = Schema.Union(
     protocol: Schema.Literal("x402-v2"),
     data: fromZod(PaymentRequiredV2Schema, "PaymentRequiredV2"),
   }),
-)
+])
 export type PaymentRequestEnvelope = typeof PaymentRequestEnvelope.Type
 
 /** Wire envelope for a signed {@link PaymentAuthorization}. */
-export const PaymentAuthorizationEnvelope = Schema.Union(
+export const PaymentAuthorizationEnvelope = Schema.Union([
   Schema.Struct({
     protocol: Schema.Literal("x402-v1"),
     data: fromZod(PaymentPayloadV1Schema, "PaymentPayloadV1"),
@@ -183,33 +188,33 @@ export const PaymentAuthorizationEnvelope = Schema.Union(
     protocol: Schema.Literal("x402-v2"),
     data: fromZod(PaymentPayloadV2Schema, "PaymentPayloadV2"),
   }),
-)
+])
 export type PaymentAuthorizationEnvelope = typeof PaymentAuthorizationEnvelope.Type
 
 // ============ Agent Authorize ============
 
 const AuthorizeContext = Schema.Struct({
-  method: Schema.optional(Schema.NonEmptyTrimmedString),
-  serverUrl: Schema.optional(Schema.NonEmptyTrimmedString),
+  method: Schema.optional(NonEmptyTrimmedString),
+  serverUrl: Schema.optional(NonEmptyTrimmedString),
   params: Schema.optional(Schema.Unknown),
 })
 
 /** Request body for `POST /api/v1/agents/:agent/payment/authorize`. */
 export const AgentAuthorizeRequest = Schema.Struct({
-  paymentRequest: PaymentRequestEnvelope.annotations({
+  paymentRequest: PaymentRequestEnvelope.annotate({
     description: "The seller's 402 response, protocol-tagged",
   }),
-  context: Schema.optional(AuthorizeContext).annotations({
+  context: Schema.optional(AuthorizeContext).annotate({
     description: "Optional protocol call context for debugging (MCP method, A2A action, HTTP URL, etc)",
   }),
 })
 export type AgentAuthorizeRequest = typeof AgentAuthorizeRequest.Type
 
 const AuthorizedLimits = Schema.Struct({
-  dailyRemaining: Schema.NonEmptyTrimmedString.annotations({
+  dailyRemaining: NonEmptyTrimmedString.annotate({
     description: "Remaining daily budget after this instruction (in wei)",
   }),
-  monthlyRemaining: Schema.NonEmptyTrimmedString.annotations({
+  monthlyRemaining: NonEmptyTrimmedString.annotate({
     description: "Remaining monthly budget after this instruction (in wei)",
   }),
 })
@@ -219,19 +224,19 @@ const AuthorizedLimits = Schema.Struct({
  * the agent signs alongside. Scheme-specific today (exact EVM).
  */
 export class CoSignature extends Schema.Class<CoSignature>("CoSignature")({
-  authorizationData: ERC3009AuthorizationData.annotations({
+  authorizationData: ERC3009AuthorizationData.annotate({
     description: "Server-generated ERC-3009 authorization data",
   }),
-  serverSignature: Hex65Bytes.annotations({
+  serverSignature: Hex65Bytes.annotate({
     description: "Server's co-signature (65 bytes as hex string)",
   }),
 }) {}
 
 const SuggestedNonce = Schema.Struct({
-  nonce: Hex32Bytes.annotations({
+  nonce: Hex32Bytes.annotate({
     description: "Suggested EIP-3009 nonce (0x-prefixed, 32 bytes). Use for strong reconciliation matching.",
   }),
-  validBefore: NonNegativeIntegerString.annotations({
+  validBefore: NonNegativeIntegerString.annotate({
     description: "Suggested validBefore (Unix timestamp in seconds). Capped by ampersend TTL policy.",
   }),
 })
@@ -262,35 +267,35 @@ export const AgentAuthorizeResponse = Schema.Struct({
   authorized: Schema.Struct({
     selected: Schema.NullOr(
       Schema.Struct({
-        acceptsIndex: Schema.NonNegativeInt.annotations({
+        acceptsIndex: NonNegativeInt.annotate({
           description: "Index into the request's accepts[] that the server picked",
         }),
         limits: AuthorizedLimits,
         coSignature: Schema.optional(CoSignature),
       }),
-    ).annotations({
+    ).annotate({
       description: "The selected authorized option, or null if none could be authorized",
     }),
     alternatives: Schema.Array(
       Schema.Struct({
-        acceptsIndex: Schema.NonNegativeInt,
+        acceptsIndex: NonNegativeInt,
         limits: AuthorizedLimits,
       }),
-    ).annotations({
+    ).annotate({
       description: "Other authorized options the client can fall back to",
     }),
   }),
   rejected: Schema.Array(
     Schema.Struct({
-      acceptsIndex: Schema.NonNegativeInt,
-      reason: Schema.NonEmptyTrimmedString,
-      reasonCode: Schema.optional(Schema.NonEmptyTrimmedString).annotations({
+      acceptsIndex: NonNegativeInt,
+      reason: NonEmptyTrimmedString,
+      reasonCode: Schema.optional(NonEmptyTrimmedString).annotate({
         description:
           "Stable identifier for the rejection category (e.g., 'per_tx_limit_exceeded'). Optional for back-compat with older APIs.",
       }),
     }),
   ),
-  suggested: Schema.optional(SuggestedNonce).annotations({
+  suggested: Schema.optional(SuggestedNonce).annotate({
     description:
       "Suggested EIP-3009 nonce and validBefore for full-access keys to use when signing. Present only when authorization passes and a suggestion is available.",
   }),
@@ -299,22 +304,22 @@ export type AgentAuthorizeResponse = typeof AgentAuthorizeResponse.Type
 
 // ============ Payment Event Types ============
 
-export const PaymentEventType = Schema.Union(
+export const PaymentEventType = Schema.Union([
   Schema.Struct({
-    type: Schema.Literal("sending").annotations({ description: "Payment is being sent" }),
+    type: Schema.Literal("sending").annotate({ description: "Payment is being sent" }),
   }),
   Schema.Struct({
-    type: Schema.Literal("accepted").annotations({ description: "Payment was accepted" }),
+    type: Schema.Literal("accepted").annotate({ description: "Payment was accepted" }),
   }),
   Schema.Struct({
     type: Schema.Literal("rejected"),
-    reason: Schema.NonEmptyTrimmedString.annotations({ description: "Rejection reason" }),
+    reason: NonEmptyTrimmedString.annotate({ description: "Rejection reason" }),
   }),
   Schema.Struct({
     type: Schema.Literal("error"),
-    reason: Schema.NonEmptyTrimmedString.annotations({ description: "Error details" }),
+    reason: NonEmptyTrimmedString.annotate({ description: "Error details" }),
   }),
-).annotations({
+]).annotate({
   description: "Payment lifecycle event types",
 })
 export type PaymentEventType = typeof PaymentEventType.Type
@@ -325,23 +330,23 @@ export type PaymentEvent = PaymentEventType
 
 /** Request body for `POST /api/v1/agents/:agent/payment/events`. */
 export const AgentPaymentEventReport = Schema.Struct({
-  id: Schema.NonEmptyTrimmedString.annotations({
+  id: NonEmptyTrimmedString.annotate({
     description: "Unique event ID from client",
   }),
-  payment: PaymentAuthorizationEnvelope.annotations({
+  payment: PaymentAuthorizationEnvelope.annotate({
     description: "Signed payment authorization envelope",
   }),
-  event: PaymentEventType.annotations({
+  event: PaymentEventType.annotate({
     description: "Payment lifecycle event",
   }),
 })
 export type AgentPaymentEventReport = typeof AgentPaymentEventReport.Type
 
 export class AgentPaymentEventResponse extends Schema.Class<AgentPaymentEventResponse>("AgentPaymentEventResponse")({
-  received: Schema.Boolean.annotations({
+  received: Schema.Boolean.annotate({
     description: "Confirmation that event was received",
   }),
-  paymentId: Schema.optional(Schema.UUID).annotations({
+  paymentId: Schema.optional(Schema.String.check(Schema.isUUID())).annotate({
     description: "Internal payment record ID if created",
   }),
 }) {}
@@ -387,58 +392,58 @@ export class ApiError extends Error {
 // ============ Approve Action Types ============
 
 export const SpendConfigInput = Schema.Struct({
-  auto_topup_allowed: Schema.Boolean.annotations({
+  auto_topup_allowed: Schema.Boolean.annotate({
     description: "Whether automatic balance top-up is allowed",
   }),
   daily_limit: Schema.NullOr(Schema.String).pipe(
-    Schema.annotations({ description: "Daily spending limit in atomic units" }),
+    Schema.annotate({ description: "Daily spending limit in atomic units" }),
   ),
   monthly_limit: Schema.NullOr(Schema.String).pipe(
-    Schema.annotations({ description: "Monthly spending limit in atomic units" }),
+    Schema.annotate({ description: "Monthly spending limit in atomic units" }),
   ),
   per_transaction_limit: Schema.NullOr(Schema.String).pipe(
-    Schema.annotations({ description: "Per-transaction spending limit in atomic units" }),
+    Schema.annotate({ description: "Per-transaction spending limit in atomic units" }),
   ),
 })
 
 export class AgentApprovalRequest extends Schema.Class<AgentApprovalRequest>("AgentApprovalRequest")({
   name: Schema.NullOr(Schema.String).pipe(
-    Schema.annotations({
+    Schema.annotate({
       description: "Optional name for the agent",
     }),
   ),
   agent_key_address: Address.pipe(
-    Schema.annotations({
+    Schema.annotate({
       description: "The agent key address (session key) for the agent",
     }),
   ),
   key_name: Schema.optional(
-    Schema.String.annotations({
+    Schema.String.annotate({
       description: "Optional name for the key",
     }),
   ),
   spend_config: Schema.optional(Schema.NullOr(SpendConfigInput)),
   mode: Schema.optional(
-    Schema.Literal("create", "connect", "connect_choose").annotations({
+    Schema.Literals(["create", "connect", "connect_choose"]).annotate({
       description:
         "Setup mode: 'create' = new agent (default), 'connect' = connect key to agent_address, 'connect_choose' = user picks agent in dashboard",
     }),
   ),
   agent_address: Schema.optional(
-    Address.annotations({
+    Address.annotate({
       description: "Address of existing agent to connect to (required when mode is 'connect')",
     }),
   ),
 }) {}
 
 export class ApprovalResponse extends Schema.Class<ApprovalResponse>("ApprovalResponse")({
-  token: Schema.NonEmptyTrimmedString.annotations({
+  token: NonEmptyTrimmedString.annotate({
     description: "Unique token for this approval request",
   }),
-  status_url: Schema.NonEmptyTrimmedString.annotations({
+  status_url: NonEmptyTrimmedString.annotate({
     description: "URL to poll for approval status",
   }),
-  user_approve_url: Schema.NonEmptyTrimmedString.annotations({
+  user_approve_url: NonEmptyTrimmedString.annotate({
     description: "URL for user to open in browser to approve the action",
   }),
 }) {}
@@ -455,29 +460,29 @@ export const ApprovalStatusResolved = Schema.Struct({
       agent_key_address: Schema.optional(Address),
     }),
   ),
-  resolved_at: Schema.String.annotations({
+  resolved_at: Schema.String.annotate({
     description: "ISO timestamp of when the action was resolved",
   }),
 })
 
 export const ApprovalStatusRejected = Schema.Struct({
   status: Schema.Literal("rejected"),
-  resolved_at: Schema.String.annotations({
+  resolved_at: Schema.String.annotate({
     description: "ISO timestamp of when the action was rejected",
   }),
 })
 
 export const ApprovalStatusBlocked = Schema.Struct({
   status: Schema.Literal("blocked"),
-  resolved_at: Schema.String.annotations({
+  resolved_at: Schema.String.annotate({
     description: "ISO timestamp of when the action was blocked",
   }),
 })
 
-export const ApprovalStatus = Schema.Union(
+export const ApprovalStatus = Schema.Union([
   ApprovalStatusPending,
   ApprovalStatusResolved,
   ApprovalStatusRejected,
   ApprovalStatusBlocked,
-)
+])
 export type ApprovalStatus = typeof ApprovalStatus.Type

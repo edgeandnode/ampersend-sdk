@@ -1,4 +1,7 @@
-import { ParseResult, Schema } from "effect"
+import * as Effect from "effect/Effect"
+import * as Option from "effect/Option"
+import * as Schema from "effect/Schema"
+import * as SchemaIssue from "effect/SchemaIssue"
 import type { ZodType } from "zod"
 
 /**
@@ -17,21 +20,11 @@ export function fromZod<T>(
   identifier: string,
   jsonSchema: Record<string, unknown> = { type: "object" },
 ): Schema.Schema<T> {
-  return Schema.declare(
+  return Schema.declareConstructor<T>()(
     [] as const,
-    {
-      decode: () => (input, _opts, ast) => {
-        const r = zod.safeParse(input)
-        return r.success
-          ? ParseResult.succeed(r.data)
-          : ParseResult.fail(new ParseResult.Type(ast, input, r.error.message))
-      },
-      encode: () => (input, _opts, ast) => {
-        const r = zod.safeParse(input)
-        return r.success
-          ? ParseResult.succeed(r.data)
-          : ParseResult.fail(new ParseResult.Type(ast, input, r.error.message))
-      },
+    () => (input, ast) => {
+      const r = zod.safeParse(input)
+      return r.success ? Effect.succeed(r.data) : Effect.fail(new SchemaIssue.InvalidType(ast, Option.some(input)))
     },
     { identifier, jsonSchema },
   )
