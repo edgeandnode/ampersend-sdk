@@ -3,6 +3,7 @@ import type { Command } from "commander"
 
 import { parseEnvConfig } from "../../ampersend/env.ts"
 import { createAmpersendHttpClient } from "../../x402/http/factory.ts"
+import { wrapFetchWithAmpersendSiwx } from "../../x402/siwx.ts"
 import { getConfigStatus, getRuntimeConfig } from "../config.ts"
 import { err, ok, type JsonEnvelope } from "../envelope.ts"
 
@@ -13,6 +14,7 @@ interface FetchOptions {
   inspect: boolean
   raw: boolean
   headers: boolean
+  siwx: boolean
 }
 
 interface ResponseData {
@@ -266,16 +268,26 @@ async function runFetch(url: string, options: FetchOptions): Promise<void> {
   }
 
   const config = configResult.config
+  const apiUrl = config.apiUrl ?? "https://api.ampersend.ai"
 
   // Create Ampersend HTTP client
   const ampersendClient = createAmpersendHttpClient({
     smartAccountAddress: config.agentAccount,
     sessionKeyPrivateKey: config.agentKey,
-    apiUrl: config.apiUrl ?? "https://api.ampersend.ai",
+    apiUrl,
   })
 
-  // Wrap fetch with payment handling
-  const fetchWithPayment = wrapFetchWithPayment(fetch, ampersendClient)
+  // SIWX runs inside the payment wrapper: when the server already knows the
+  // wallet (e.g. paid previously), SIWX satisfies the 402 without spending; on
+  // failure the 402 falls through to the payment wrapper.
+  const innerFetch = options.siwx
+    ? wrapFetchWithAmpersendSiwx(fetch, {
+        smartAccountAddress: config.agentAccount,
+        sessionKeyPrivateKey: config.agentKey,
+        apiUrl,
+      })
+    : fetch
+  const fetchWithPayment = wrapFetchWithPayment(innerFetch, ampersendClient)
 
   // Build request
   const headers = parseHeaders(options.header)
@@ -320,6 +332,7 @@ export function registerFetchCommand(program: Command): void {
     .option("--inspect", "Show payment requirements without executing payment", false)
     .option("--raw", "Output raw response body instead of JSON", false)
     .option("--headers", "Include response headers in JSON output", false)
+    .option("--no-siwx", "Disable Sign-In-With-X — always pay rather than authenticate against prior payments")
     .addHelpText(
       "after",
       `

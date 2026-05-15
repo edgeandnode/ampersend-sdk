@@ -1,3 +1,4 @@
+import type { SiwxSignerConfig } from "../../x402/siwx.ts"
 import type { X402Treasurer } from "../../x402/treasurer.ts"
 
 // Re-export wallet config types from x402
@@ -21,6 +22,12 @@ export interface ProxyServerOptions {
   transport: TransportConfig
   /** X402Treasurer for handling payment decisions. Required. */
   treasurer: X402Treasurer
+  /**
+   * Sign-In-With-X signer config. When set, the proxy attaches a SIWX-aware
+   * fetch to the outbound MCP transport so 402 challenges from sellers who
+   * already know the wallet are satisfied without spending.
+   */
+  siwx?: SiwxSignerConfig
 }
 
 /**

@@ -6,7 +6,7 @@ export async function initializeProxyServer(options: ProxyServerOptions): Promis
     throw new Error("transport based proxy only supports HTTP transport")
   }
 
-  const server = new ProxyServer(options.treasurer)
+  const server = new ProxyServer(options.treasurer, options.siwx)
   await server.start(options.transport.port)
   return { server }
 }

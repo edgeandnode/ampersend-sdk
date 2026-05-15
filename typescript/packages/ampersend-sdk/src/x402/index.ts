@@ -27,3 +27,7 @@ export {
   createAmpersendHttpClient,
 } from "./http/index.ts"
 export type { AmpersendNetworks, SimpleHttpClientOptions } from "./http/index.ts"
+
+// Sign-In-With-X integration
+export { createSiwxSigner, wrapFetchWithAmpersendSiwx } from "./siwx.ts"
+export type { SiwxSignerConfig } from "./siwx.ts"

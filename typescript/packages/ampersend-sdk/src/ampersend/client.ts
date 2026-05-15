@@ -10,6 +10,7 @@ import {
   AgentPaymentEventReport,
   AgentPaymentEventResponse,
   ApiError,
+  SignSiwxResponse,
   SIWELoginResponse,
   SIWENonceResponse,
   type Address,
@@ -152,6 +153,31 @@ export class ApiClient {
     for (const rej of response.rejected) checkIndex(rej.acceptsIndex, "rejected")
 
     return response
+  }
+
+  /**
+   * Ask the Ampersend API to co-sign a Sign-In-With-X (CAIP-122 / EIP-4361)
+   * message. The service parses the message, verifies it claims this agent's
+   * smart account, and signs `hashMessage(message)` with the service key.
+   *
+   * The buyer concatenates this with its own session-key signature and wraps
+   * via CoSignerValidator for ERC-1271 verification.
+   */
+  async signSiwxChallenge(message: string): Promise<typeof SignSiwxResponse.Type> {
+    await this.ensureAuthenticated()
+
+    return this.fetch(
+      `/api/v1/agents/${this.agentAddress}/auth/sign-siwx`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${this.auth.token}`,
+        },
+        body: JSON.stringify({ message }),
+      },
+      SignSiwxResponse,
+    )
   }
 
   async reportPaymentEvent(

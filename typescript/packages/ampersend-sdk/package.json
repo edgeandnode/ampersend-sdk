@@ -66,6 +66,7 @@
     "@types/express": "^5.0.6",
     "@x402/core": "2.9.0",
     "@x402/evm": "2.9.0",
+    "@x402/extensions": "2.9.0",
     "@x402/fetch": "2.9.0",
     "async-mutex": "^0.5.0",
     "commander": "^12.1.0",

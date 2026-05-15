@@ -114,6 +114,14 @@ export class SIWELoginResponse extends Schema.Class<SIWELoginResponse>("SIWELogi
   }),
 }) {}
 
+// ============ Sign-In-With-X co-sign ============
+
+export class SignSiwxResponse extends Schema.Class<SignSiwxResponse>("SignSiwxResponse")({
+  serverSignature: Hex65Bytes.annotations({
+    description: "Server-key ECDSA signature over hashMessage(message) — 65 bytes as 0x-prefixed hex",
+  }),
+}) {}
+
 // ============ ERC-3009 Authorization (for co-signed payments) ============
 
 export class ERC3009AuthorizationData extends Schema.Class<ERC3009AuthorizationData>("ERC3009AuthorizationData")({

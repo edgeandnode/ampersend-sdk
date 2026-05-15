@@ -4,6 +4,7 @@ import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js"
 import express, { type Request, type Response } from "express"
 
+import { wrapFetchWithAmpersendSiwx, type SiwxSignerConfig } from "../../../x402/siwx.ts"
 import type { X402Treasurer } from "../../../x402/treasurer.ts"
 import { X402BridgeTransport } from "./bridge.ts"
 import { URLValidationError, validateTargetURL } from "./validation.ts"
@@ -12,8 +13,10 @@ export class ProxyServer {
   private _app = express()
   private _bridges = new Map<string, X402BridgeTransport>()
   private _httpServer: Server | null = null
+  private readonly _outboundFetch: typeof globalThis.fetch | undefined
 
-  constructor(treasurer: X402Treasurer) {
+  constructor(treasurer: X402Treasurer, siwx?: SiwxSignerConfig) {
+    this._outboundFetch = siwx ? wrapFetchWithAmpersendSiwx(fetch, siwx) : undefined
     this._app.use(express.json())
 
     this._app.post("/mcp", async (req: Request, res: Response) => {
@@ -55,7 +58,10 @@ export class ProxyServer {
 
         const bridge = new X402BridgeTransport({
           leftTransport,
-          rightTransport: new StreamableHTTPClientTransport(validatedUrl),
+          rightTransport: new StreamableHTTPClientTransport(
+            validatedUrl,
+            this._outboundFetch ? { fetch: this._outboundFetch } : undefined,
+          ),
           treasurer,
         })
 

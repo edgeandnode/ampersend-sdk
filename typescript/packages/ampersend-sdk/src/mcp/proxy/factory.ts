@@ -52,15 +52,21 @@ export interface SimpleProxyOptions {
  * @returns Promise resolving to the proxy server instance
  */
 export async function createAmpersendProxy(options: SimpleProxyOptions): Promise<{ server: ProxyServer }> {
+  const apiUrl = options.apiUrl ?? DEFAULT_API_URL
   const treasurer = createAmpersendTreasurer({
     smartAccountAddress: options.smartAccountAddress,
     sessionKeyPrivateKey: options.sessionKeyPrivateKey,
-    apiUrl: options.apiUrl ?? DEFAULT_API_URL,
+    apiUrl,
   })
 
   return initializeProxyServerInternal({
     transport: { type: "http", port: options.port },
     treasurer,
+    siwx: {
+      smartAccountAddress: options.smartAccountAddress,
+      sessionKeyPrivateKey: options.sessionKeyPrivateKey,
+      apiUrl,
+    },
   })
 }
 
