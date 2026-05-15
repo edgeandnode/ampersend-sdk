@@ -7,6 +7,24 @@ import { PaymentAuthorizationEnvelope, PaymentRequestEnvelope } from "@/ampersen
 import { JsonSchema, Schema } from "effect"
 import { describe, expect, it } from "vitest"
 
+const DEFINITION_REF_PREFIX = "#/definitions/"
+
+function toDraft07(schema: Schema.Top): JsonSchema.Document<"draft-07"> {
+  return JsonSchema.toDocumentDraft07(Schema.toJsonSchemaDocument(schema))
+}
+
+function resolveDefinition(document: JsonSchema.Document<"draft-07">, name: string): JsonSchema.JsonSchema | undefined {
+  const definition = document.definitions[name]
+  if (definition === undefined) return undefined
+
+  const ref = definition.$ref
+  if (typeof ref === "string" && ref.startsWith(DEFINITION_REF_PREFIX)) {
+    return document.definitions[ref.slice(DEFINITION_REF_PREFIX.length)]
+  }
+
+  return definition
+}
+
 const v1Request = {
   protocol: "x402-v1" as const,
   data: {
@@ -51,16 +69,19 @@ describe("zod-bridge canary", () => {
     expect(encoded).toEqual(v1Payment)
   })
 
-  // Guards against a regression where `fromZod` emits a `Declaration` AST node
-  // without a `jsonSchema` annotation that satisfies `isOverrideAnnotation` —
-  // which makes these envelopes unusable in `@effect/platform`'s
-  // `HttpApiEndpoint.setPayload`/`addSuccess` (OpenAPI walk throws at Layer
-  // build, HTTP server never binds).
+  // Guards against the v4 JSON Schema conversion path rejecting the custom
+  // `Declaration` nodes used by `fromZod`, or reducing them to `null` schemas.
   it("PaymentRequestEnvelope generates a JSON Schema", () => {
-    expect(() => JsonSchema.toDocumentDraft07(PaymentRequestEnvelope)).not.toThrow()
+    const document = toDraft07(PaymentRequestEnvelope)
+
+    expect(resolveDefinition(document, "PaymentRequiredV1")).toMatchObject({ type: "object" })
+    expect(resolveDefinition(document, "PaymentRequiredV2")).toMatchObject({ type: "object" })
   })
 
   it("PaymentAuthorizationEnvelope generates a JSON Schema", () => {
-    expect(() => JsonSchema.toDocumentDraft07(PaymentAuthorizationEnvelope)).not.toThrow()
+    const document = toDraft07(PaymentAuthorizationEnvelope)
+
+    expect(resolveDefinition(document, "PaymentPayloadV1")).toMatchObject({ type: "object" })
+    expect(resolveDefinition(document, "PaymentPayloadV2")).toMatchObject({ type: "object" })
   })
 })
