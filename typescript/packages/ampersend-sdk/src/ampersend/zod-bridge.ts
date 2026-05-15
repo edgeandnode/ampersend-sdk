@@ -1,7 +1,4 @@
-import * as Effect from "effect/Effect"
-import * as Option from "effect/Option"
-import * as Schema from "effect/Schema"
-import * as SchemaIssue from "effect/SchemaIssue"
+import { Effect, Option, Schema, SchemaIssue } from "effect"
 import type { ZodType } from "zod"
 
 /**
@@ -19,7 +16,7 @@ export function fromZod<T>(
   zod: ZodType<T>,
   identifier: string,
   jsonSchema: Record<string, unknown> = { type: "object" },
-): Schema.Schema<T> {
+): Schema.Codec<T> {
   return Schema.declareConstructor<T>()(
     [] as const,
     () => (input, ast) => {

@@ -247,7 +247,7 @@ export class ApiClient {
    * if needed, then decodes the response against `schema`. Use this from
    * read-only clients that share auth with the rest of the SDK.
    */
-  async getAuthorized<A, I>(path: string, schema: Schema.Schema<A, I>): Promise<A> {
+  async getAuthorized<A, I>(path: string, schema: Schema.Codec<A, I>): Promise<A> {
     await this.ensureAuthenticated()
     return this.fetch(
       path,
@@ -298,7 +298,7 @@ export class ApiClient {
   /**
    * Internal fetch wrapper with error handling and schema decoding
    */
-  async fetch<A, I>(path: string, init: RequestInit, schema: Schema.Schema<A, I>): Promise<A> {
+  private async fetch<A, I>(path: string, init: RequestInit, schema: Schema.Codec<A, I>): Promise<A> {
     const url = `${this.baseUrl}${path}`
 
     try {

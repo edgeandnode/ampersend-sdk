@@ -135,7 +135,7 @@ const PendingContextSchema = Schema.Struct({
   apiUrl: Schema.optional(Schema.String),
 })
 
-const ContextSchema = Schema.Union(ReadyContextSchema, PendingContextSchema)
+const ContextSchema = Schema.Union([ReadyContextSchema, PendingContextSchema])
 
 export type ReadyContext = typeof ReadyContextSchema.Type
 export type PendingContext = typeof PendingContextSchema.Type
@@ -154,7 +154,7 @@ export type StoredConfig = StoredConfigV2
 const StoredConfigV2Schema = Schema.Struct({
   version: Schema.Literal(2),
   activeContext: Schema.optional(Schema.String),
-  contexts: Schema.Record({ key: Schema.String, value: ContextSchema }),
+  contexts: Schema.Record(Schema.String, ContextSchema),
 })
 
 // ─── Legacy V1 (read-only, for migration) ─────────────────────────────────────
@@ -185,7 +185,7 @@ const StoredConfigV1Schema = Schema.Struct({
 })
 
 /** Decodes either version; V1 is normalized to V2 by `readConfig`. */
-const StoredConfigSchema = Schema.Union(StoredConfigV2Schema, StoredConfigV1Schema)
+const StoredConfigSchema = Schema.Union([StoredConfigV2Schema, StoredConfigV1Schema])
 
 /**
  * Migrate a legacy single-account V1 config to the V2 context model. There is
