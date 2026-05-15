@@ -4,7 +4,7 @@
  * which would make the bridge's encode path silently normalize outbound data.
  */
 import { PaymentAuthorizationEnvelope, PaymentRequestEnvelope } from "@/ampersend/types.ts"
-import { JSONSchema, Schema } from "effect"
+import { JsonSchema, Schema } from "effect"
 import { describe, expect, it } from "vitest"
 
 const v1Request = {
@@ -57,10 +57,10 @@ describe("zod-bridge canary", () => {
   // `HttpApiEndpoint.setPayload`/`addSuccess` (OpenAPI walk throws at Layer
   // build, HTTP server never binds).
   it("PaymentRequestEnvelope generates a JSON Schema", () => {
-    expect(() => JSONSchema.make(PaymentRequestEnvelope)).not.toThrow()
+    expect(() => JsonSchema.toDocumentDraft07(PaymentRequestEnvelope)).not.toThrow()
   })
 
   it("PaymentAuthorizationEnvelope generates a JSON Schema", () => {
-    expect(() => JSONSchema.make(PaymentAuthorizationEnvelope)).not.toThrow()
+    expect(() => JsonSchema.toDocumentDraft07(PaymentAuthorizationEnvelope)).not.toThrow()
   })
 })

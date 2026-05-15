@@ -12,12 +12,12 @@ export const x402ProtocolVersion = Schema.Literals([1, 2])
 export type x402ProtocolVersion = typeof x402ProtocolVersion.Type
 
 export const CuratedAgentEndpointX402PricingConfig = Schema.Struct({
-  amount: Schema.BigInt.annotate({
+  amount: Schema.BigIntFromString.annotate({
     jsonSchema: {},
     description: "The amount charged per request to the endpoint",
     examples: [1000n],
   }),
-  amountAtomicUnit: Schema.BigInt.annotate({
+  amountAtomicUnit: Schema.BigIntFromString.annotate({
     jsonSchema: {},
     description:
       "atomic unit of the accepted asset for the payment to the endpoint. USDC has 6 decimals → $0.001 = '1000'",
