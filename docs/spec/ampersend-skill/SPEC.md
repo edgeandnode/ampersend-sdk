@@ -1,7 +1,7 @@
 # SKILL.md spec
 
-Rules the [`skills/ampersend/SKILL.md`](../../skills/ampersend/SKILL.md) must follow. Latest verdict per rule lives in
-[`SKILL.conformance.md`](SKILL.conformance.md).
+Rules the [`skills/ampersend/SKILL.md`](../../../skills/ampersend/SKILL.md) must follow. Latest verdict per rule lives
+in [`CONFORMANCE.md`](CONFORMANCE.md).
 
 When writing the conformance file: one line per rule, formatted `N. PASS|FAIL — short evidence.` No headings, no extra
 prose.
@@ -42,3 +42,11 @@ prose.
     back to a named capability or sits in a separate "response patterns" section for services the agent doesn't suggest
     proactively but must know how to handle when the user provides a matching URL. A capability with no example is a
     dead end for the agent, so prune it from the body until an example lands.
+17. Ampersend is distinguished from (a) the third-party services that accept payment, and (b) the underlying agentic
+    payments protocols that carry the payments. The body frames ampersend as the agent-side payment layer enforcing the
+    user's policy; services as accepting payments from any compliant agent (not specifically ampersend); and specific
+    protocol names (x402, AP2, MPP, …) do not appear in the body of `SKILL.md` as a generic descriptor of what services
+    "accept." Protocol names may still appear in `references/` and in code blocks where the literal command or URL
+    contains them.
+18. Anywhere the sandbox API URL is mentioned, the document states explicitly that the sandbox carries a subset of
+    services and capabilities — feature absence in the sandbox does not imply feature absence in production.

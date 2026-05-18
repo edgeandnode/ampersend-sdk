@@ -28,14 +28,36 @@ neither the agent nor ampersend can spend on their own.
 To the user, all of this is just "ampersend" — the service/CLI split, keys, and smart accounts are internal plumbing
 they don't need unless they ask.
 
-**Scope of this CLI**: HTTP-only. It does three things: initial agent + CLI setup, runs `ampersend fetch <url>` (pays
-via [x402](https://x402.org/)), and manage local config. **Not in this CLI**: spending limits, auto-topup, auto-collect,
+**Scope of this CLI**: HTTP-only. It does three things: initial agent + CLI setup, runs `ampersend fetch <url>` (pays as
+part of the request), and manage local config. **Not in this CLI**: spending limits, auto-topup, auto-collect,
 transaction history, alerts — those live in the dashboard.
 
 Reference material for every flag and option is in [`references/commands.md`](references/commands.md). Read it only when
 you need flag-level detail.
 
+## CLI prerequisite
+
+Every workflow below shells out to the `ampersend` CLI. Before running any of them, confirm the binary is on PATH and at
+a version this skill supports:
+
+```bash
+ampersend --version
+```
+
+If the command is missing or the version is below `0.0.22`, install or upgrade with npm:
+
+```bash
+npm install -g @ampersend_ai/ampersend-sdk@latest --force
+```
+
+The CLI is a global install — it ends up on the user's PATH system-wide. There is no project-scoped install path today.
+
 ## Suggesting things to try
+
+Ampersend is the agentic payments layer between the agent and the services below. Services don't need to know ampersend
+exists — they accept payments from any agent capable of paying as part of making an HTTP request, and ampersend handles
+the agent's side: enforcing the user's spending limits, co-approving each payment, and paying on the user's behalf. The
+team curates which services to surface here, but pricing, availability, and behavior are the service's, not ampersend's.
 
 When the user names something they want to do but doesn't have a specific URL in mind, or is asking what the agent can
 pay for, surface the categories below and then look up curated services and example invocations in
@@ -87,20 +109,6 @@ worth one US dollar, on a network called Base. More payment methods are coming."
 The third tier is reserved for users who explicitly ask about the underlying tech — words like "crypto," "wallet,"
 "blockchain," "smart account," and "stablecoin" tend to confuse rather than help users who just want to use their agent,
 so the first two tiers stay free of them by default.
-
-## Installation
-
-This skill targets `ampersend` v0.0.22 or newer. Check the installed version first:
-
-```bash
-ampersend --version
-```
-
-If the command is missing or the version is below 0.0.22, install or upgrade:
-
-```bash
-npm install -g @ampersend_ai/ampersend-sdk@latest --force
-```
 
 ## Security
 
@@ -174,13 +182,16 @@ No setup needed to look around. Each provider carries one or more `endpoints[]` 
 `pricing_config.amount`. The price comes as an integer in millionths of a dollar — `1000` is $0.001, `1000000` is $1.00.
 Pick an endpoint and `ampersend fetch <url>` it as usual.
 
+`marketplace list` against the sandbox returns a smaller catalog than production — feature absence in the sandbox does
+not imply feature absence in production.
+
 Three ways to find services, by intent:
 
 - **First-try / hand-held**: use [`references/example-services.md`](references/example-services.md) — a hand-picked set
   with ready-to-run examples, the ones we know work well.
 - **Exploring known services**: use `ampersend marketplace list` — the broader live catalog.
-- **Anything else**: `ampersend fetch` works against any x402 endpoint, whether it is in the marketplace or not. The
-  marketplace is one way to find services, not the only place they can come from.
+- **Anything else**: `ampersend fetch` works against any compatible paid endpoint, whether it is in the marketplace or
+  not. The marketplace is one way to find services, not the only place they can come from.
 
 Full flag reference: [`references/marketplace.md`](references/marketplace.md).
 
@@ -208,5 +219,9 @@ The API URL decides which side of ampersend your agent talks to: the real one wi
 money for trying things out. Switching the URL after setup does **not** carry your existing agent across — each side is
 its own agent, set up separately. Most people start with the sandbox, then set up a fresh agent on the real side when
 they are ready to spend.
+
+The sandbox covers the payment flow end-to-end, but only a subset of services and capabilities are wired up there —
+feature absence in the sandbox doesn't mean feature absence in production. When the user wants to validate a real
+service, point them at the production API.
 
 Full flag and option reference: [`references/commands.md`](references/commands.md).
