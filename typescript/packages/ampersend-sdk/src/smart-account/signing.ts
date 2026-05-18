@@ -1,5 +1,5 @@
 import { encode1271Signature, getAccount, getOwnableValidatorSignature } from "@rhinestone/module-sdk"
-import type { Address, Hex, SignableMessage, TypedData, TypedDataDefinition } from "viem"
+import type { Address, Hex, TypedData, TypedDataDefinition } from "viem"
 import { privateKeyToAccount } from "viem/accounts"
 
 import { TRANSFER_WITH_AUTHORIZATION_TYPE } from "./eip712-types.ts"
@@ -35,41 +35,6 @@ export async function signSmartAccountTypedData<
   })
 
   // 3. Encode for ERC-1271 validation by smart account
-  return encode1271Signature({
-    account: getAccount({
-      address: smartAccountAddress,
-      type: "safe",
-    }),
-    validator: validatorAddress,
-    signature: validatorSignature,
-  })
-}
-
-/**
- * Sign an EIP-191 personal message on behalf of a smart account.
- *
- * The session key produces an EOA EIP-191 signature, which is wrapped by
- * OwnableValidator (single-sig, threshold = 1) and then ERC-1271-encoded so
- * verifiers calling the Safe's `isValidSignature` recover the smart account
- * address rather than the session key.
- *
- * Used by Sign-In-With-X: the SIWX payload sets `address` to the smart account
- * and `signatureScheme` to `eip1271`; servers MUST verify via ERC-1271
- * (e.g. viem `publicClient.verifyMessage`) to accept it.
- */
-export async function signSmartAccountPersonalMessage(
-  sessionKeyPrivateKey: Hex,
-  smartAccountAddress: Address,
-  message: SignableMessage,
-  validatorAddress: Address,
-): Promise<Hex> {
-  const sessionKeyAccount = privateKeyToAccount(sessionKeyPrivateKey)
-  const eoaSignature = await sessionKeyAccount.signMessage({ message })
-
-  const validatorSignature = getOwnableValidatorSignature({
-    signatures: [eoaSignature],
-  })
-
   return encode1271Signature({
     account: getAccount({
       address: smartAccountAddress,

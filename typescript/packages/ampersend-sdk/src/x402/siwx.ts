@@ -1,16 +1,12 @@
 /**
  * Sign-In-With-X (SIWX) integration for Ampersend smart accounts.
  *
- * Ampersend smart accounts cannot sign alone — every ERC-1271 signature must
- * pass `CoSignerValidator`, which requires the agent's session key AND the
- * ampersend service key to both sign the same hash. This module wires that
- * dual-sig requirement into the SIWX flow: the session key signs the SIWE
- * message hash locally, the API is asked to co-sign it, the two signatures
- * are packed into a `CoSignerValidator` envelope, and the result is sent as
- * the SIWX payload signature.
- *
- * Servers MUST verify with `eip1271` (e.g. viem `publicClient.verifyMessage`)
- * to accept the resulting signature.
+ * Every ERC-1271 signature out of an Ampersend Safe is gated by
+ * CoSignerValidator (session key + service key). This module wires that
+ * dual-sig requirement into the SIWX client flow: session key signs the SIWE
+ * message hash locally, the API co-signs the same hash, the pair is packed
+ * into a CoSignerValidator envelope, and the result becomes the SIWX
+ * signature. Servers MUST verify via ERC-1271 (e.g. `publicClient.verifyMessage`).
  */
 
 import { decodePaymentRequiredHeader } from "@x402/core/http"
@@ -99,14 +95,16 @@ export function createSiwxSigner(config: SiwxSignerConfig): EVMSigner {
  * automatically, signing as the configured smart account.
  *
  * Pair with `wrapFetchWithPayment` from `@x402/fetch`, putting SIWX **inside**
- * the payment wrapper. SIWX short-circuits when the server has prior payment
- * for the wallet; otherwise the 402 propagates to the payment wrapper.
+ * the payment wrapper. SIWX handles auth-only routes and re-entry to
+ * previously-paid resources; anything else (no SIWX extension, signature
+ * rejected) falls through unchanged to the payment wrapper.
  *
  * @example
  * ```ts
  * const fetchWithSiwx = wrapFetchWithAmpersendSiwx(fetch, {
  *   smartAccountAddress,
  *   sessionKeyPrivateKey,
+ *   apiUrl,
  * })
  * const fetchWithPayment = wrapFetchWithPayment(fetchWithSiwx, ampersendClient)
  * ```
