@@ -13,8 +13,19 @@ export interface CoSignedPaymentConfig {
 }
 
 /**
- * CoSignerValidator ERC-1271 signature: agent signs → `abi.encode(agentSig, serverSig)`
- * → `encodePacked(validator, combined)`.
+ * Pack a pair of ECDSA signatures into a CoSignerValidator ERC-1271 envelope:
+ * `abi.encode(agentSig, serverSig)` then `encodePacked(validator, combined)`
+ * (ERC-7579 nested-validator framing). Both signatures MUST be over the same
+ * digest that the validator will recover against.
+ */
+export function encodeCoSignerEnvelope(agentSignature: Hex, serverSignature: Hex, validator: Address): Hex {
+  const combined = encodeAbiParameters([{ type: "bytes" }, { type: "bytes" }], [agentSignature, serverSignature])
+  return encodePacked(["address", "bytes"], [validator, combined])
+}
+
+/**
+ * CoSignerValidator ERC-1271 signature for EIP-712 typed data: agent signs the
+ * typed data, then the pair is packed via {@link encodeCoSignerEnvelope}.
  */
 export async function encodeCoSignedERC1271Signature(
   agentPrivateKey: Hex,
@@ -24,13 +35,7 @@ export async function encodeCoSignedERC1271Signature(
 ): Promise<Hex> {
   const agentAccount = privateKeyToAccount(agentPrivateKey)
   const agentSignature = await agentAccount.signTypedData(typedDataParams)
-
-  const combinedSignature = encodeAbiParameters(
-    [{ type: "bytes" }, { type: "bytes" }],
-    [agentSignature, serverSignature],
-  )
-
-  return encodePacked(["address", "bytes"], [coSignerValidatorAddress, combinedSignature])
+  return encodeCoSignerEnvelope(agentSignature, serverSignature, coSignerValidatorAddress)
 }
 
 /**

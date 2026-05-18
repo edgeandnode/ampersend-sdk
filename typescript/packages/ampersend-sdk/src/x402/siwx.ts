@@ -17,11 +17,12 @@ import {
   type EVMSigner,
   type SIWxExtension,
 } from "@x402/extensions/sign-in-with-x"
-import { encodeAbiParameters, encodePacked, hashMessage, type Address, type Hex, type SignableMessage } from "viem"
+import { hashMessage, type Address, type Hex, type SignableMessage } from "viem"
 import { privateKeyToAccount } from "viem/accounts"
 
 import { ApiClient } from "../ampersend/client.ts"
 import { COSIGNER_VALIDATOR } from "../smart-account/constants.ts"
+import { encodeCoSignerEnvelope } from "./wallets/smart-account/cosigned.ts"
 
 export interface SiwxSignerConfig {
   /** Smart account address — the SIWX-claimed identity and the payment-history address. */
@@ -78,13 +79,7 @@ export function createSiwxSigner(config: SiwxSignerConfig): EVMSigner {
         apiClient.signSiwxChallenge(messageString),
       ])
 
-      const combinedSignature = encodeAbiParameters(
-        [{ type: "bytes" }, { type: "bytes" }],
-        [agentSignature, serverSignature as Hex],
-      )
-
-      // ERC-7579 nested-validator framing — see x402/wallets/smart-account/cosigned.ts.
-      return encodePacked(["address", "bytes"], [validatorAddress, combinedSignature])
+      return encodeCoSignerEnvelope(agentSignature, serverSignature as Hex, validatorAddress)
     },
   }
 }
