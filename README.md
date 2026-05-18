@@ -16,16 +16,21 @@ Supports both buyer (client) and seller (server) roles with flexible payment ver
 
 ## 🤖 Teach Your Agent To Use Ampersend
 
-If you just want your coding agent (Claude Code, Cursor, Codex, etc.) to be able to pay for things online, install the
-ampersend skill:
+To give a coding agent (Claude Code, Cursor, Codex, OpenClaw, etc.) the ability to pay for things online, paste this
+into the agent:
+
+> Read the ampersend getting-started guide at
+> <https://github.com/edgeandnode/ampersend-sdk/blob/main/docs/getting-started.md> and let's discuss next steps.
+
+If you'd rather skip the conversation, the skill alone installs with the
+[`skills` CLI](https://github.com/vercel-labs/skills):
 
 ```bash
 npx skills add edgeandnode/ampersend-sdk
 ```
 
-This uses the [`skills` CLI](https://github.com/vercel-labs/skills) to install the skill into your agent's skills
-directory. The skill handles setup, payment, and configuration — your agent will know what to do when it sees a 402
-response or you ask it to call a paid endpoint.
+That installs the multi-file skill into your agent's skills directory; the CLI install
+(`npm i -g @ampersend_ai/ampersend-sdk`) is still a separate step.
 
 ## 🚀 Quick Start
 

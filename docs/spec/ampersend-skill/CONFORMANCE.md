@@ -1,10 +1,10 @@
 # SKILL.md conformance
 
-Latest verdict for each rule in [`SKILL.spec.md`](SKILL.spec.md). Regenerate when
-[`skills/ampersend/SKILL.md`](../../skills/ampersend/SKILL.md) or `SKILL.spec.md` changes.
+Latest verdict for each rule in [`SPEC.md`](SPEC.md). Regenerate when
+[`skills/ampersend/SKILL.md`](../../../skills/ampersend/SKILL.md) or `SPEC.md` changes.
 
 - **Generated against:** `skills/ampersend/SKILL.md` at HEAD
-- **Date:** 2026-05-08
+- **Date:** 2026-05-15
 - **By:** Claude
 
 1. PASS — `name: ampersend` (9 chars, kebab-case); description ~430 chars (under 1024); no other frontmatter fields.
@@ -14,9 +14,10 @@ Latest verdict for each rule in [`SKILL.spec.md`](SKILL.spec.md). Regenerate whe
    concrete recognition cues ("names a capability they want without a specific URL in mind", "is asking what the agent
    can pay for") rather than passive dispositions.
 4. PASS — Frontmatter `name: ampersend` matches the parent directory `skills/ampersend/`.
-5. PASS — Body is 177 lines.
-6. PASS — Order is orientation → scope → suggesting things to try → user explainer → install → security → setup →
-   payment → output → config; setup and payment workflows are numbered steps.
+5. PASS — Body is 227 lines, under the 500-line ceiling.
+6. PASS — Order is orientation → scope → CLI prerequisite → suggesting things to try → user explainer → security → setup
+   → payment → discovery → output → config; setup, payment, and discovery workflows are numbered steps or command
+   blocks.
 7. PASS — `references/` contains two files (`commands.md`, `example-services.md`); no subdirectories.
 8. PASS — `references/commands.md` is 116 lines and starts with "Contents". `references/example-services.md` is 326
    lines and starts with a Contents section listing all 14 capability headings plus the Response patterns section.
@@ -48,3 +49,13 @@ Latest verdict for each rule in [`SKILL.spec.md`](SKILL.spec.md). Regenerate whe
     Gloria; Job search → StableJobs; Travel search → StableTravel; Real-world purchases → Laso. Pinata sits in the
     Response patterns section (it's a URL-shape the agent must handle, not a thing the agent suggests). No orphan
     capabilities, no orphan suggestable services.
+17. PASS — "Suggesting things to try" opens with: "Ampersend is the agentic payments layer between the agent and the
+    services below. Services don't need to know ampersend exists — they accept payments from any agent capable of paying
+    as part of making an HTTP request, and ampersend handles the agent's side: enforcing the user's spending limits,
+    co-approving each payment, and paying on the user's behalf." Framing precedes the categories list. Body contains
+    "x402" only in the tier-3 user explainer (line 106), which rule 13 explicitly carves out; the generic descriptors at
+    lines 32 and 193 now read "pays as part of the request" and "any compatible paid endpoint".
+18. PASS — Two sandbox mentions, both flagged: Discovery workflow says "`marketplace list` against the sandbox returns a
+    smaller catalog than production — feature absence in the sandbox does not imply feature absence in production."
+    Common config tweaks says "The sandbox covers the payment flow end-to-end, but only a subset of services and
+    capabilities are wired up there — feature absence in the sandbox doesn't mean feature absence in production."
