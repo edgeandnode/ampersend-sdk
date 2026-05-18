@@ -80,28 +80,52 @@ ampersend config set "0xagentKey:::0xagentAccount"
 
 ## fetch
 
-Make HTTP requests with automatic x402 payment handling.
+Make HTTP requests. By default `fetch` never pays — pass `--pay` to authorize spending when the server returns 402.
 
 ```bash
-ampersend fetch <url>
-ampersend fetch -X POST -H "Content-Type: application/json" -d '{"key":"value"}' <url>
+ampersend fetch <url>                                                                 # Probe only; 402 → error envelope
+ampersend fetch --pay <url>                                                           # Authorize payment if needed
+ampersend fetch --pay -X POST -H "Content-Type: application/json" -d '{"key":"value"}' <url>
 ```
 
-| Option        | Description                                  |
-| ------------- | -------------------------------------------- |
-| `-X <method>` | HTTP method (default: GET)                   |
-| `-H <header>` | Header as "Key: Value" (repeat for multiple) |
-| `-d <data>`   | Request body                                 |
-| `--inspect`   | Check payment requirements without paying    |
+| Option        | Description                                               |
+| ------------- | --------------------------------------------------------- |
+| `-X <method>` | HTTP method (default: GET)                                |
+| `-H <header>` | Header as "Key: Value" (repeat for multiple)              |
+| `-d <data>`   | Request body                                              |
+| `--pay`       | Authorize payment if the server returns 402               |
+| `--inspect`   | Report payment requirements without fetching the resource |
+| `--raw`       | Output the raw response body instead of the JSON envelope |
+| `--headers`   | Include response headers in the JSON envelope             |
 
-Use `--inspect` first whenever the cost is unknown:
+`--pay` and `--inspect` are mutually exclusive.
 
-```bash
-ampersend fetch --inspect https://api.example.com/paid-endpoint
-# Returns payment requirements including amount, without executing payment
-```
+### Three modes
 
-Successful results include `data.status`, `data.body`, and `data.payment` (when a payment was made).
+- **`fetch <url>`** — probe. On 200, returns `{ ok: true, data: { status, body } }`. On 402, returns
+  `{ ok: false, error: { code: "PAYMENT_REQUIRED", message, requirements } }` and does not spend.
+- **`fetch --pay <url>`** — fetch the resource, pay if the server returns 402. On success, returns
+  `{ ok: true, data: { status, body, payment } }` where `data.payment` is
+  `{ amount, asset, network, payTo, scheme, txHash, payer? }`. Use this when the agent has already decided it wants to
+  pay.
+- **`fetch --inspect <url>`** — report the price without fetching the resource. Returns
+  `{ ok: true, data: { url, paymentRequired, requirements } }`. Use this when the agent wants to know the price without
+  making a real request.
+
+### Reading the receipt
+
+When `--pay` succeeds and the server returned a payment receipt, `data.payment` is populated. `data.payment.amount` is
+the atomic-unit amount the client signed for and the server settled — these are necessarily equal, because the server
+can only settle the value that was signed. `data.payment.asset` is the token contract address; combine with `network` to
+identify the token. `data.payment.txHash` is the on-chain settlement transaction.
+
+### Exit codes
+
+In JSON mode (default), `fetch` exits 0 when the CLI itself ran successfully — read the envelope's `ok` field to see
+whether the operation succeeded. A 402 without `--pay`, an unparseable response, or a network failure are all
+`ok: false` envelopes with exit 0. Exit 1 is reserved for caller errors: bad arguments (e.g. `--pay` and `--inspect`
+together), invalid headers, or a missing config when `--pay` is set. In `--raw` mode, exit 1 is also used for runtime
+failures (parse errors, network errors) so shell pipelines can branch on `$?`.
 
 ## agent
 

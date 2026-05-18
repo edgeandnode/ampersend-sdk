@@ -50,7 +50,7 @@ feeding results into a downstream prompt.
 - Body: `query` (string, required), `limit` (integer, capped at 10), optional `scrapeOptions`.
 - Example:
   ```bash
-  ampersend fetch -X POST -H "Content-Type: application/json" \
+  ampersend fetch --pay -X POST -H "Content-Type: application/json" \
     -d '{"query":"premier league fixtures 2025/26","limit":3,"scrapeOptions":{"formats":["markdown"],"onlyMainContent":true}}' \
     https://api.firecrawl.dev/v1/x402/search
   ```
@@ -71,7 +71,7 @@ the agent to handle a back-and-forth conversation by email.
   `subject`, `text` (required) and optional `html`, `cc`, `bcc`, `reply_to`, `attachments`.
 - Example send:
   ```bash
-  ampersend fetch -X POST -H "Content-Type: application/json" \
+  ampersend fetch --pay -X POST -H "Content-Type: application/json" \
     -d '{"to":"jane@example.com","subject":"Hello","text":"Sent by my agent."}' \
     https://x402.api.agentmail.to/inboxes/<inbox_id>/messages/send
   ```
@@ -91,7 +91,7 @@ agent to find their email.
 - Body: `first_name`, `last_name`, `domain` (the company's web domain).
 - Example:
   ```bash
-  ampersend fetch -X POST -H "Content-Type: application/json" \
+  ampersend fetch --pay -X POST -H "Content-Type: application/json" \
     -d '{"first_name":"Jane","last_name":"Smith","domain":"acme.com"}' \
     https://stableenrich.dev/api/apollo/people-enrich
   ```
@@ -108,7 +108,7 @@ one from elsewhere) and wants to know it's real before sending.
   booleans, and a numeric score.
 - Example:
   ```bash
-  ampersend fetch -X POST -H "Content-Type: application/json" \
+  ampersend fetch --pay -X POST -H "Content-Type: application/json" \
     -d '{"email":"jane@acme.com"}' \
     https://stableenrich.dev/api/hunter/email-verifier
   ```
@@ -127,7 +127,7 @@ or quick info-gathering — but warn the user that the called party may detect t
 - Body: `phone_number` (E.164 string), `task` (string describing what to say).
 - Example:
   ```bash
-  ampersend fetch -X POST -H "Content-Type: application/json" \
+  ampersend fetch --pay -X POST -H "Content-Type: application/json" \
     -d '{"phone_number":"+14155551234","task":"Confirm our 2pm reservation tomorrow."}' \
     https://stablephone.dev/api/call
   ```
@@ -146,7 +146,7 @@ the user is considering renting or buying a place and wants a reality check on t
   `compCount`.
 - Example (URL-encode the address):
   ```bash
-  ampersend fetch \
+  ampersend fetch --pay \
     "https://stableenrich.dev/api/rentcast/avm/value?address=742%20Evergreen%20Terrace%2C%20Springfield%2C%20IL%2062701"
   ```
 - Use the response's `value`, `rangeLow`, `rangeHigh`, and the `comparables` array. Estimates are model output, not
@@ -164,7 +164,7 @@ domain end-to-end without setting up a registrar account.
 - Register: `POST https://api.bloomfilter.xyz/domains/register` with body `{"domain": "acme.io", "years": 1}`.
 - Example search:
   ```bash
-  ampersend fetch \
+  ampersend fetch --pay \
     "https://api.bloomfilter.xyz/domains/search?query=acme&tlds=com,io"
   ```
 - Inspect the register endpoint before calling — registration is a real, non-refundable purchase.
@@ -181,9 +181,9 @@ provisioning storage.
   curl example for the actual byte upload — the upload URL is per-session, not a fixed path.
 - Example (mint the session):
   ```bash
-  ampersend fetch -X POST https://stableupload.dev/api/upload
+  ampersend fetch --pay -X POST https://stableupload.dev/api/upload
   ```
-- Then `ampersend fetch` the URL returned in the response with the file body.
+- Then `ampersend fetch --pay` the URL returned in the response with the file body.
 - Docs: <https://stableupload.dev/>
 
 ## Image and video generation
@@ -197,7 +197,7 @@ without standing up a generation account.
   `gpt-image-2`. Body: `prompt` (required), optional `quality` (`low`/`medium`/`high`), `size`, `output_format`.
 - Example:
   ```bash
-  ampersend fetch -X POST -H "Content-Type: application/json" \
+  ampersend fetch --pay -X POST -H "Content-Type: application/json" \
     -d '{"prompt":"a watercolor of a fox in autumn leaves","size":"1024x1024","output_format":"png"}' \
     https://stablestudio.dev/api/generate/gpt-image-2/generate
   ```
@@ -217,7 +217,7 @@ access for a one-off task or comparison across models.
   `top_p`.
 - Example:
   ```bash
-  ampersend fetch -X POST -H "Content-Type: application/json" \
+  ampersend fetch --pay -X POST -H "Content-Type: application/json" \
     -d '{"model":"openai/gpt-5.5","messages":[{"role":"user","content":"Summarize x402 in one sentence."}]}' \
     https://blockrun.ai/api/v1/chat/completions
   ```
@@ -234,7 +234,7 @@ POST, flat per-request price.
 - Bodies typically take `keywords` or `handle` plus optional pagination (`max_page_size`, `cursor`).
 - Example:
   ```bash
-  ampersend fetch -X POST -H "Content-Type: application/json" \
+  ampersend fetch --pay -X POST -H "Content-Type: application/json" \
     -d '{"keywords":"ampersend","max_page_size":10}' \
     https://stablesocial.dev/api/facebook/search
   ```
@@ -253,7 +253,7 @@ news as input to a downstream task.
 - `GET /news-by-keyword?keyword=<term>` — keyword search.
 - Example:
   ```bash
-  ampersend fetch "https://api.itsgloria.ai/news?feed_categories=crypto,macro"
+  ampersend fetch --pay "https://api.itsgloria.ai/news?feed_categories=crypto,macro"
   ```
 - Docs: <https://gloriaai.gitbook.io/gloria/gloria-data-platform/x402-integration>
 
@@ -282,7 +282,7 @@ planning when the user wants live availability, not a booking.
 - Hotel search: `GET https://stabletravel.dev/api/hotels/list` with `cityCode` (e.g. `SFO`).
 - Example:
   ```bash
-  ampersend fetch \
+  ampersend fetch --pay \
     "https://stabletravel.dev/api/flights/search?originLocationCode=SFO&destinationLocationCode=JFK&departureDate=2026-08-15&adults=1"
   ```
 - StableTravel also exposes flight `price`, `book`, and `cancel` endpoints — those are real spend; `--inspect` and
@@ -320,7 +320,7 @@ IPFS. The agent fetches it like any other URL — the gateway returns 402, amper
 - `GET https://<gateway>.mypinata.cloud/x402/cid/<cid>`
 - Example (use the user's actual gateway and CID):
   ```bash
-  ampersend fetch https://your-gateway.mypinata.cloud/x402/cid/bafybei...
+  ampersend fetch --pay https://your-gateway.mypinata.cloud/x402/cid/bafybei...
   ```
 - Don't suggest this category unprompted — it only applies when the user already has a gateway URL.
 - Docs: <https://docs.pinata.cloud/files/x402/intro>

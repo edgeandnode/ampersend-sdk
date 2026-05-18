@@ -6,11 +6,20 @@ import { wrapFetchWithAmpersendSiwx } from "../../x402/siwx.ts"
 import { loadCredentials } from "../config.ts"
 import { err, ok } from "../envelope.ts"
 
+interface SelectedRequirements {
+  amount: string
+  asset: string
+  network: string
+  payTo: string
+  scheme: string
+}
+
 interface FetchOptions {
   method: string
   header?: Array<string>
   data?: string
   inspect: boolean
+  pay: boolean
   raw: boolean
   headers: boolean
   siwx: boolean
@@ -20,7 +29,7 @@ interface ResponseData {
   status: number
   headers?: Record<string, string>
   body: unknown
-  payment?: unknown
+  payment?: PaymentReceipt
 }
 
 interface InspectData {
@@ -28,6 +37,24 @@ interface InspectData {
   paymentRequired: boolean
   requirements?: unknown
   headers?: Record<string, string>
+}
+
+/**
+ * Payment receipt returned in the response envelope when --pay actually paid.
+ * Amount/asset/network/payTo come from the requirements the client signed
+ * against; txHash/payer come from the facilitator's settle response.
+ *
+ * `asset` is the token contract address. Symbol/decimals are intentionally
+ * not included — agents that need them can look up `(network, asset)`.
+ */
+interface PaymentReceipt {
+  amount: string
+  asset: string
+  network: string
+  payTo: string
+  scheme: string
+  txHash: string
+  payer?: string
 }
 
 /**
@@ -69,6 +96,43 @@ function decodeBase64Header(value: string): unknown {
 }
 
 /**
+ * Extract x402 payment requirements from a 402 response. Tries v2 header first
+ * (base64-encoded JSON in `payment-required`), then falls back to v1 body.
+ * Throws if neither produces parseable JSON.
+ */
+async function extractPaymentRequirements(response: Response): Promise<unknown> {
+  const v2Header = response.headers.get("payment-required")
+  if (v2Header) {
+    return decodeBase64Header(v2Header)
+  }
+  const body = await response.text()
+  if (body) {
+    return JSON.parse(body)
+  }
+  throw new Error("402 response had no payment-required header and no body")
+}
+
+/**
+ * Build a PaymentReceipt by combining the requirements the client signed
+ * against (truthful amount/asset) with the facilitator's settle response
+ * (truthful txHash/payer).
+ */
+function buildPaymentReceipt(
+  selected: SelectedRequirements,
+  settle: { transaction: string; payer?: string },
+): PaymentReceipt {
+  return {
+    amount: selected.amount,
+    asset: selected.asset,
+    network: selected.network,
+    payTo: selected.payTo,
+    scheme: selected.scheme,
+    txHash: settle.transaction,
+    ...(settle.payer ? { payer: settle.payer } : {}),
+  }
+}
+
+/**
  * Build RequestInit from options, handling undefined body correctly
  */
 function buildRequestInit(options: FetchOptions, headers: Headers): RequestInit {
@@ -100,32 +164,15 @@ async function runInspect(url: string, options: FetchOptions): Promise<void> {
   }
 
   if (response.status === 402) {
-    // Try to parse payment requirements
     try {
-      // Check for v2 header first (base64-encoded JSON)
-      const v2Header = response.headers.get("payment-required")
-      if (v2Header) {
-        data.requirements = decodeBase64Header(v2Header)
-      } else {
-        // Fall back to body (v1)
-        const body = await response.text()
-        if (body) {
-          data.requirements = JSON.parse(body)
-        }
-      }
+      data.requirements = await extractPaymentRequirements(response)
     } catch (e) {
-      // Return error envelope for parse failures
-      if (!options.raw) {
-        console.log(
-          JSON.stringify(
-            err("PARSE_ERROR", `Failed to parse payment requirements: ${e instanceof Error ? e.message : String(e)}`),
-            null,
-            2,
-          ),
-        )
-        return
+      const message = `Failed to parse payment requirements: ${e instanceof Error ? e.message : String(e)}`
+      if (options.raw) {
+        console.error(`Error: ${message}`)
+        process.exit(1)
       }
-      console.error(`Error: Failed to parse payment requirements: ${e instanceof Error ? e.message : String(e)}`)
+      console.log(JSON.stringify(err("PARSE_ERROR", message), null, 2))
       return
     }
   }
@@ -149,48 +196,118 @@ async function runInspect(url: string, options: FetchOptions): Promise<void> {
 }
 
 /**
- * Handle response output
+ * Emit a successful response envelope (status < 400, or paid 200 via --pay).
+ *
+ * `selected` carries the requirements the client signed against, captured via
+ * the x402Client's onAfterPaymentCreation hook. It's undefined when no payment
+ * happened (free endpoint), in which case no `data.payment` is emitted.
  */
-async function handleResponse(response: Response, options: FetchOptions): Promise<void> {
+async function emitSuccessResponse(
+  response: Response,
+  options: FetchOptions,
+  selected?: SelectedRequirements,
+): Promise<void> {
   if (options.raw) {
     const body = await response.text()
     console.log(body)
-  } else {
-    const body = await response.text()
-    const contentType = response.headers.get("content-type") ?? ""
-    let parsedBody: unknown = body
-    if (contentType.includes("application/json")) {
-      try {
-        parsedBody = JSON.parse(body)
-      } catch {
-        // Keep as string if parsing fails
-      }
-    }
-    const data: ResponseData = {
-      status: response.status,
-      body: parsedBody,
-    }
-
-    // Include headers only if requested
-    if (options.headers) {
-      data.headers = headersToObject(response.headers)
-    }
-
-    // Check if payment was made (look for payment response header, base64-encoded in x402 v2)
-    const paymentResponse = response.headers.get("payment-response")
-    if (paymentResponse) {
-      data.payment = decodeBase64Header(paymentResponse)
-    }
-
-    console.log(JSON.stringify(ok(data), null, 2))
+    return
   }
+
+  const body = await response.text()
+  const contentType = response.headers.get("content-type") ?? ""
+  let parsedBody: unknown = body
+  if (contentType.includes("application/json")) {
+    try {
+      parsedBody = JSON.parse(body)
+    } catch {
+      // Keep as string if parsing fails
+    }
+  }
+  const data: ResponseData = {
+    status: response.status,
+    body: parsedBody,
+  }
+
+  if (options.headers) {
+    data.headers = headersToObject(response.headers)
+  }
+
+  // Build receipt only when both halves are present: the signed requirements
+  // (what we authorized) and the settle response (proof it landed).
+  const paymentResponse = response.headers.get("payment-response")
+  if (paymentResponse && selected) {
+    const settle = decodeBase64Header(paymentResponse) as { transaction: string; payer?: string }
+    data.payment = buildPaymentReceipt(selected, settle)
+  }
+
+  console.log(JSON.stringify(ok(data), null, 2))
 }
 
 /**
- * Execute fetch with automatic x402 payment handling
+ * Emit a PAYMENT_REQUIRED error envelope for a 402 response when --pay was not set.
+ *
+ * Exit-code policy: in JSON mode we exit 0 even when the server's 402 is
+ * unparseable — the CLI ran fine, the remote misbehaved, and the agent reads
+ * the envelope. In --raw mode we exit 1 to play nice with shell pipelines.
+ */
+async function emitPaymentRequiredError(response: Response, options: FetchOptions): Promise<void> {
+  let requirements: unknown
+  try {
+    requirements = await extractPaymentRequirements(response)
+  } catch (e) {
+    const message = `Failed to parse payment requirements: ${e instanceof Error ? e.message : String(e)}`
+    if (options.raw) {
+      console.error(`Error: ${message}`)
+      process.exit(1)
+    }
+    console.log(JSON.stringify(err("PARSE_ERROR", message), null, 2))
+    return
+  }
+
+  if (options.raw) {
+    console.error("Error: Payment required (pass --pay to authorize)")
+    console.error(JSON.stringify(requirements, null, 2))
+    return
+  }
+
+  console.log(
+    JSON.stringify(
+      {
+        ok: false,
+        error: {
+          code: "PAYMENT_REQUIRED",
+          message: "Payment required (pass --pay to authorize)",
+          requirements,
+        },
+      },
+      null,
+      2,
+    ),
+  )
+}
+
+/**
+ * Execute fetch. Without --pay: behaves like a plain fetch, errors on 402.
+ * With --pay: wraps fetch with x402 payment handling and pays as authorized
+ * by the configured treasurer.
  */
 async function runFetch(url: string, options: FetchOptions): Promise<void> {
-  // Load configuration from file or env
+  const headers = parseHeaders(options.header)
+  const init = buildRequestInit(options, headers)
+
+  if (!options.pay) {
+    // Default: probe only. 402 is an error from the caller's perspective —
+    // they did not authorize a payment, so they did not get the resource.
+    const response = await fetch(url, init)
+    if (response.status === 402) {
+      await emitPaymentRequiredError(response, options)
+      return
+    }
+    await emitSuccessResponse(response, options)
+    return
+  }
+
+  // --pay: authorize payment if the server requires it.
   const configResult = loadCredentials()
   if (!configResult.ok) {
     console.log(JSON.stringify(configResult.error, null, 2))
@@ -200,11 +317,21 @@ async function runFetch(url: string, options: FetchOptions): Promise<void> {
   const config = configResult.credentials
   const apiUrl = config.apiUrl ?? "https://api.ampersend.ai"
 
-  // Create Ampersend HTTP client
   const ampersendClient = createAmpersendHttpClient({
     smartAccountAddress: config.agentAccount,
     sessionKeyPrivateKey: config.agentKey,
     apiUrl,
+  })
+
+  // Capture the requirements the client signed against. The hook fires right
+  // after createPaymentPayload and before the retry to the server, so by the
+  // time fetchWithPayment resolves this is populated iff a payment happened.
+  // The amount here is what we authorized — what the server actually settles
+  // can only equal this (it can't settle a different value than was signed).
+  let selected: SelectedRequirements | undefined
+  ampersendClient.onAfterPaymentCreation(async (ctx) => {
+    const r = ctx.selectedRequirements
+    selected = { amount: r.amount, asset: r.asset, network: r.network, payTo: r.payTo, scheme: r.scheme }
   })
 
   // SIWX runs inside the payment wrapper: it satisfies auth-only routes and
@@ -219,20 +346,24 @@ async function runFetch(url: string, options: FetchOptions): Promise<void> {
       })
     : fetch
   const fetchWithPayment = wrapFetchWithPayment(innerFetch, ampersendClient)
-
-  // Build request
-  const headers = parseHeaders(options.header)
-
-  // Execute request
-  const response = await fetchWithPayment(url, buildRequestInit(options, headers))
-
-  await handleResponse(response, options)
+  const response = await fetchWithPayment(url, init)
+  await emitSuccessResponse(response, options, selected)
 }
 
 /**
  * Execute the fetch command
  */
 async function executeFetch(url: string, options: FetchOptions): Promise<void> {
+  if (options.pay && options.inspect) {
+    const message = "--pay and --inspect are mutually exclusive"
+    if (options.raw) {
+      console.error(`Error: ${message}`)
+    } else {
+      console.log(JSON.stringify(err("INVALID_ARGS", message), null, 2))
+    }
+    process.exit(1)
+  }
+
   try {
     if (options.inspect) {
       await runInspect(url, options)
@@ -240,12 +371,16 @@ async function executeFetch(url: string, options: FetchOptions): Promise<void> {
       await runFetch(url, options)
     }
   } catch (error) {
+    // Camp-B exit policy: a thrown fetch (network error, DNS failure, bad URL)
+    // is a remote/runtime failure, not a CLI misuse. Emit the envelope and
+    // exit 0 in JSON mode so the agent reads the envelope, not $?. In --raw
+    // mode we exit 1 to stay shell-pipeline friendly.
+    const message = error instanceof Error ? error.message : String(error)
     if (options.raw) {
-      console.error(`Error: ${error instanceof Error ? error.message : String(error)}`)
-    } else {
-      console.log(JSON.stringify(err("REQUEST_ERROR", error instanceof Error ? error.message : String(error)), null, 2))
+      console.error(`Error: ${message}`)
+      process.exit(1)
     }
-    process.exit(1)
+    console.log(JSON.stringify(err("REQUEST_ERROR", message), null, 2))
   }
 }
 
@@ -255,11 +390,12 @@ async function executeFetch(url: string, options: FetchOptions): Promise<void> {
 export function registerFetchCommand(program: Command): void {
   program
     .command("fetch")
-    .description("Make HTTP requests with automatic x402 payment handling")
+    .description("Make HTTP requests. By default, errors on 402 unless --pay is passed.")
     .argument("<url>", "URL to request")
     .option("-X, --method <method>", "HTTP method", "GET")
     .option("-H, --header <header...>", "HTTP header (format: 'Key: Value')")
     .option("-d, --data <data>", "Request body data")
+    .option("--pay", "Authorize payment if the server returns 402", false)
     .option("--inspect", "Show payment requirements without executing payment", false)
     .option("--raw", "Output raw response body instead of JSON", false)
     .option("--headers", "Include response headers in JSON output", false)
@@ -267,14 +403,21 @@ export function registerFetchCommand(program: Command): void {
     .addHelpText(
       "after",
       `
-Configuration:
+Modes:
+  ampersend fetch <url>            Probe only. 402 → error envelope (PAYMENT_REQUIRED).
+  ampersend fetch --pay <url>      Authorize payment if the server returns 402.
+  ampersend fetch --inspect <url>  Report payment requirements without fetching the resource.
+
+Configuration (--pay only):
   Run 'ampersend config init' to set up, or use environment variables:
   AMPERSEND_AGENT_SECRET           Combined format: agent_key:::agent_account
   AMPERSEND_API_URL                Ampersend API URL (optional)
 
 Examples:
   ampersend fetch https://api.example.com/endpoint
-  ampersend fetch -X POST -H "Content-Type: application/json" -d '{"query":"test"}' https://api.example.com/
+  ampersend fetch --pay https://api.example.com/paid-endpoint
+  ampersend fetch --inspect https://api.example.com/paid-endpoint
+  ampersend fetch --pay -X POST -H "Content-Type: application/json" -d '{"q":"x"}' https://api.example.com/
 `,
     )
     .action(async (url: string, options: FetchOptions) => {
@@ -282,4 +425,13 @@ Examples:
     })
 }
 
-export { buildRequestInit, decodeBase64Header, executeFetch, headersToObject, parseHeaders, runFetch, runInspect }
+export {
+  buildPaymentReceipt,
+  buildRequestInit,
+  decodeBase64Header,
+  executeFetch,
+  headersToObject,
+  parseHeaders,
+  runFetch,
+  runInspect,
+}

@@ -77,8 +77,10 @@ Latest verdict for each rule in [`SPEC.md`](SPEC.md). Regenerate when
 22. PASS — No links to skills.sh, x.com / twitter, Coinbase blog posts, or other promotional surfaces. The only external
     links are the GitHub canonical URL and <https://github.com/vercel-labs/skills>.
 23. PASS — The only ampersend-specific commands in the body are install/verify (`npx skills add`, `npm install`,
-    `ampersend --version`, `ampersend fetch`) and the marketplace teaser (`ampersend marketplace list`). No setup,
-    payment workflow, or command-reference content reproduced from the skill.
+    `ampersend --version`, `ampersend fetch --pay`) and the marketplace teaser (`ampersend marketplace list`). The
+    `--pay` flag appears alongside `ampersend fetch` in the two places the command is shown as an actual paid
+    invocation, so the body matches real CLI behavior; the generic capability mention ("works with any compatible paid
+    endpoint") stays flag-free. No setup, payment workflow, or command-reference content reproduced from the skill.
 24. PASS — "What ampersend can do" opens with "Ampersend is the agentic payments layer — the services below accept
     payments from any agent capable of paying as part of making an HTTP request, and ampersend handles the agent's side
     (spending limits, co-approval, paying on the user's behalf)." No protocol name appears in the body (verified by grep

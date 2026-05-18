@@ -1,5 +1,14 @@
-import { buildRequestInit, decodeBase64Header, headersToObject, parseHeaders } from "@/cli/commands/fetch.ts"
-import { afterEach, describe, expect, it, vi } from "vitest"
+import {
+  buildPaymentReceipt,
+  buildRequestInit,
+  decodeBase64Header,
+  executeFetch,
+  headersToObject,
+  parseHeaders,
+  runFetch,
+  runInspect,
+} from "@/cli/commands/fetch.ts"
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 describe("CLI Fetch Helpers", () => {
   describe("parseHeaders", () => {
@@ -126,7 +135,7 @@ describe("CLI Fetch Helpers", () => {
       const headers = new Headers()
       headers.set("Accept", "application/json")
 
-      const init = buildRequestInit({ method: "GET", inspect: false, raw: false, headers: false }, headers)
+      const init = buildRequestInit({ method: "GET", inspect: false, pay: false, raw: false, headers: false }, headers)
 
       expect(init.method).toBe("GET")
       expect(init.headers).toBe(headers)
@@ -138,7 +147,7 @@ describe("CLI Fetch Helpers", () => {
       headers.set("Content-Type", "application/json")
 
       const init = buildRequestInit(
-        { method: "POST", data: '{"key":"value"}', inspect: false, raw: false, headers: false },
+        { method: "POST", data: '{"key":"value"}', inspect: false, pay: false, raw: false, headers: false },
         headers,
       )
 
@@ -149,7 +158,10 @@ describe("CLI Fetch Helpers", () => {
     it("should handle empty string data as body", () => {
       const headers = new Headers()
 
-      const init = buildRequestInit({ method: "POST", data: "", inspect: false, raw: false, headers: false }, headers)
+      const init = buildRequestInit(
+        { method: "POST", data: "", inspect: false, pay: false, raw: false, headers: false },
+        headers,
+      )
 
       expect(init.body).toBe("")
     })
@@ -158,11 +170,332 @@ describe("CLI Fetch Helpers", () => {
       const headers = new Headers()
 
       const init = buildRequestInit(
-        { method: "POST", data: undefined, inspect: false, raw: false, headers: false },
+        { method: "POST", data: undefined, inspect: false, pay: false, raw: false, headers: false },
         headers,
       )
 
       expect("body" in init).toBe(false)
+    })
+  })
+})
+
+class ExitError extends Error {
+  constructor(public code: number) {
+    super(`process.exit(${code})`)
+  }
+}
+
+/**
+ * Encode a JSON value as a base64 string suitable for the x402 `payment-required`
+ * (or `payment-response`) header.
+ */
+function encodeHeader(value: unknown): string {
+  return Buffer.from(JSON.stringify(value)).toString("base64")
+}
+
+const SAMPLE_V2_REQUIREMENTS = {
+  x402Version: 2,
+  resource: { url: "https://example.test/paid" },
+  accepts: [
+    {
+      scheme: "exact",
+      network: "eip155:8453",
+      asset: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+      amount: "1000",
+      payTo: "0x1234567890123456789012345678901234567890",
+      maxTimeoutSeconds: 300,
+      extra: {},
+    },
+  ],
+}
+
+describe("CLI Fetch Behavior", () => {
+  let consoleOutput: Array<string> = []
+  let fetchSpy: ReturnType<typeof vi.fn>
+  let mockConsoleLog: ReturnType<typeof vi.spyOn>
+  let mockConsoleError: ReturnType<typeof vi.spyOn>
+  let mockExit: ReturnType<typeof vi.spyOn>
+
+  beforeEach(() => {
+    consoleOutput = []
+    fetchSpy = vi.fn()
+    vi.stubGlobal("fetch", fetchSpy)
+    mockConsoleLog = vi.spyOn(console, "log").mockImplementation((...args: Array<unknown>) => {
+      consoleOutput.push(args.map(String).join(" "))
+    })
+    mockConsoleError = vi.spyOn(console, "error").mockImplementation(() => {})
+    mockExit = vi.spyOn(process, "exit").mockImplementation((code) => {
+      throw new ExitError(code as number)
+    })
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
+    mockConsoleLog.mockRestore()
+    mockConsoleError.mockRestore()
+    mockExit.mockRestore()
+  })
+
+  function lastJsonOutput(): Record<string, unknown> {
+    const last = consoleOutput[consoleOutput.length - 1]
+    if (last === undefined) throw new Error("no console.log output captured")
+    return JSON.parse(last) as Record<string, unknown>
+  }
+
+  describe("naked fetch (no --pay)", () => {
+    it("returns ok envelope on 200", async () => {
+      fetchSpy.mockResolvedValueOnce(
+        new Response(JSON.stringify({ greeting: "hi" }), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        }),
+      )
+
+      await runFetch("https://example.test/free", {
+        method: "GET",
+        inspect: false,
+        pay: false,
+        raw: false,
+        headers: false,
+      })
+
+      const envelope = lastJsonOutput()
+      expect(envelope.ok).toBe(true)
+      const data = envelope.data as { status: number; body: unknown }
+      expect(data.status).toBe(200)
+      expect(data.body).toEqual({ greeting: "hi" })
+    })
+
+    it("returns PAYMENT_REQUIRED on 402 without calling any payment machinery", async () => {
+      fetchSpy.mockResolvedValueOnce(
+        new Response("", {
+          status: 402,
+          headers: { "payment-required": encodeHeader(SAMPLE_V2_REQUIREMENTS) },
+        }),
+      )
+
+      await runFetch("https://example.test/paid", {
+        method: "GET",
+        inspect: false,
+        pay: false,
+        raw: false,
+        headers: false,
+      })
+
+      const envelope = lastJsonOutput()
+      expect(envelope.ok).toBe(false)
+      const error = envelope.error as { code: string; requirements: unknown }
+      expect(error.code).toBe("PAYMENT_REQUIRED")
+      expect(error.requirements).toEqual(SAMPLE_V2_REQUIREMENTS)
+      // Only one fetch was made — no retry via wrapFetchWithPayment.
+      expect(fetchSpy).toHaveBeenCalledTimes(1)
+    })
+
+    it("falls back to v1 body when payment-required header is absent", async () => {
+      const v1Body = {
+        x402Version: 1,
+        accepts: [
+          {
+            scheme: "exact",
+            network: "base",
+            maxAmountRequired: "1000",
+            resource: "https://example.test/paid",
+            description: "test",
+            mimeType: "application/json",
+            outputSchema: {},
+            payTo: "0x1234567890123456789012345678901234567890",
+            maxTimeoutSeconds: 300,
+            asset: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+            extra: {},
+          },
+        ],
+      }
+      fetchSpy.mockResolvedValueOnce(new Response(JSON.stringify(v1Body), { status: 402 }))
+
+      await runFetch("https://example.test/paid", {
+        method: "GET",
+        inspect: false,
+        pay: false,
+        raw: false,
+        headers: false,
+      })
+
+      const envelope = lastJsonOutput()
+      expect(envelope.ok).toBe(false)
+      const error = envelope.error as { code: string; requirements: unknown }
+      expect(error.code).toBe("PAYMENT_REQUIRED")
+      expect(error.requirements).toEqual(v1Body)
+    })
+
+    it("emits PARSE_ERROR (exit 0 in JSON mode) when 402 has neither header nor parseable body", async () => {
+      fetchSpy.mockResolvedValueOnce(new Response("not json at all {{{", { status: 402 }))
+
+      // JSON mode: remote misbehavior, not user error — caller reads the
+      // envelope, so we exit cleanly rather than throwing via process.exit.
+      await runFetch("https://example.test/paid", {
+        method: "GET",
+        inspect: false,
+        pay: false,
+        raw: false,
+        headers: false,
+      })
+
+      const envelope = lastJsonOutput()
+      expect(envelope.ok).toBe(false)
+      const error = envelope.error as { code: string; message: string }
+      expect(error.code).toBe("PARSE_ERROR")
+      expect(error.message).toMatch(/Failed to parse payment requirements/)
+      expect(mockExit).not.toHaveBeenCalled()
+    })
+
+    it("exits 1 in --raw mode when 402 is unparseable", async () => {
+      fetchSpy.mockResolvedValueOnce(new Response("not json at all {{{", { status: 402 }))
+
+      await expect(
+        runFetch("https://example.test/paid", {
+          method: "GET",
+          inspect: false,
+          pay: false,
+          raw: true,
+          headers: false,
+        }),
+      ).rejects.toThrow(ExitError)
+
+      expect(mockConsoleError).toHaveBeenCalledWith(expect.stringMatching(/Failed to parse payment requirements/))
+    })
+  })
+
+  describe("--inspect", () => {
+    it("returns ok envelope with paymentRequired:true on 402", async () => {
+      fetchSpy.mockResolvedValueOnce(
+        new Response("", {
+          status: 402,
+          headers: { "payment-required": encodeHeader(SAMPLE_V2_REQUIREMENTS) },
+        }),
+      )
+
+      await runInspect("https://example.test/paid", {
+        method: "GET",
+        inspect: true,
+        pay: false,
+        raw: false,
+        headers: false,
+      })
+
+      const envelope = lastJsonOutput()
+      expect(envelope.ok).toBe(true)
+      const data = envelope.data as { url: string; paymentRequired: boolean; requirements: unknown }
+      expect(data.url).toBe("https://example.test/paid")
+      expect(data.paymentRequired).toBe(true)
+      expect(data.requirements).toEqual(SAMPLE_V2_REQUIREMENTS)
+    })
+
+    it("returns paymentRequired:false on 200", async () => {
+      fetchSpy.mockResolvedValueOnce(new Response("ok", { status: 200 }))
+
+      await runInspect("https://example.test/free", {
+        method: "GET",
+        inspect: true,
+        pay: false,
+        raw: false,
+        headers: false,
+      })
+
+      const envelope = lastJsonOutput()
+      expect(envelope.ok).toBe(true)
+      const data = envelope.data as { paymentRequired: boolean }
+      expect(data.paymentRequired).toBe(false)
+    })
+  })
+
+  describe("buildPaymentReceipt", () => {
+    const selected = {
+      amount: "1000",
+      asset: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+      network: "eip155:8453",
+      payTo: "0x1234567890123456789012345678901234567890",
+      scheme: "exact",
+    }
+
+    it("combines signed requirements with settle response", () => {
+      const receipt = buildPaymentReceipt(selected, {
+        transaction: "0xabc123",
+        payer: "0xpayer0000000000000000000000000000000001",
+      })
+
+      expect(receipt).toEqual({
+        amount: "1000",
+        asset: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+        network: "eip155:8453",
+        payTo: "0x1234567890123456789012345678901234567890",
+        scheme: "exact",
+        txHash: "0xabc123",
+        payer: "0xpayer0000000000000000000000000000000001",
+      })
+    })
+
+    it("omits payer when settle response has none", () => {
+      const receipt = buildPaymentReceipt(selected, { transaction: "0xabc123" })
+
+      expect(receipt).not.toHaveProperty("payer")
+      expect(receipt.txHash).toBe("0xabc123")
+      expect(receipt.amount).toBe("1000")
+    })
+  })
+
+  describe("exit-code policy", () => {
+    it("emits REQUEST_ERROR (exit 0 in JSON mode) when fetch throws", async () => {
+      fetchSpy.mockRejectedValueOnce(new Error("getaddrinfo ENOTFOUND example.test"))
+
+      await executeFetch("https://example.test/paid", {
+        method: "GET",
+        inspect: false,
+        pay: false,
+        raw: false,
+        headers: false,
+      })
+
+      const envelope = lastJsonOutput()
+      expect(envelope.ok).toBe(false)
+      const error = envelope.error as { code: string; message: string }
+      expect(error.code).toBe("REQUEST_ERROR")
+      expect(error.message).toMatch(/ENOTFOUND/)
+      expect(mockExit).not.toHaveBeenCalled()
+    })
+
+    it("exits 1 in --raw mode when fetch throws", async () => {
+      fetchSpy.mockRejectedValueOnce(new Error("getaddrinfo ENOTFOUND example.test"))
+
+      await expect(
+        executeFetch("https://example.test/paid", {
+          method: "GET",
+          inspect: false,
+          pay: false,
+          raw: true,
+          headers: false,
+        }),
+      ).rejects.toThrow(ExitError)
+    })
+  })
+
+  describe("argument validation", () => {
+    it("rejects --pay together with --inspect", async () => {
+      await expect(
+        executeFetch("https://example.test/paid", {
+          method: "GET",
+          inspect: true,
+          pay: true,
+          raw: false,
+          headers: false,
+        }),
+      ).rejects.toThrow(ExitError)
+
+      const envelope = lastJsonOutput()
+      expect(envelope.ok).toBe(false)
+      const error = envelope.error as { code: string }
+      expect(error.code).toBe("INVALID_ARGS")
+      // No outbound fetch was issued.
+      expect(fetchSpy).not.toHaveBeenCalled()
     })
   })
 })

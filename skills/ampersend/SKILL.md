@@ -29,10 +29,10 @@ neither the agent nor ampersend can spend on their own.
 To the user, all of this is just "ampersend" — the service/CLI split, keys, and smart accounts are internal plumbing
 they don't need unless they ask.
 
-**Scope of this CLI**: HTTP-only. It does four things: initial agent + CLI setup, runs `ampersend fetch <url>` (pays as
-part of the request), reads the agent's own state via `ampersend agent` (balance, limits, history, owner), and manages
-local config. **Setting** spending limits, auto-topup, auto-collect, and alerts still lives in the dashboard — the CLI
-can read those values but not change them.
+**Scope of this CLI**: HTTP-only. It does four things: initial agent + CLI setup, runs `ampersend fetch [--pay] <url>`
+(pays only when `--pay` is passed, otherwise errors on 402 with the price), reads the agent's own state via
+`ampersend agent` (balance, limits, history, owner), and manages local config. **Setting** spending limits, auto-topup,
+auto-collect, and alerts still lives in the dashboard — the CLI can read those values but not change them.
 
 Reference material for every flag and option is in [`references/commands.md`](references/commands.md). Read it only when
 you need flag-level detail.
@@ -158,16 +158,21 @@ For other setup paths — connecting a key to an existing agent, or pasting a ke
 
 Run when the user asks to call a paid endpoint, or when an HTTP call returns 402.
 
+`ampersend fetch` never pays unless `--pay` is passed. A bare `fetch` against a paid endpoint returns
+`{ ok: false, error: { code: "PAYMENT_REQUIRED", requirements } }` so the agent can see the price before deciding to
+spend. Pass `--pay` to authorize spending for that request.
+
 1. Inspect the cost first when the price is unknown:
    ```bash
    ampersend fetch --inspect <url>
    ```
-   Returns the payment requirements without paying.
-2. Make the paid request:
+   Returns `{ ok: true, data: { paymentRequired, requirements } }` without fetching the resource. Use this when the
+   agent wants to know the price without making a real request (e.g. price-checking a marketplace entry).
+2. Make the paid request with `--pay`:
    ```bash
-   ampersend fetch <url>
+   ampersend fetch --pay <url>
    # POST with body and headers:
-   ampersend fetch -X POST -H "Content-Type: application/json" -d '{"key":"value"}' <url>
+   ampersend fetch --pay -X POST -H "Content-Type: application/json" -d '{"key":"value"}' <url>
    ```
    Spending limits set during setup or in the dashboard are enforced by the ampersend service when it co-signs the
    payment, and on-chain by the agent's `CoSignerValidator` module. A payment that would exceed a limit fails with a
@@ -214,7 +219,7 @@ ampersend marketplace show <id>                       # Inspect endpoints + pric
 
 No setup needed to look around. Each provider carries one or more `endpoints[]` with a `url`, `methods`, and a
 `pricing_config.amount`. The price comes as an integer in millionths of a dollar — `1000` is $0.001, `1000000` is $1.00.
-Pick an endpoint and `ampersend fetch <url>` it as usual.
+Pick an endpoint and `ampersend fetch --pay <url>` it (or omit `--pay` to see the price first).
 
 `marketplace list` against the sandbox returns a smaller catalog than production — feature absence in the sandbox does
 not imply feature absence in production.
@@ -224,8 +229,8 @@ Three ways to find services, by intent:
 - **First-try / hand-held**: use [`references/example-services.md`](references/example-services.md) — a hand-picked set
   with ready-to-run examples, the ones we know work well.
 - **Exploring known services**: use `ampersend marketplace list` — the broader live catalog.
-- **Anything else**: `ampersend fetch` works against any compatible paid endpoint, whether it is in the marketplace or
-  not. The marketplace is one way to find services, not the only place they can come from.
+- **Anything else**: `ampersend fetch --pay <url>` works against any compatible paid endpoint, whether it is in the
+  marketplace or not. The marketplace is one way to find services, not the only place they can come from.
 
 Full flag reference: [`references/marketplace.md`](references/marketplace.md).
 

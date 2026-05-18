@@ -15,12 +15,12 @@ Latest verdict for each rule in [`SPEC.md`](SPEC.md). Regenerate when
    concrete recognition cues ("names a capability they want without a specific URL in mind", "is asking what the agent
    can pay for") rather than passive dispositions.
 4. PASS — Frontmatter `name: ampersend` matches the parent directory `skills/ampersend/`.
-5. PASS — Body is 261 lines, under the 500-line ceiling.
+5. PASS — Body is 257 lines, under the 500-line ceiling.
 6. PASS — Order is orientation → scope → CLI prerequisite → suggesting things to try → user explainer → security → setup
    → payment → reading agent state → discovery → output → config; setup, payment, reading-state, and discovery workflows
    are numbered steps or command blocks.
 7. PASS — `references/` contains two files (`commands.md`, `example-services.md`); no subdirectories.
-8. PASS — `references/commands.md` is 141 lines and starts with "Contents" (now lists `agent` between `fetch` and
+8. PASS — `references/commands.md` is 165 lines and starts with "Contents" (now lists `agent` between `fetch` and
    `config`). `references/example-services.md` is 326 lines and starts with a Contents section listing all 14 capability
    headings plus the Response patterns section.
 9. PASS — Body content is system-specific. The body's capability list names categories in user-voice (no "pay-per-...",
@@ -59,7 +59,7 @@ Latest verdict for each rule in [`SPEC.md`](SPEC.md). Regenerate when
     as part of making an HTTP request, and ampersend handles the agent's side: enforcing the user's spending limits,
     co-approving each payment, and paying on the user's behalf." Framing precedes the categories list. Body contains
     "x402" only in the tier-3 user explainer (line 106), which rule 13 explicitly carves out; the generic descriptors at
-    lines 32 and 193 now read "pays as part of the request" and "any compatible paid endpoint".
+    lines 32 ("pays only when `--pay` is passed") and 198 ("any compatible paid endpoint") stay protocol-neutral.
 18. PASS — Two sandbox mentions, both flagged: Discovery workflow says "`marketplace list` against the sandbox returns a
     smaller catalog than production — feature absence in the sandbox does not imply feature absence in production."
     Common config tweaks says "The sandbox covers the payment flow end-to-end, but only a subset of services and

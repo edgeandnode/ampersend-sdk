@@ -12,7 +12,7 @@ those limits) and the agent. Two approvals on every payment, so neither side can
 In practice, ampersend is two pieces that work together:
 
 1. **An `ampersend` CLI binary.** Installed via `npm`. The agent uses it to make paid HTTP requests —
-   `ampersend fetch <url>` — and to handle setup and config.
+   `ampersend fetch --pay <url>` — and to handle setup and config.
 2. **An `ampersend` agent skill.** A manual for the CLI covering setup, payment, discovery, security, and the full
    command reference.
 
@@ -82,7 +82,7 @@ The skill covers:
 - **Setup** — creating an ampersend agent account, naming it, and approving it in the ampersend app.
 - **Funding** — the user adds money to their ampersend account in the app. The agent can't fund the account on the
   user's behalf.
-- **First paid request** — `ampersend fetch <url>` once setup is done.
+- **First paid request** — `ampersend fetch --pay <url>` once setup is done.
 - **Discovery** — exploring what's available via `ampersend marketplace list` and the curated capability categories,
   beyond the teaser below.
 
