@@ -139,7 +139,6 @@ export function createAmpersendTreasurer(config: AmpersendTreasurerConfig): X402
       baseUrl: config.apiUrl ?? DEFAULT_API_URL,
       sessionKeyPrivateKey: config.sessionKeyPrivateKey,
       agentAddress: config.smartAccountAddress,
-      timeout: 30000,
     })
 
     const wallet = createWalletFromConfig(walletConfig)
@@ -159,7 +158,6 @@ export function createAmpersendTreasurer(config: AmpersendTreasurerConfig): X402
     baseUrl: apiUrl,
     sessionKeyPrivateKey: authPrivateKey,
     agentAddress,
-    timeout: 30000,
     ...authConfig,
   })
 

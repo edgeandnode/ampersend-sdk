@@ -60,7 +60,6 @@ export function createSiwxSigner(config: SiwxSignerConfig): EVMSigner {
     baseUrl: config.apiUrl,
     sessionKeyPrivateKey: config.sessionKeyPrivateKey,
     agentAddress: config.smartAccountAddress,
-    timeout: 30000,
   })
 
   return {
