@@ -8,7 +8,7 @@ on:
       - "ts-v*.*.*-beta.*"
 
 permissions:
-  contents: write # Required to force-push the moving `latest` git tag on stable releases
+  contents: read
   id-token: write # Required for npm provenance
 
 env:
@@ -52,6 +52,9 @@ jobs:
     environment:
       name: npm
       url: https://www.npmjs.com/package/@ampersend_ai/ampersend-sdk
+    permissions:
+      contents: write # Required to move the `skills/latest` branch on stable releases
+      id-token: write # Required for npm provenance
 
     steps:
       - name: Checkout
@@ -98,11 +101,10 @@ jobs:
         run: npm publish --access public --provenance --tag ${{ steps.publish-tag.outputs.tag }}
         working-directory: typescript/packages/ampersend-sdk
 
-      # Skill installs use `npx skills add edgeandnode/ampersend-sdk#latest`. Moving this tag on every stable release
-      # is what makes `#latest` step-function forward instead of tracking `main`. Force-push is intentional — this is
-      # a release pointer, not history. Alpha/beta releases skip this so `#latest` only ever points at a stable build.
-      - name: Move `latest` git tag to release commit
+      # Skill installs use `npx skills add edgeandnode/ampersend-sdk#skills/latest`. Moving this branch on every stable
+      # release is what makes `#skills/latest` step-function forward instead of tracking `main`. Alpha/beta releases
+      # skip this so `#skills/latest` only ever points at a stable build.
+      - name: Move `skills/latest` branch to release commit
         if: steps.publish-tag.outputs.tag == 'latest'
         run: |
-          git tag -f latest "$GITHUB_SHA"
-          git push origin latest --force
+          git push origin "$GITHUB_SHA:refs/heads/skills/latest"

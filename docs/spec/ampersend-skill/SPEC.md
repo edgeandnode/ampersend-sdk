@@ -29,8 +29,8 @@ prose.
    The body of `SKILL.md` itself stays system-specific and may name capability categories but not specific services.
 10. Terminology is consistent throughout — the same concept uses the same word every time.
 11. There are no hard version pins; install commands use `@latest` and version floors are prose, not `@x.y.z`.
-    Skill-installer commands (`npx skills add …`) use the moving `#latest` git-ref fragment to track the most recent
-    released skill, not `main` or an immutable `#v0.0.x` tag.
+    Skill-installer commands (`npx skills add …`) use the moving `#skills/latest` git-ref fragment to track the most
+    recent released skill, not `main` or an immutable `#v0.0.x` tag.
 12. Every product-specific term is glossed in one line the first time it appears.
 13. Tier-1 and tier-2 user-facing explainers do not use the words "crypto", "wallet", "blockchain", "smart account", or
     "stablecoin"; tier-3 may, only when the user asks about underlying tech.

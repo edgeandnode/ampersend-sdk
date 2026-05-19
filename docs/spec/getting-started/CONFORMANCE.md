@@ -31,9 +31,9 @@ Latest verdict for each rule in [`SPEC.md`](SPEC.md). Regenerate when
    or "dashboard" in the body. "Co-approved", "approve", "spending limits", "account", "money", and "the ampersend app"
    are used instead.
 10. PASS — Steps 1 (skill), 2 (CLI binary), 3 (hand off to skill).
-11. PASS — Skill install command: `npx skills add edgeandnode/ampersend-sdk#latest` in a fenced bash block. No
-    `--skill`, no immutable version pin, no required `-a`. The `#latest` fragment is the moving release tag (not
-    `main`). `-a <agent>` documented as fallback ("Pass `-a <agent>` to override").
+11. PASS — Skill install command: `npx skills add edgeandnode/ampersend-sdk#skills/latest` in a fenced bash block. No
+    `--skill`, no immutable version pin, no required `-a`. The `#skills/latest` fragment is the moving release branch
+    (not `main`). `-a <agent>` documented as fallback ("Pass `-a <agent>` to override").
 12. PASS — Scope bullet describes project default and `-g`/`--global` with directory examples for each. No
     recommendation either way.
 13. PASS — CLI install command: `npm install -g @ampersend_ai/ampersend-sdk@latest --force` in a fenced bash block.

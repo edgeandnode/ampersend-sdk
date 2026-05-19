@@ -26,7 +26,7 @@ If you'd rather skip the conversation, the skill alone installs with the
 [`skills` CLI](https://github.com/vercel-labs/skills):
 
 ```bash
-npx skills add edgeandnode/ampersend-sdk
+npx skills add edgeandnode/ampersend-sdk#skills/latest
 ```
 
 That installs the multi-file skill into your agent's skills directory; the CLI install

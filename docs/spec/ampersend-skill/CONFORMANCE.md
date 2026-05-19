@@ -29,8 +29,8 @@ Latest verdict for each rule in [`SPEC.md`](SPEC.md). Regenerate when
     The new section uses "service", "capability", and "endpoint" consistently. Aggregator-routed services (Apollo,
     Hunter, RentCast) are consistently described as "via StableEnrich".
 11. PASS — Floor stated as prose ("below `0.0.22`"); `npm install` uses `@latest`; skill upgrade uses
-    `npx skills update ampersend`, which respects the moving `#latest` ref the install command pinned. No `@x.y.z` or
-    `#v0.0.x` strings in `SKILL.md`. Examples file does not pin third-party versions.
+    `npx skills update ampersend`, which respects the moving `#skills/latest` ref the install command pinned. No
+    `@x.y.z` or `#v0.0.x` strings in `SKILL.md`. Examples file does not pin third-party versions.
 12. PASS — "ampersend service", "ampersend CLI", co-sign, smart account, x402, USDC, and Base are each glossed on first
     mention in `SKILL.md`. Capability categories are glossed inline in user-voice. In `references/example-services.md`,
     StableEnrich is glossed ("aggregator gateway that fronts several upstream APIs behind one paid surface") on first
