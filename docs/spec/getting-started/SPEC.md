@@ -35,8 +35,9 @@ suggests installing it. It is not the skill, and it does not duplicate the skill
    "key," "USDC," and "dashboard" do not appear in the body. Use "approve," "spending limits," "account," "money," and
    "the ampersend app" instead. Command-line flags like `--force` are exempt.
 10. **Install order is skill, then CLI.** Two ordered steps, in that order, followed by a hand-off to the skill.
-11. **Skill install command.** Exactly `npx skills add edgeandnode/ampersend-sdk` — no `--skill` flag, no version pin,
-    no required `-a <agent>`. `-a` is documented as the fallback when auto-detection fails.
+11. **Skill install command.** Exactly `npx skills add edgeandnode/ampersend-sdk#latest` — no `--skill` flag, no
+    immutable version pin, no required `-a <agent>`. The `#latest` fragment tracks the moving release tag, not `main`.
+    `-a` is documented as the fallback when auto-detection fails.
 12. **Scope description, no preference.** Project default and `-g`/`--global` are both described in terms of what each
     suits. The document does not recommend one over the other — the user's situation decides.
 13. **CLI install command.** Exactly `npm install -g @ampersend_ai/ampersend-sdk@latest --force`. Version floors are

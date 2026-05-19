@@ -4,17 +4,18 @@ Latest verdict for each rule in [`SPEC.md`](SPEC.md). Regenerate when
 [`skills/ampersend/SKILL.md`](../../../skills/ampersend/SKILL.md) or `SPEC.md` changes.
 
 - **Generated against:** `skills/ampersend/SKILL.md` at HEAD
-- **Date:** 2026-05-15
+- **Date:** 2026-05-19
 - **By:** Claude
 
-1. PASS — `name: ampersend` (9 chars, kebab-case); description ~430 chars (under 1024); no other frontmatter fields.
+1. PASS — `name: ampersend` (9 chars, kebab-case); description ~430 chars (under 1024); `version: 0.0.22` is the only
+   additional frontmatter field, allowed under the agentskills.io spec's open additional-properties stance.
 2. PASS — Two sentences; first says what, second says when (five trigger clauses covering URL-in-hand,
    capability-without-URL, and explore mode); plain user words; no first-person pronouns.
 3. PASS — Description leads with the imperative "Give an agent…" and triggers on "Use when…"; the discovery clauses name
    concrete recognition cues ("names a capability they want without a specific URL in mind", "is asking what the agent
    can pay for") rather than passive dispositions.
 4. PASS — Frontmatter `name: ampersend` matches the parent directory `skills/ampersend/`.
-5. PASS — Body is 227 lines, under the 500-line ceiling.
+5. PASS — Body is 235 lines, under the 500-line ceiling.
 6. PASS — Order is orientation → scope → CLI prerequisite → suggesting things to try → user explainer → security → setup
    → payment → discovery → output → config; setup, payment, and discovery workflows are numbered steps or command
    blocks.
@@ -27,8 +28,9 @@ Latest verdict for each rule in [`SPEC.md`](SPEC.md). Regenerate when
 10. PASS — "co-sign" is hyphenated consistently in prose; `CoSignerValidator` is a code identifier and does not count.
     The new section uses "service", "capability", and "endpoint" consistently. Aggregator-routed services (Apollo,
     Hunter, RentCast) are consistently described as "via StableEnrich".
-11. PASS — Floor stated as prose ("v0.0.22 or newer"); install command uses `@latest`; no `@x.y.z` strings. Examples
-    file does not pin third-party versions.
+11. PASS — Floor stated as prose ("below `0.0.22`"); `npm install` uses `@latest`; skill upgrade uses
+    `npx skills update ampersend`, which respects the moving `#latest` ref the install command pinned. No `@x.y.z` or
+    `#v0.0.x` strings in `SKILL.md`. Examples file does not pin third-party versions.
 12. PASS — "ampersend service", "ampersend CLI", co-sign, smart account, x402, USDC, and Base are each glossed on first
     mention in `SKILL.md`. Capability categories are glossed inline in user-voice. In `references/example-services.md`,
     StableEnrich is glossed ("aggregator gateway that fronts several upstream APIs behind one paid surface") on first
@@ -59,3 +61,8 @@ Latest verdict for each rule in [`SPEC.md`](SPEC.md). Regenerate when
     smaller catalog than production — feature absence in the sandbox does not imply feature absence in production."
     Common config tweaks says "The sandbox covers the payment flow end-to-end, but only a subset of services and
     capabilities are wired up there — feature absence in the sandbox doesn't mean feature absence in production."
+19. PASS — Frontmatter carries `version: 0.0.22`. The "CLI prerequisite" section instructs the agent to run
+    `ampersend version`, compare the skill's frontmatter `version` against `minSkillVersion` from that JSON envelope,
+    and run `npx skills update ampersend` if the skill is behind. The CLI-behind path is the separate
+    `npm install -g @ampersend_ai/ampersend-sdk@latest --force` instruction, gated on `cliVersion` being missing or
+    below `0.0.22`.

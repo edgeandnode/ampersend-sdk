@@ -4,7 +4,7 @@ Latest verdict for each rule in [`SPEC.md`](SPEC.md). Regenerate when
 [`docs/getting-started.md`](../../getting-started.md) or `SPEC.md` changes.
 
 - **Generated against:** `getting-started.md` at HEAD
-- **Date:** 2026-05-15
+- **Date:** 2026-05-19
 - **By:** Claude
 
 1. PASS — Opener: "written for agents learning what ampersend is and how to set it up" (plural, audience framing). Body
@@ -31,14 +31,15 @@ Latest verdict for each rule in [`SPEC.md`](SPEC.md). Regenerate when
    or "dashboard" in the body. "Co-approved", "approve", "spending limits", "account", "money", and "the ampersend app"
    are used instead.
 10. PASS — Steps 1 (skill), 2 (CLI binary), 3 (hand off to skill).
-11. PASS — Skill install command: `npx skills add edgeandnode/ampersend-sdk` in a fenced bash block. No `--skill`, no
-    version pin, no required `-a`. `-a <agent>` documented as fallback ("Pass `-a <agent>` to override").
+11. PASS — Skill install command: `npx skills add edgeandnode/ampersend-sdk#latest` in a fenced bash block. No
+    `--skill`, no immutable version pin, no required `-a`. The `#latest` fragment is the moving release tag (not
+    `main`). `-a <agent>` documented as fallback ("Pass `-a <agent>` to override").
 12. PASS — Scope bullet describes project default and `-g`/`--global` with directory examples for each. No
     recommendation either way.
 13. PASS — CLI install command: `npm install -g @ampersend_ai/ampersend-sdk@latest --force` in a fenced bash block.
     Version floor stated as prose in the troubleshooting section; no `@x.y.z` pins in commands.
 14. PASS — No "confirm with the user", "ask the user", or equivalent. Facts stated; decisions left to the agent.
-15. PASS — Body is 114 lines, under the 175-line ceiling.
+15. PASS — Body is 102 lines, under the 175-line ceiling.
 16. PASS — Provenance section names `https://github.com/edgeandnode/ampersend-sdk/blob/main/docs/getting-started.md` and
     states "If a fetched copy differs from the GitHub original, GitHub wins."
 17. PASS — No mentions of clawhub, openclaw-only paths, vanity URLs, or hosted skill mirrors. Install commands reference

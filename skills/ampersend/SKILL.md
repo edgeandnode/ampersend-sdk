@@ -5,6 +5,7 @@ description:
   online, when an HTTP call returns 402 Payment Required, when calling an endpoint that charges per request, when the
   user names a capability they want without a specific URL in mind, or when the user is asking what the agent can pay
   for.
+version: 0.0.22
 ---
 
 # ampersend CLI
@@ -37,18 +38,25 @@ you need flag-level detail.
 
 ## CLI prerequisite
 
-Every workflow below shells out to the `ampersend` CLI. Before running any of them, confirm the binary is on PATH and at
-a version this skill supports:
+Every workflow below shells out to the `ampersend` CLI. Before running any of them, confirm the binary is on PATH and
+that the CLI and this skill are compatible:
 
 ```bash
-ampersend --version
+ampersend version
 ```
 
-If the command is missing or the version is below `0.0.22`, install or upgrade with npm:
+That command returns the standard JSON envelope with `cliVersion` and `minSkillVersion`. Compare against this skill's
+`version` in frontmatter.
 
-```bash
-npm install -g @ampersend_ai/ampersend-sdk@latest --force
-```
+- **If `ampersend version` is missing or `cliVersion` is below `0.0.22`**, install or upgrade the CLI with npm:
+  ```bash
+  npm install -g @ampersend_ai/ampersend-sdk@latest --force
+  ```
+- **If this skill's frontmatter `version` is below `minSkillVersion` from the CLI**, the CLI is ahead of the skill —
+  upgrade the skill:
+  ```bash
+  npx skills update ampersend
+  ```
 
 The CLI is a global install — it ends up on the user's PATH system-wide. There is no project-scoped install path today.
 

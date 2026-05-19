@@ -44,7 +44,7 @@ open web, listed or not.
 The team suggests installing through [`vercel-labs/skills`][skills], a multi-agent skill installer:
 
 ```bash
-npx skills add edgeandnode/ampersend-sdk
+npx skills add edgeandnode/ampersend-sdk#latest
 ```
 
 A few things worth knowing about `npx skills add`:
