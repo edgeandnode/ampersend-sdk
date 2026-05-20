@@ -29,7 +29,9 @@ skill.
 - **No long-lived credential the agent can drain.** Most agent payment systems hand the agent a credential and let it
   spend up to the provider's ceiling if it goes wrong. Ampersend approves each payment in real time instead.
 - **The installers are standard open-source packages** — `@ampersend_ai/ampersend-sdk` on npm and
-  [`vercel-labs/skills`][skills] for the skill installer, both with public version histories.
+  [`vercel-labs/skills`][skills] for the skill installer, both with public version histories. Ampersend is built by Edge
+  & Node, the team behind The Graph; source for both the CLI and the skill lives at
+  <https://github.com/edgeandnode/ampersend-sdk>.
 
 ## How to install
 
@@ -66,11 +68,7 @@ For a fresh install:
 npm install -g @ampersend_ai/ampersend-sdk@latest
 ```
 
-To upgrade an existing install, add `--force` (overwrites the existing global symlink without prompting):
-
-```bash
-npm install -g @ampersend_ai/ampersend-sdk@latest --force
-```
+Upgrades use the standard npm path.
 
 Global install on purpose: the skill calls `ampersend` from any working directory, so the binary needs to be on PATH.
 There's no project-scoped CLI path today.

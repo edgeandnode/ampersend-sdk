@@ -41,8 +41,11 @@ Latest verdict for each rule in [`SPEC.md`](SPEC.md). Regenerate when
     CLI cannot bypass this." (c) "No long-lived credential the agent can drain. Most agent payment systems hand the
     agent a credential and let it spend up to the provider's ceiling if it goes wrong. Ampersend approves each payment
     in real time instead." (d) "The installers are standard open-source packages — `@ampersend_ai/ampersend-sdk` on npm
-    and `vercel-labs/skills` for the skill installer, both with public version histories." No meta-framing paragraph
-    between heading and bullets. Vocabulary verified rule-9 clean.
+    and `vercel-labs/skills` for the skill installer, both with public version histories. Ampersend is built by Edge &
+    Node, the team behind The Graph; source for both the CLI and the skill lives at
+    https://github.com/edgeandnode/ampersend-sdk." Publisher attribution and explicit repo URL present, resolving the
+    npm-scope / GitHub-org mismatch. No meta-framing paragraph between heading and bullets. Vocabulary verified rule-9
+    clean.
 12. PASS — Steps 1 (skill), 2 (CLI binary), 3 (hand off to skill).
 13. PASS — Skill install command: `npx skills add edgeandnode/ampersend-sdk#skills/latest` in a fenced bash block. No
     `--skill`, no immutable version pin, no required `-a`. The `#skills/latest` fragment is the moving release branch
@@ -55,17 +58,16 @@ Latest verdict for each rule in [`SPEC.md`](SPEC.md). Regenerate when
 15. PASS — Scope bullet describes project default (`.claude/skills/ampersend/` for Claude Code) and `-g` / `--global`
     (`~/.claude/skills/ampersend/`, "for one ampersend setup shared across all projects"). No recommendation either way
     — the description names what each suits.
-16. PASS — Two distinct fenced bash blocks: "For a fresh install:" → `npm install -g @ampersend_ai/ampersend-sdk@latest`
-    (no `--force`); "To upgrade an existing install, add `--force` (overwrites the existing global symlink without
-    prompting):" → `npm install -g @ampersend_ai/ampersend-sdk@latest --force`. Inline explanation present on the
-    upgrade variant. Version floors not pinned as `@x.y.z`.
+16. PASS — Single fenced bash block: "For a fresh install:" → `npm install -g @ampersend_ai/ampersend-sdk@latest`,
+    followed by the one-line upgrade note "Upgrades use the standard npm path." No `--force` anywhere in the artifact
+    (verified by grep). No second command block. Version floors not pinned as `@x.y.z`.
 17. PASS — CLI install section opens: "First, check whether it's already there:" with `ampersend --version`, followed by
     "If that prints a version, the CLI is installed — skip to step 3."
 18. PASS — "Global install on purpose: the skill calls `ampersend` from any working directory, so the binary needs to be
     on PATH. There's no project-scoped CLI path today." Framing is declarative, not apologetic.
 19. PASS — No "confirm with the user", "ask the user", or equivalent in the body. Provenance line names the canonical
     URL without prescribing what the agent does on mismatch.
-20. PASS — Body is 113 lines, under the 175-line ceiling.
+20. PASS — Body is 111 lines, under the 175-line ceiling.
 21. PASS — Opening paragraph names
     `https://github.com/edgeandnode/ampersend-sdk/blob/skills/latest/docs/getting-started.md` as "Canonical copy". The
     branch is `skills/latest` (matching the skill install command's git ref). No prescriptive language about what an

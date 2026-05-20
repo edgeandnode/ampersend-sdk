@@ -63,8 +63,7 @@ Latest verdict for each rule in [`SPEC.md`](SPEC.md). Regenerate when
     capabilities are wired up there — feature absence in the sandbox doesn't mean feature absence in production."
 19. PASS — Frontmatter carries `version: 0.0.22`. The "CLI prerequisite" section instructs the agent to run
     `ampersend version`, compare the skill's frontmatter `version` against `minSkillVersion` from that JSON envelope,
-    and run `npx skills update ampersend` if the skill is behind. CLI install paths are split by intent, matching
-    `docs/getting-started.md`: "If `ampersend version` is missing" → fresh install via
-    `npm install -g @ampersend_ai/ampersend-sdk@latest` (no `--force`); "If `cliVersion` is below `0.0.22`" → upgrade
-    via `npm install -g @ampersend_ai/ampersend-sdk@latest --force`, with the one-line explanation that `--force`
-    overwrites the existing global symlink without prompting.
+    and run `npx skills update ampersend` if the skill is behind. CLI install paths match `docs/getting-started.md`: "If
+    `ampersend version` is missing" → fresh install via `npm install -g @ampersend_ai/ampersend-sdk@latest`; "If
+    `cliVersion` is below `0.0.22`" → "upgrade — use the standard npm path" as a single short line, no second command
+    block. `--force` absent from the body (verified by grep).

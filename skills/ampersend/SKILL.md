@@ -52,11 +52,7 @@ That command returns the standard JSON envelope with `cliVersion` and `minSkillV
   ```bash
   npm install -g @ampersend_ai/ampersend-sdk@latest
   ```
-- **If `cliVersion` is below `0.0.22`**, upgrade the existing install — the `--force` flag overwrites the existing
-  global symlink without prompting:
-  ```bash
-  npm install -g @ampersend_ai/ampersend-sdk@latest --force
-  ```
+- **If `cliVersion` is below `0.0.22`**, upgrade — use the standard npm path.
 - **If this skill's frontmatter `version` is below `minSkillVersion` from the CLI**, the CLI is ahead of the skill —
   upgrade the skill:
   ```bash

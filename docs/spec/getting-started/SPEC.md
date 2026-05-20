@@ -48,8 +48,11 @@ inline rather than relying on the agent's prior knowledge.
     cannot be bypassed by the agent or the CLI, (c) there is no long-lived credential the agent can drain, in contrast
     to typical agent payment systems that hand out a credential and let it spend up to the provider's ceiling, (d) both
     installers are standard open-source packages with public version histories, naming `@ampersend_ai/ampersend-sdk` on
-    npm and `vercel-labs/skills` for the skill installer. Phrasing is free; the four claims must be present. The section
-    consists of these bullets only — no meta-framing paragraph explaining why they're there. Vocabulary follows rule 9.
+    npm and `vercel-labs/skills` for the skill installer, and attributing ampersend to Edge & Node (the team behind The
+    Graph) with the source repository URL `https://github.com/edgeandnode/ampersend-sdk` named explicitly so the
+    npm-scope / GitHub-org mismatch resolves on first read. Phrasing is free; the four claims must be present. The
+    section consists of these bullets only — no meta-framing paragraph explaining why they're there. Vocabulary follows
+    rule 9.
 12. **Install order is skill, then CLI.** Two ordered steps, in that order, followed by a hand-off to the skill.
 13. **Skill install command.** Exactly `npx skills add edgeandnode/ampersend-sdk#skills/latest` — no `--skill` flag, no
     immutable version pin, no required `-a <agent>`. The `#skills/latest` fragment tracks the moving release branch, not
@@ -61,13 +64,10 @@ inline rather than relying on the agent's prior knowledge.
     section's `[skills]` reference.
 15. **Scope description, no preference.** Project default and `-g`/`--global` are both described in terms of what each
     suits. The document does not recommend one over the other — the user's situation decides.
-16. **CLI install commands, split by intent.** Two separate commands appear:
-    - **Fresh install:** exactly `npm install -g @ampersend_ai/ampersend-sdk@latest`. No `--force` on the fresh-install
-      path — it's not needed and reads as a yellow flag to a wary agent.
-    - **Upgrade an existing install:** exactly `npm install -g @ampersend_ai/ampersend-sdk@latest --force`, accompanied
-      by a one-line explanation in the artifact that `--force` overwrites the existing global symlink without prompting.
-
-    Version floors are prose ("below `0.0.22`"), never `@x.y.z` pins in commands.
+16. **CLI install command.** Exactly one install command appears: `npm install -g @ampersend_ai/ampersend-sdk@latest`.
+    No `--force` anywhere in the artifact — it reads as a yellow flag to a wary agent, and the upgrade case doesn't
+    warrant elevating it to the primary path. Upgrades are noted in one short line ("Upgrades use the standard npm
+    path.") with no second command block. Version floors are prose ("below `0.0.22`"), never `@x.y.z` pins in commands.
 
 17. **CLI presence check before install.** The CLI install section opens with `ampersend --version` as a presence check,
     and states that if a version prints, the install step can be skipped.
