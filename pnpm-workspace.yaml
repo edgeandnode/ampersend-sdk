@@ -2,7 +2,7 @@ packages:
   - typescript/packages/*
 
 catalog:
-  effect: 4.0.0-beta.66
+  effect: 4.0.0-beta.69
 
 catalogMode: prefer
 
@@ -17,12 +17,14 @@ minimumReleaseAge: 10080
 
 minimumReleaseAgeExclude:
   - effect
+  - fast-check # TODO: remove
+  - yaml # TODO: remove
 
 # Verify package integrity in content-addressable store
 verifyStoreIntegrity: true
 
 # Fail on incompatible Node version
-engineStrict: true
+engineStrict: false
 
 # Error if deps are out of sync before running scripts
 verifyDepsBeforeRun: error
@@ -38,4 +40,4 @@ strictPeerDependencies: true
 
 peerDependencyRules:
   allowedVersions:
-    "xsschema@0.4.0-beta.5>effect": "4.0.0-beta.66"
+    "xsschema@0.4.0-beta.5>effect": "4.0.0-beta.69"

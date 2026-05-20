@@ -17,7 +17,7 @@
         default = pkgs.mkShell {
           packages = with pkgs; [
             corepack
-            nodejs_24
+            nodejs
             python3
             uv
           ];
