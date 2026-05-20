@@ -55,5 +55,10 @@ prose.
 19. Frontmatter carries a `version` field matching the released CLI version the skill was published against. The body
     instructs the agent to run `ampersend version` (which prints both `cliVersion` and `minSkillVersion` in the standard
     JSON envelope), compare the skill's frontmatter `version` against `minSkillVersion`, and if the skill is older, run
-    `npx skills update ampersend` to upgrade. The CLI-upgrade path (when the binary is missing or below the version
-    floor) remains the separate `npm install -g …@latest --force` instruction.
+    `npx skills update ampersend` to upgrade. The CLI install paths are split by intent, matching
+    [`docs/getting-started.md`](../../getting-started.md):
+    - **CLI is missing (`ampersend version` fails):** fresh install via
+      `npm install -g @ampersend_ai/ampersend-sdk@latest` — no `--force`.
+    - **CLI is present but `cliVersion` is below the floor:** upgrade via
+      `npm install -g @ampersend_ai/ampersend-sdk@latest --force`, with a one-line in-body explanation that `--force`
+      overwrites the existing global symlink without prompting.

@@ -48,7 +48,12 @@ ampersend version
 That command returns the standard JSON envelope with `cliVersion` and `minSkillVersion`. Compare against this skill's
 `version` in frontmatter.
 
-- **If `ampersend version` is missing or `cliVersion` is below `0.0.22`**, install or upgrade the CLI with npm:
+- **If `ampersend version` is missing**, install the CLI with npm:
+  ```bash
+  npm install -g @ampersend_ai/ampersend-sdk@latest
+  ```
+- **If `cliVersion` is below `0.0.22`**, upgrade the existing install — the `--force` flag overwrites the existing
+  global symlink without prompting:
   ```bash
   npm install -g @ampersend_ai/ampersend-sdk@latest --force
   ```
