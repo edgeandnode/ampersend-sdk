@@ -4,7 +4,7 @@ Latest verdict for each rule in [`SPEC.md`](SPEC.md). Regenerate when
 [`skills/ampersend/SKILL.md`](../../../skills/ampersend/SKILL.md) or `SPEC.md` changes.
 
 - **Generated against:** `skills/ampersend/SKILL.md` at HEAD
-- **Date:** 2026-05-19
+- **Date:** 2026-05-20
 - **By:** Claude
 
 1. PASS — `name: ampersend` (9 chars, kebab-case); description ~430 chars (under 1024); `version: 0.0.22` is the only
@@ -15,7 +15,7 @@ Latest verdict for each rule in [`SPEC.md`](SPEC.md). Regenerate when
    concrete recognition cues ("names a capability they want without a specific URL in mind", "is asking what the agent
    can pay for") rather than passive dispositions.
 4. PASS — Frontmatter `name: ampersend` matches the parent directory `skills/ampersend/`.
-5. PASS — Body is 235 lines, under the 500-line ceiling.
+5. PASS — Body is 240 lines, under the 500-line ceiling.
 6. PASS — Order is orientation → scope → CLI prerequisite → suggesting things to try → user explainer → security → setup
    → payment → discovery → output → config; setup, payment, and discovery workflows are numbered steps or command
    blocks.
@@ -63,6 +63,7 @@ Latest verdict for each rule in [`SPEC.md`](SPEC.md). Regenerate when
     capabilities are wired up there — feature absence in the sandbox doesn't mean feature absence in production."
 19. PASS — Frontmatter carries `version: 0.0.22`. The "CLI prerequisite" section instructs the agent to run
     `ampersend version`, compare the skill's frontmatter `version` against `minSkillVersion` from that JSON envelope,
-    and run `npx skills update ampersend` if the skill is behind. The CLI-behind path is the separate
-    `npm install -g @ampersend_ai/ampersend-sdk@latest --force` instruction, gated on `cliVersion` being missing or
-    below `0.0.22`.
+    and run `npx skills update ampersend` if the skill is behind. CLI install paths match `docs/getting-started.md`: "If
+    `ampersend version` is missing" → fresh install via `npm install -g @ampersend_ai/ampersend-sdk@latest`; "If
+    `cliVersion` is below `0.0.22`" → "upgrade — use the standard npm path" as a single short line, no second command
+    block. `--force` absent from the body (verified by grep).

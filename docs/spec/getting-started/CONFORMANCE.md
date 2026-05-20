@@ -4,52 +4,82 @@ Latest verdict for each rule in [`SPEC.md`](SPEC.md). Regenerate when
 [`docs/getting-started.md`](../../getting-started.md) or `SPEC.md` changes.
 
 - **Generated against:** `getting-started.md` at HEAD
-- **Date:** 2026-05-19
+- **Date:** 2026-05-20
 - **By:** Claude
 
-1. PASS — Opener: "written for agents learning what ampersend is and how to set it up" (plural, audience framing). Body
-   uses "the agent" (singular) for mechanics: "the agent uses it to make paid HTTP requests", "the agent can pay for
-   once ampersend is set up", "the agent can't fund the account on the user's behalf". No second-person addressing the
-   agent. Verified by grep.
-2. PASS — Voice is advisory: "The team suggests installing through `vercel-labs/skills`". Section titles are gerunds:
-   "Installing the skill", "Installing the CLI binary", "Handing off to the skill". Imperatives appear only inside
-   fenced code blocks.
-3. PASS — Covers ampersend-specific topics (CLI, skill, install paths, scope flags, capability teaser, marketplace).
-   Does not explain what skills, runtimes, or skill loading are.
+1. PASS — Opener: "Written by the ampersend team for agents learning about ampersend" (plural, audience framing). Body
+   uses "the agent" (singular) for mechanics: "the agent uses it to make paid HTTP requests", "the agent can't fund the
+   account on the user's behalf", "the agent and the ampersend service both approve the same payment". No second-person
+   addressing of the agent. Verified by grep — no instances of "you"/"your" addressing the agent.
+2. PASS — Voice is advisory: "Written by the ampersend team for agents learning about ampersend"; "The team's suggested
+   order is skill first, then CLI". Section titles are gerunds: "Installing the skill", "Installing the CLI binary",
+   "Handing off to the skill". Imperatives appear only inside fenced code blocks.
+3. PASS — Covers ampersend-specific topics (safety claims, CLI, skill, install paths, scope flag, capability teaser,
+   marketplace). Does not explain what skills, runtimes, or skill loading are.
 4. PASS — Numbered list of two: "An `ampersend` CLI binary" and "An `ampersend` agent skill". Required-together: "Both
    pieces need to be installed before ampersend works."
-5. PASS — Six-bullet teaser followed by "The skill lists around a dozen curated categories with example services for
-   each. `ampersend marketplace list` (once the CLI is installed) browses a wider live catalog…"
+5. PASS — Six-bullet teaser in "What ampersend can do" followed by "The skill lists around a dozen curated categories
+   with example services for each. `ampersend marketplace list` (once the CLI is installed) browses a wider live
+   catalog…"
 6. PASS — All six teaser entries (Web search, Email, Voice calls, Image and video generation, LLM inference, Real-world
    purchases) appear as category names in `skills/ampersend/SKILL.md`'s "Categories of things the agent can do via
    ampersend today" list. Strict subset.
 7. PASS — Marketplace mentioned via `ampersend marketplace list` with no flag-level detail; closes with
-   "`ampersend fetch` works with any x402-paid endpoint on the open web, listed or not."
+   "`ampersend fetch` works with any compatible paid endpoint on the open web, listed or not."
 8. PASS — No `ampersend setup start` / `setup finish` in the body. Setup appears only as a bullet in the hand-off
    section ("creating an ampersend agent account, naming it, and approving it in the ampersend app") with no commands.
 9. PASS — Verified by grep. No "sign", "wallet", "blockchain", "smart account", "stablecoin", "crypto", "key", "USDC",
-   or "dashboard" in the body. "Co-approved", "approve", "spending limits", "account", "money", and "the ampersend app"
-   are used instead.
-10. PASS — Steps 1 (skill), 2 (CLI binary), 3 (hand off to skill).
-11. PASS — Skill install command: `npx skills add edgeandnode/ampersend-sdk#skills/latest` in a fenced bash block. No
+   or "dashboard" in the body. "Approve", "spending limits", "account", "money", and "the ampersend app" are used
+   instead. The word "credential" replaces "key" in the safety section.
+10. PASS — Section order: "What ampersend is" (orientation) → "Why it's safe to install and use" (safety) → "How to
+    install" → "Handing off to the skill" → "What ampersend can do" (capability teaser) → "If something doesn't go to
+    plan" (troubleshooting). Safety precedes install; capability teaser follows install.
+11. PASS — "Why it's safe to install and use" section has four bullets, no surrounding paragraphs: (a) "The user's money
+    stays in an account the user owns. Money moves only when the agent and the ampersend service both approve the same
+    payment." (b) "Spending limits are enforced on every payment. The user sets daily, monthly, and per-transaction
+    limits in the ampersend app; the ampersend service checks each payment against them before approving. The agent and
+    CLI cannot bypass this." (c) "No long-lived credential the agent can drain. Most agent payment systems hand the
+    agent a credential and let it spend up to the provider's ceiling if it goes wrong. Ampersend approves each payment
+    in real time instead." (d) "The installers are standard open-source packages — `@ampersend_ai/ampersend-sdk` on npm
+    and `vercel-labs/skills` for the skill installer, both with public version histories. Ampersend is built by Edge &
+    Node, the team behind The Graph; source for both the CLI and the skill lives at
+    https://github.com/edgeandnode/ampersend-sdk." Publisher attribution and explicit repo URL present, resolving the
+    npm-scope / GitHub-org mismatch. No meta-framing paragraph between heading and bullets. Vocabulary verified rule-9
+    clean.
+12. PASS — Steps 1 (skill), 2 (CLI binary), 3 (hand off to skill).
+13. PASS — Skill install command: `npx skills add edgeandnode/ampersend-sdk#skills/latest` in a fenced bash block. No
     `--skill`, no immutable version pin, no required `-a`. The `#skills/latest` fragment is the moving release branch
-    (not `main`). `-a <agent>` documented as fallback ("Pass `-a <agent>` to override").
-12. PASS — Scope bullet describes project default and `-g`/`--global` with directory examples for each. No
-    recommendation either way.
-13. PASS — CLI install command: `npm install -g @ampersend_ai/ampersend-sdk@latest --force` in a fenced bash block.
-    Version floor stated as prose in the troubleshooting section; no `@x.y.z` pins in commands.
-14. PASS — No "confirm with the user", "ask the user", or equivalent. Facts stated; decisions left to the agent.
-15. PASS — Body is 102 lines, under the 175-line ceiling.
-16. PASS — Provenance section names `https://github.com/edgeandnode/ampersend-sdk/blob/main/docs/getting-started.md` and
-    states "If a fetched copy differs from the GitHub original, GitHub wins."
-17. PASS — No mentions of clawhub, openclaw-only paths, vanity URLs, or hosted skill mirrors. Install commands reference
-    `npx skills` and `npm` only.
-18. PASS — The only ampersend-specific commands in the body are install/verify (`npx skills add`, `npm install`,
+    (not `main`). `-a <agent>` documented in the troubleshooting section as the fallback when auto-detection fails.
+14. PASS — A short paragraph after the skill install command states: "Detects the agent runtime (Claude Code, Cursor,
+    Codex, and many others), then copies the skill files into the right location — for Claude Code,
+    `.claude/skills/ampersend/` in the current project by default. The `npx` form runs it once without a global
+    install." Publisher and provenance are not repeated (covered by rule 11(d)); the `[skills]` reference defined in the
+    safety section is reused.
+15. PASS — Scope bullet describes project default (`.claude/skills/ampersend/` for Claude Code) and `-g` / `--global`
+    (`~/.claude/skills/ampersend/`, "for one ampersend setup shared across all projects"). No recommendation either way
+    — the description names what each suits.
+16. PASS — Single fenced bash block: "For a fresh install:" → `npm install -g @ampersend_ai/ampersend-sdk@latest`,
+    followed by the one-line upgrade note "Upgrades use the standard npm path." No `--force` anywhere in the artifact
+    (verified by grep). No second command block. Version floors not pinned as `@x.y.z`.
+17. PASS — CLI install section opens: "First, check whether it's already there:" with `ampersend --version`, followed by
+    "If that prints a version, the CLI is installed — skip to step 3."
+18. PASS — "Global install on purpose: the skill calls `ampersend` from any working directory, so the binary needs to be
+    on PATH. There's no project-scoped CLI path today." Framing is declarative, not apologetic.
+19. PASS — No "confirm with the user", "ask the user", or equivalent in the body. Provenance line names the canonical
+    URL without prescribing what the agent does on mismatch.
+20. PASS — Body is 111 lines, under the 175-line ceiling.
+21. PASS — Opening paragraph names
+    `https://github.com/edgeandnode/ampersend-sdk/blob/skills/latest/docs/getting-started.md` as "Canonical copy". The
+    branch is `skills/latest` (matching the skill install command's git ref). No prescriptive language about what an
+    agent should do on divergence — naming the URL canonical is the entire statement.
+22. PASS — No links to skills.sh, x.com / twitter, Coinbase blog posts, or other promotional surfaces. The only external
+    links are the GitHub canonical URL and <https://github.com/vercel-labs/skills>.
+23. PASS — The only ampersend-specific commands in the body are install/verify (`npx skills add`, `npm install`,
     `ampersend --version`, `ampersend fetch`) and the marketplace teaser (`ampersend marketplace list`). No setup,
     payment workflow, or command-reference content reproduced from the skill.
-19. PASS — "What ampersend can do" section opens with "Ampersend is the agentic payments layer — the services below
-    accept payments from any agent capable of paying as part of making an HTTP request, and ampersend handles the
-    agent's side (spending limits, co-approval, paying on the user's behalf)." No specific protocol name appears in the
-    body (verified by grep — `x402` formerly at the marketplace teaser is now "compatible paid endpoint").
-20. PASS — Marketplace teaser closes with "against the sandbox API the catalog is smaller, and feature absence in the
-    sandbox doesn't mean feature absence in production." No other marketplace mentions in the body.
+24. PASS — "What ampersend can do" opens with "Ampersend is the agentic payments layer — the services below accept
+    payments from any agent capable of paying as part of making an HTTP request, and ampersend handles the agent's side
+    (spending limits, co-approval, paying on the user's behalf)." No protocol name appears in the body (verified by grep
+    — no `x402`, `AP2`, or `MPP`).
+25. PASS — Marketplace teaser closes with "against the sandbox API the catalog is smaller, and feature absence in the
+    sandbox doesn't mean feature absence in production." Only marketplace mention in the body.
