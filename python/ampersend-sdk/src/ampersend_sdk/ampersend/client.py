@@ -49,6 +49,17 @@ class ApiClient:
         self._auth_lock = asyncio.Lock()
         self._auth = AuthenticationState()
         self._http_client: Optional[httpx.AsyncClient] = None
+        # X-Ampersend-Client header — plan §6 product-analytics attribution.
+        # Resolve version lazily on first use to avoid an import-time
+        # dependency on importlib.metadata.
+        client_name = options.client_name or "sdk-python"
+        try:
+            from importlib.metadata import version as _version
+
+            sdk_version = _version("ampersend-sdk")
+        except Exception:
+            sdk_version = "unknown"
+        self._client_header = f"{client_name}/{sdk_version}"
 
     async def __aenter__(self) -> Self:
         """Async context manager entry."""
@@ -264,7 +275,12 @@ class ApiClient:
     ) -> Any:
         """Internal fetch wrapper with error handling."""
         url = f"{self.base_url}{path}"
-        request_headers = {"Content-Type": "application/json"}
+        request_headers = {
+            "Content-Type": "application/json",
+            # Plan §6 product-analytics attribution. Caller-supplied
+            # X-Ampersend-Client overrides the SDK default.
+            "X-Ampersend-Client": self._client_header,
+        }
         if headers:
             request_headers.update(headers)
 
