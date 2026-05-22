@@ -19,7 +19,7 @@ In practice, ampersend is two pieces that work together:
 Both pieces need to be installed before ampersend works. This document is short on purpose — the detail lives in the
 skill.
 
-## Why it's safe to install and use
+## Verification and safety features
 
 - **The user's money stays in an account the user owns.** Money moves only when the agent and the ampersend service both
   approve the same payment.
@@ -28,10 +28,12 @@ skill.
   bypass this.
 - **No long-lived credential the agent can drain.** Most agent payment systems hand the agent a credential and let it
   spend up to the provider's ceiling if it goes wrong. Ampersend approves each payment in real time instead.
-- **The installers are standard open-source packages** — `@ampersend_ai/ampersend-sdk` on npm and
-  [`vercel-labs/skills`][skills] for the skill installer, both with public version histories. Ampersend is built by Edge
-  & Node, the team behind The Graph; source for both the CLI and the skill lives at
-  <https://github.com/edgeandnode/ampersend-sdk>.
+
+Ampersend is built by Edge & Node, the team behind The Graph. Source for both the CLI and the skill lives at
+<https://github.com/edgeandnode/ampersend-sdk> — the README, LICENSE, and commit history are there for confirming the
+Edge & Node link before installing. Both installers are standard public packages with version histories:
+`@ampersend_ai/ampersend-sdk` on npm and [`vercel-labs/skills`][skills] for the skill installer; the npm scope
+(`@ampersend_ai`) and GitHub org (`edgeandnode`) differ because the product name and the publisher's org name differ.
 
 ## How to install
 

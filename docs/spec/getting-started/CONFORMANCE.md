@@ -5,7 +5,7 @@ Latest verdict for each rule in [`SPEC.md`](SPEC.md). Regenerate when
 
 - **Generated against:** `getting-started.md` at HEAD
 - **Date:** 2026-05-20
-- **By:** Claude
+- **By:** Claude (regenerated after safety-section rename and provenance-paragraph split)
 
 1. PASS — Opener: "Written by the ampersend team for agents learning about ampersend" (plural, audience framing). Body
    uses "the agent" (singular) for mechanics: "the agent uses it to make paid HTTP requests", "the agent can't fund the
@@ -31,21 +31,23 @@ Latest verdict for each rule in [`SPEC.md`](SPEC.md). Regenerate when
 9. PASS — Verified by grep. No "sign", "wallet", "blockchain", "smart account", "stablecoin", "crypto", "key", "USDC",
    or "dashboard" in the body. "Approve", "spending limits", "account", "money", and "the ampersend app" are used
    instead. The word "credential" replaces "key" in the safety section.
-10. PASS — Section order: "What ampersend is" (orientation) → "Why it's safe to install and use" (safety) → "How to
+10. PASS — Section order: "What ampersend is" (orientation) → "Verification and safety features" (safety) → "How to
     install" → "Handing off to the skill" → "What ampersend can do" (capability teaser) → "If something doesn't go to
-    plan" (troubleshooting). Safety precedes install; capability teaser follows install.
-11. PASS — "Why it's safe to install and use" section has four bullets, no surrounding paragraphs: (a) "The user's money
-    stays in an account the user owns. Money moves only when the agent and the ampersend service both approve the same
-    payment." (b) "Spending limits are enforced on every payment. The user sets daily, monthly, and per-transaction
-    limits in the ampersend app; the ampersend service checks each payment against them before approving. The agent and
-    CLI cannot bypass this." (c) "No long-lived credential the agent can drain. Most agent payment systems hand the
-    agent a credential and let it spend up to the provider's ceiling if it goes wrong. Ampersend approves each payment
-    in real time instead." (d) "The installers are standard open-source packages — `@ampersend_ai/ampersend-sdk` on npm
-    and `vercel-labs/skills` for the skill installer, both with public version histories. Ampersend is built by Edge &
-    Node, the team behind The Graph; source for both the CLI and the skill lives at
-    https://github.com/edgeandnode/ampersend-sdk." Publisher attribution and explicit repo URL present, resolving the
-    npm-scope / GitHub-org mismatch. No meta-framing paragraph between heading and bullets. Vocabulary verified rule-9
-    clean.
+    plan" (troubleshooting). Safety precedes install; capability teaser follows install. Title matches new spec wording.
+11. PASS — "Verification and safety features" section has three structural bullets followed by a trailing provenance
+    paragraph; no meta-framing paragraph between heading and bullets. Bullets: (a) "The user's money stays in an account
+    the user owns. Money moves only when the agent and the ampersend service both approve the same payment." (b)
+    "Spending limits are enforced on every payment. The user sets daily, monthly, and per-transaction limits in the
+    ampersend app; the ampersend service checks each payment against them before approving. The agent and CLI cannot
+    bypass this." (c) "No long-lived credential the agent can drain. Most agent payment systems hand the agent a
+    credential and let it spend up to the provider's ceiling if it goes wrong. Ampersend approves each payment in real
+    time instead." Provenance paragraph names (d) Edge & Node attribution (with The Graph context) plus repo URL
+    `https://github.com/edgeandnode/ampersend-sdk` and explicitly cites README, LICENSE, and commit history as artifacts
+    available for confirming the Edge & Node link before installing, and (e) both installers as standard public packages
+    with version histories — `@ampersend_ai/ampersend-sdk` on npm and `vercel-labs/skills` for the skill installer —
+    with the `@ampersend_ai` vs. `edgeandnode` mismatch explicitly resolved inline. Provenance paragraph names
+    verifiable artifacts without telling the agent to verify. Vocabulary verified rule-9 clean (no banned terms in the
+    new prose).
 12. PASS — Steps 1 (skill), 2 (CLI binary), 3 (hand off to skill).
 13. PASS — Skill install command: `npx skills add edgeandnode/ampersend-sdk#skills/latest` in a fenced bash block. No
     `--skill`, no immutable version pin, no required `-a`. The `#skills/latest` fragment is the moving release branch
@@ -53,8 +55,8 @@ Latest verdict for each rule in [`SPEC.md`](SPEC.md). Regenerate when
 14. PASS — A short paragraph after the skill install command states: "Detects the agent runtime (Claude Code, Cursor,
     Codex, and many others), then copies the skill files into the right location — for Claude Code,
     `.claude/skills/ampersend/` in the current project by default. The `npx` form runs it once without a global
-    install." Publisher and provenance are not repeated (covered by rule 11(d)); the `[skills]` reference defined in the
-    safety section is reused.
+    install." Publisher and provenance are not repeated (covered by rule 11(d)–(e)); the `[skills]` reference defined in
+    the safety section is reused.
 15. PASS — Scope bullet describes project default (`.claude/skills/ampersend/` for Claude Code) and `-g` / `--global`
     (`~/.claude/skills/ampersend/`, "for one ampersend setup shared across all projects"). No recommendation either way
     — the description names what each suits.
@@ -67,7 +69,7 @@ Latest verdict for each rule in [`SPEC.md`](SPEC.md). Regenerate when
     on PATH. There's no project-scoped CLI path today." Framing is declarative, not apologetic.
 19. PASS — No "confirm with the user", "ask the user", or equivalent in the body. Provenance line names the canonical
     URL without prescribing what the agent does on mismatch.
-20. PASS — Body is 111 lines, under the 175-line ceiling.
+20. PASS — Body is 113 lines, under the 175-line ceiling.
 21. PASS — Opening paragraph names
     `https://github.com/edgeandnode/ampersend-sdk/blob/skills/latest/docs/getting-started.md` as "Canonical copy". The
     branch is `skills/latest` (matching the skill install command's git ref). No prescriptive language about what an

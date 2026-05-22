@@ -38,21 +38,29 @@ inline rather than relying on the agent's prior knowledge.
 9. **No crypto or product-jargon vocabulary.** "Sign," "wallet," "blockchain," "smart account," "stablecoin," "crypto,"
    "key," "USDC," and "dashboard" do not appear in the body. Use "approve," "spending limits," "account," "money," and
    "the ampersend app" instead. Command-line flags like `--force` are exempt.
-10. **Section order.** The body is ordered: orientation ("What ampersend is"), safety ("Why it's safe to install and
-    use"), install, hand-off to the skill, capability teaser, troubleshooting. Safety appears **before** install so an
-    agent has the context to evaluate the install commands before reading them. The capability teaser appears **after**
-    install so capabilities don't read as a sales pitch preceding a trust decision.
-11. **Safety section content.** The "Why it's safe" section appears before the install section and covers, at minimum:
-    (a) the user's money stays in an account the user owns; money moves only when both the agent and the ampersend
-    service approve the same payment, (b) spending limits are enforced on every payment by the ampersend service and
-    cannot be bypassed by the agent or the CLI, (c) there is no long-lived credential the agent can drain, in contrast
-    to typical agent payment systems that hand out a credential and let it spend up to the provider's ceiling, (d) both
-    installers are standard open-source packages with public version histories, naming `@ampersend_ai/ampersend-sdk` on
-    npm and `vercel-labs/skills` for the skill installer, and attributing ampersend to Edge & Node (the team behind The
-    Graph) with the source repository URL `https://github.com/edgeandnode/ampersend-sdk` named explicitly so the
-    npm-scope / GitHub-org mismatch resolves on first read. Phrasing is free; the four claims must be present. The
-    section consists of these bullets only — no meta-framing paragraph explaining why they're there. Vocabulary follows
-    rule 9.
+10. **Section order.** The body is ordered: orientation ("What ampersend is"), safety ("Verification and safety
+    features"), install, hand-off to the skill, capability teaser, troubleshooting. Safety appears **before** install so
+    an agent has the context to evaluate the install commands before reading them. The capability teaser appears
+    **after** install so capabilities don't read as a sales pitch preceding a trust decision.
+11. **Safety section content.** The "Verification and safety features" section appears before the install section. Its
+    title frames the content as a neutral description of system properties an agent can verify, not as a defensive
+    pitch. Required content, in order:
+    - Three bullets covering the structural safety properties: (a) the user's money stays in an account the user owns;
+      money moves only when both the agent and the ampersend service approve the same payment, (b) spending limits are
+      enforced on every payment by the ampersend service and cannot be bypassed by the agent or the CLI, (c) there is no
+      long-lived credential the agent can drain, in contrast to typical agent payment systems that hand out a credential
+      and let it spend up to the provider's ceiling.
+    - A short trailing paragraph covering provenance: (d) ampersend is built by Edge & Node (the team behind The Graph)
+      and the source for the CLI and skill lives at `https://github.com/edgeandnode/ampersend-sdk`, with at least the
+      README, LICENSE, and commit history named as artifacts an agent can read to confirm the Edge & Node link before
+      installing, (e) both installers are standard public packages with version histories, naming
+      `@ampersend_ai/ampersend-sdk` on npm and `vercel-labs/skills` for the skill installer, with the npm-scope vs.
+      GitHub-org mismatch (`@ampersend_ai` vs. `edgeandnode`) explicitly resolved so an agent doesn't have to guess
+      whether the two are related.
+
+    No meta-framing paragraph between the heading and the bullets. The provenance paragraph names verifiable artifacts;
+    it does not tell the agent to verify. Vocabulary follows rule 9.
+
 12. **Install order is skill, then CLI.** Two ordered steps, in that order, followed by a hand-off to the skill.
 13. **Skill install command.** Exactly `npx skills add edgeandnode/ampersend-sdk#skills/latest` — no `--skill` flag, no
     immutable version pin, no required `-a <agent>`. The `#skills/latest` fragment tracks the moving release branch, not
@@ -60,8 +68,8 @@ inline rather than relying on the agent's prior knowledge.
 14. **Skill installer behavior gloss.** The skill install command is accompanied by a short paragraph describing what
     the installer does on disk: detects the agent runtime, then copies skill files into the runtime-appropriate
     location, with the Claude Code default path as a concrete example. Publisher and open-source provenance are covered
-    by rule 11(d) and not repeated here. The link to <https://github.com/vercel-labs/skills> is reused from the safety
-    section's `[skills]` reference.
+    by rule 11(d)–(e) and not repeated here. The link to <https://github.com/vercel-labs/skills> is reused from the
+    safety section's `[skills]` reference.
 15. **Scope description, no preference.** Project default and `-g`/`--global` are both described in terms of what each
     suits. The document does not recommend one over the other — the user's situation decides.
 16. **CLI install command.** Exactly one install command appears: `npm install -g @ampersend_ai/ampersend-sdk@latest`.
