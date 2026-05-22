@@ -5,8 +5,10 @@ allowBuilds:
   esbuild: true
   unrs-resolver: true
 
-# Block packages published <10 days ago
-minimumReleaseAge: 14400
+# 7 days. Must match the closed-source ampersend monorepo so `effect` resolves
+# to the same patch across the project-reference boundary (divergent copies
+# break the `domain` build — Schema.* type identities don't match).
+minimumReleaseAge: 10080
 
 # Verify package integrity in content-addressable store
 verifyStoreIntegrity: true

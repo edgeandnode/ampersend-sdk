@@ -70,7 +70,7 @@
     "@x402/fetch": "2.9.0",
     "async-mutex": "^0.5.0",
     "commander": "^12.1.0",
-    "effect": "^3.21.0",
+    "effect": "^3.21.2",
     "express": "^5.2.1",
     "fastmcp": "npm:@ampersend_ai/fastmcp@^1.0.0",
     "siwe": "^3.0.0",
