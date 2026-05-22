@@ -4,7 +4,7 @@ Latest verdict for each rule in [`SPEC.md`](SPEC.md). Regenerate when
 [`skills/ampersend/SKILL.md`](../../../skills/ampersend/SKILL.md) or `SPEC.md` changes.
 
 - **Generated against:** `skills/ampersend/SKILL.md` at HEAD
-- **Date:** 2026-05-20
+- **Date:** 2026-05-26
 - **By:** Claude
 
 1. PASS — `name: ampersend` (9 chars, kebab-case); description ~430 chars (under 1024); `version: 0.0.22` is the only
@@ -15,16 +15,19 @@ Latest verdict for each rule in [`SPEC.md`](SPEC.md). Regenerate when
    concrete recognition cues ("names a capability they want without a specific URL in mind", "is asking what the agent
    can pay for") rather than passive dispositions.
 4. PASS — Frontmatter `name: ampersend` matches the parent directory `skills/ampersend/`.
-5. PASS — Body is 240 lines, under the 500-line ceiling.
+5. PASS — Body is 261 lines, under the 500-line ceiling.
 6. PASS — Order is orientation → scope → CLI prerequisite → suggesting things to try → user explainer → security → setup
-   → payment → discovery → output → config; setup, payment, and discovery workflows are numbered steps or command
-   blocks.
+   → payment → reading agent state → discovery → output → config; setup, payment, reading-state, and discovery workflows
+   are numbered steps or command blocks.
 7. PASS — `references/` contains two files (`commands.md`, `example-services.md`); no subdirectories.
-8. PASS — `references/commands.md` is 116 lines and starts with "Contents". `references/example-services.md` is 326
-   lines and starts with a Contents section listing all 14 capability headings plus the Response patterns section.
+8. PASS — `references/commands.md` is 141 lines and starts with "Contents" (now lists `agent` between `fetch` and
+   `config`). `references/example-services.md` is 326 lines and starts with a Contents section listing all 14 capability
+   headings plus the Response patterns section.
 9. PASS — Body content is system-specific. The body's capability list names categories in user-voice (no "pay-per-...",
    "API-key relationship", or "x402-paid" framing leaking from the agent-economy register); curated third-party services
    and the Pinata response pattern live only in `references/example-services.md`, both covered by the rule's carve-outs.
+   The new "Reading agent state" section is system-specific (server-authoritative envelope, agent-scoped, dashboard
+   split between read and write).
 10. PASS — "co-sign" is hyphenated consistently in prose; `CoSignerValidator` is a code identifier and does not count.
     The new section uses "service", "capability", and "endpoint" consistently. Aggregator-routed services (Apollo,
     Hunter, RentCast) are consistently described as "via StableEnrich".

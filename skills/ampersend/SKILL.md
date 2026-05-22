@@ -29,9 +29,10 @@ neither the agent nor ampersend can spend on their own.
 To the user, all of this is just "ampersend" — the service/CLI split, keys, and smart accounts are internal plumbing
 they don't need unless they ask.
 
-**Scope of this CLI**: HTTP-only. It does three things: initial agent + CLI setup, runs `ampersend fetch <url>` (pays as
-part of the request), and manage local config. **Not in this CLI**: spending limits, auto-topup, auto-collect,
-transaction history, alerts — those live in the dashboard.
+**Scope of this CLI**: HTTP-only. It does four things: initial agent + CLI setup, runs `ampersend fetch <url>` (pays as
+part of the request), reads the agent's own state via `ampersend agent` (balance, limits, history, owner), and manages
+local config. **Setting** spending limits, auto-topup, auto-collect, and alerts still lives in the dashboard — the CLI
+can read those values but not change them.
 
 Reference material for every flag and option is in [`references/commands.md`](references/commands.md). Read it only when
 you need flag-level detail.
@@ -173,6 +174,30 @@ Run when the user asks to call a paid endpoint, or when an HTTP call returns 402
    co-sign rejection — the agent and the CLI cannot bypass this.
 3. On success, the result includes `data.status`, `data.body`, and `data.payment` (when a payment was made). Report what
    was actually spent from `data.payment`.
+
+## Reading agent state
+
+Run when the user asks how their agent is doing, what its limits are, what it has spent, or who owns it — i.e. anything
+the dashboard would show, without needing the dashboard. Every endpoint is server-authoritative and scoped to the
+configured agent; sibling agents are unreachable from the CLI.
+
+```bash
+ampersend agent                       # Full snapshot: agent record + live USDC balance
+ampersend agent spend-config          # Per-tx, daily, monthly limits + auto-topup
+ampersend agent payments --preset 1d  # Outgoing payments today (or 30d, all)
+ampersend agent activity --limit 20   # Unified spend + earn history, paginated
+ampersend agent owner                 # Owner: { user_id, wallet_address }
+```
+
+Other subcommands: `auto-collect-config`, `authorized-sellers`. Full flag reference in
+[`references/commands.md`](references/commands.md).
+
+These are **reads only**. To change a limit or seller allowlist, the user goes to the dashboard. Useful checks before
+acting:
+
+- Before a paid request whose cost matters: `ampersend agent spend-config` to confirm there is daily room.
+- After a payment to confirm it landed: `ampersend agent payments --preset 1d`.
+- For an audit answer ("what did the agent spend on?"): `ampersend agent activity`.
 
 ## Discovery workflow
 

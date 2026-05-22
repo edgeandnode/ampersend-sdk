@@ -1,11 +1,10 @@
 import { wrapFetchWithPayment } from "@x402/fetch"
 import type { Command } from "commander"
 
-import { parseEnvConfig } from "../../ampersend/env.ts"
 import { createAmpersendHttpClient } from "../../x402/http/factory.ts"
 import { wrapFetchWithAmpersendSiwx } from "../../x402/siwx.ts"
-import { getConfigStatus, getRuntimeConfig } from "../config.ts"
-import { err, ok, type JsonEnvelope } from "../envelope.ts"
+import { loadCredentials } from "../config.ts"
+import { err, ok } from "../envelope.ts"
 
 interface FetchOptions {
   method: string
@@ -29,75 +28,6 @@ interface InspectData {
   paymentRequired: boolean
   requirements?: unknown
   headers?: Record<string, string>
-}
-
-/**
- * Load configuration from env vars or config file
- * Env vars take precedence over config file
- * Returns structured error if not configured
- */
-function loadConfig():
-  | {
-      ok: true
-      config: { agentAccount: `0x${string}`; agentKey: `0x${string}`; apiUrl?: string }
-    }
-  | { ok: false; error: JsonEnvelope<never> } {
-  // Try env vars first (takes precedence)
-  try {
-    const envConfig = parseEnvConfig()
-    return {
-      ok: true,
-      config: {
-        agentAccount: envConfig.AGENT_ACCOUNT as `0x${string}`,
-        agentKey: envConfig.AGENT_KEY as `0x${string}`,
-        ...(envConfig.API_URL ? { apiUrl: envConfig.API_URL } : {}),
-      },
-    }
-  } catch {
-    // Fall back to config file
-  }
-
-  // Try config file
-  const fileConfig = getRuntimeConfig()
-  if (fileConfig) {
-    if (fileConfig.status === "pending_agent") {
-      return {
-        ok: false,
-        error: err("SETUP_INCOMPLETE", 'Run "ampersend setup start" or "ampersend config set" to configure', {
-          status: "pending_agent",
-        }),
-      }
-    }
-    if (fileConfig.status === "ready" && fileConfig.agentAccount && fileConfig.agentKey) {
-      // Env var takes precedence over file config
-      const apiUrl = process.env.AMPERSEND_API_URL ?? fileConfig.apiUrl
-      return {
-        ok: true,
-        config: {
-          agentAccount: fileConfig.agentAccount,
-          agentKey: fileConfig.agentKey,
-          ...(apiUrl ? { apiUrl } : {}),
-        },
-      }
-    }
-  }
-
-  // Neither env vars nor config file available
-  const configStatus = getConfigStatus()
-  if (configStatus.status === "not_initialized") {
-    return {
-      ok: false,
-      error: err("NOT_CONFIGURED", 'Run "ampersend setup start" or "ampersend config set"', {
-        status: "not_initialized",
-      }),
-    }
-  }
-  return {
-    ok: false,
-    error: err("SETUP_INCOMPLETE", 'Run "ampersend setup start" or "ampersend config set"', {
-      status: configStatus.status,
-    }),
-  }
 }
 
 /**
@@ -261,13 +191,13 @@ async function handleResponse(response: Response, options: FetchOptions): Promis
  */
 async function runFetch(url: string, options: FetchOptions): Promise<void> {
   // Load configuration from file or env
-  const configResult = loadConfig()
+  const configResult = loadCredentials()
   if (!configResult.ok) {
     console.log(JSON.stringify(configResult.error, null, 2))
     process.exit(1)
   }
 
-  const config = configResult.config
+  const config = configResult.credentials
   const apiUrl = config.apiUrl ?? "https://api.ampersend.ai"
 
   // Create Ampersend HTTP client

@@ -23,6 +23,31 @@ import {
 export * from "./types.js"
 
 /**
+ * Best-effort summary of an HTTP error body. The server emits Effect Schema
+ * decode errors as JSON like `{ _tag: "HttpApiDecodeError", issues: [{ path,
+ * message }, ...], message: "<long indented blob>" }`. The raw `message` is
+ * unreadable; collapse `issues[]` into a flat string instead. For anything
+ * we don't recognise — including non-JSON bodies — return the body verbatim.
+ */
+function formatServerErrorBody(body: string): string {
+  try {
+    const { issues, message } = JSON.parse(body) as { issues?: unknown; message?: unknown }
+    if (Array.isArray(issues) && issues.length > 0) {
+      return issues
+        .map((i: { path?: unknown; message?: unknown }) => {
+          const path = Array.isArray(i?.path) && i.path.length > 0 ? i.path.join(".") : null
+          const msg = typeof i?.message === "string" ? i.message : "validation failed"
+          return path ? `${path}: ${msg}` : msg
+        })
+        .join("; ")
+    }
+    return typeof message === "string" ? message : body
+  } catch {
+    return body
+  }
+}
+
+/**
  * TypeScript SDK for the API
  *
  * Provides simple methods to interact with the payment authorization API,
@@ -205,6 +230,23 @@ export class ApiClient {
   }
 
   /**
+   * Authenticated GET against a path on the API. Performs SIWE auth first
+   * if needed, then decodes the response against `schema`. Use this from
+   * read-only clients that share auth with the rest of the SDK.
+   */
+  async getAuthorized<A, I>(path: string, schema: Schema.Schema<A, I>): Promise<A> {
+    await this.ensureAuthenticated()
+    return this.fetch(
+      path,
+      {
+        method: "GET",
+        headers: { Authorization: `Bearer ${this.auth.token}` },
+      },
+      schema,
+    )
+  }
+
+  /**
    * Clear the current authentication state
    */
   clearAuth(): void {
@@ -256,7 +298,7 @@ export class ApiClient {
         try {
           const errorBody = await response.text()
           if (errorBody) {
-            errorMessage += `: ${errorBody}`
+            errorMessage += `: ${formatServerErrorBody(errorBody)}`
           }
         } catch {
           // Ignore error body parsing failures

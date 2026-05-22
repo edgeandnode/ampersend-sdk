@@ -1,6 +1,17 @@
 export * from "./types.ts"
 export * from "./curated-agent.ts"
 export { ApiClient } from "./client.ts"
+// AgentActivityResponse and UnifiedAgentActivityDTO are deliberately not
+// re-exported — server's domain/Activity.ts owns the canonical versions.
+export {
+  AgentAutoCollectConfigDTO,
+  AgentOwnerDTO,
+  AgentSelfDTO,
+  AgentSelfPaymentDTO,
+  AgentSelfSpendConfigDTO,
+  AgentSpendConfigDTO,
+} from "./agent.ts"
+export { AgentReadClient, type AgentReadClientOptions } from "./agent-client.ts"
 export {
   AgentInitData,
   AgentResponse,

@@ -9,6 +9,60 @@ import { privateKeyToAddress } from "viem/accounts"
 import { parseEnvConfig } from "../ampersend/env.ts"
 import { err, ok, type ConfigStatus, type JsonEnvelope } from "./envelope.ts"
 
+/**
+ * Resolved credentials for an authenticated command. Tries env vars first
+ * (so a deploy can override without touching the local config file), then
+ * the config file written by `setup` / `config set`.
+ */
+export interface ResolvedCredentials {
+  agentAccount: `0x${string}`
+  agentKey: `0x${string}`
+  apiUrl?: string
+}
+
+/**
+ * Shared by every CLI command that needs to talk to the API as an agent.
+ * Returns an `err` envelope when the local config isn't ready, so the
+ * caller can print it and exit.
+ */
+export function loadCredentials():
+  | { ok: true; credentials: ResolvedCredentials }
+  | { ok: false; error: JsonEnvelope<never> } {
+  try {
+    const envConfig = parseEnvConfig()
+    return {
+      ok: true,
+      credentials: {
+        agentAccount: envConfig.AGENT_ACCOUNT as `0x${string}`,
+        agentKey: envConfig.AGENT_KEY as `0x${string}`,
+        ...(envConfig.API_URL ? { apiUrl: envConfig.API_URL } : {}),
+      },
+    }
+  } catch {
+    // Fall back to config file
+  }
+
+  const fileConfig = getRuntimeConfig()
+  if (fileConfig?.status === "ready" && fileConfig.agentAccount && fileConfig.agentKey) {
+    const apiUrl = process.env.AMPERSEND_API_URL ?? fileConfig.apiUrl
+    return {
+      ok: true,
+      credentials: {
+        agentAccount: fileConfig.agentAccount,
+        agentKey: fileConfig.agentKey,
+        ...(apiUrl ? { apiUrl } : {}),
+      },
+    }
+  }
+
+  const status = fileConfig?.status ?? "not_initialized"
+  const code = status === "not_initialized" ? "NOT_CONFIGURED" : "SETUP_INCOMPLETE"
+  return {
+    ok: false,
+    error: err(code, 'Run "ampersend setup start" or "ampersend config set" to configure', { status }),
+  }
+}
+
 /** Config directory and file paths */
 const CONFIG_DIR = join(homedir(), ".ampersend")
 export const CONFIG_FILE = join(CONFIG_DIR, "config.json")

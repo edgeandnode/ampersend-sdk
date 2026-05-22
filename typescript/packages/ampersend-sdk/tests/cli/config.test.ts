@@ -6,6 +6,7 @@ import {
   computeApprovalExpiry,
   getStatus,
   isPendingExpired,
+  loadCredentials,
   promotePending,
   readConfig,
   setConfig,
@@ -303,6 +304,96 @@ describe("CLI Config", () => {
       expect(result.ok).toBe(true)
       if (result.ok) {
         expect(result.data.pendingApproval?.expired).toBe(true)
+      }
+    })
+  })
+
+  describe("loadCredentials", () => {
+    const VALID_ACCOUNT = "0x1111111111111111111111111111111111111111" as `0x${string}`
+
+    it("returns NOT_CONFIGURED when no env and no file", () => {
+      const result = loadCredentials()
+
+      expect(result.ok).toBe(false)
+      if (!result.ok) {
+        expect(result.error.error.code).toBe("NOT_CONFIGURED")
+        expect(result.error.error.status).toBe("not_initialized")
+      }
+    })
+
+    it("returns SETUP_INCOMPLETE when file has only a key (no account)", () => {
+      writeConfig({ agentKey: generatePrivateKey() })
+
+      const result = loadCredentials()
+
+      expect(result.ok).toBe(false)
+      if (!result.ok) {
+        expect(result.error.error.code).toBe("SETUP_INCOMPLETE")
+        expect(result.error.error.status).toBe("pending_agent")
+      }
+    })
+
+    it("reads from file when config is ready", () => {
+      const agentKey = generatePrivateKey()
+      setConfig(`${agentKey}:::${VALID_ACCOUNT}`)
+
+      const result = loadCredentials()
+
+      expect(result.ok).toBe(true)
+      if (result.ok) {
+        expect(result.credentials.agentKey).toBe(agentKey)
+        expect(result.credentials.agentAccount).toBe(VALID_ACCOUNT)
+        expect(result.credentials.apiUrl).toBeUndefined()
+      }
+    })
+
+    it("env vars take precedence over file", () => {
+      const fileKey = generatePrivateKey()
+      setConfig(`${fileKey}:::${VALID_ACCOUNT}`)
+
+      const envKey = "0x0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef" as const
+      const envAccount = "0x2222222222222222222222222222222222222222" as const
+      process.env.AMPERSEND_AGENT_SECRET = `${envKey}:::${envAccount}`
+
+      const result = loadCredentials()
+
+      expect(result.ok).toBe(true)
+      if (result.ok) {
+        expect(result.credentials.agentKey).toBe(envKey)
+        expect(result.credentials.agentAccount).toBe(envAccount)
+      }
+    })
+
+    it("AMPERSEND_API_URL overrides the file's apiUrl", () => {
+      const agentKey = generatePrivateKey()
+      writeConfig({
+        agentKey,
+        agentAccount: VALID_ACCOUNT,
+        apiUrl: "https://api.staging.ampersend.ai",
+      })
+      process.env.AMPERSEND_API_URL = "https://api.sandbox.ampersend.ai"
+
+      const result = loadCredentials()
+
+      expect(result.ok).toBe(true)
+      if (result.ok) {
+        expect(result.credentials.apiUrl).toBe("https://api.sandbox.ampersend.ai")
+      }
+    })
+
+    it("falls back to file's apiUrl when env var is unset", () => {
+      const agentKey = generatePrivateKey()
+      writeConfig({
+        agentKey,
+        agentAccount: VALID_ACCOUNT,
+        apiUrl: "https://api.staging.ampersend.ai",
+      })
+
+      const result = loadCredentials()
+
+      expect(result.ok).toBe(true)
+      if (result.ok) {
+        expect(result.credentials.apiUrl).toBe("https://api.staging.ampersend.ai")
       }
     })
   })

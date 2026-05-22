@@ -10,6 +10,7 @@ for example, when the user wants connect-mode setup, manual config, sandbox swit
 - [Setup mode: connect to an existing agent](#setup-mode-connect-to-an-existing-agent)
 - [Setup mode: manual key + account](#setup-mode-manual-key--account)
 - [fetch](#fetch)
+- [agent](#agent)
 - [config](#config)
 
 ## setup start
@@ -101,6 +102,31 @@ ampersend fetch --inspect https://api.example.com/paid-endpoint
 ```
 
 Successful results include `data.status`, `data.body`, and `data.payment` (when a payment was made).
+
+## agent
+
+Read the calling agent's own state. Every subcommand is authenticated with the local agent key, scoped to that agent
+only, and returns the standard JSON envelope.
+
+```bash
+ampersend agent                                # Snapshot: agent record + live balance
+ampersend agent spend-config                   # Per-tx, daily, monthly limits, auto-topup
+ampersend agent auto-collect-config            # Earnings sweep configuration
+ampersend agent authorized-sellers             # Seller allowlist
+ampersend agent payments [--preset 1d|30d|all] # Outgoing payments (default: 30d)
+ampersend agent activity [--limit N] [--page N] [--preset <preset>]
+ampersend agent owner                          # Owner: { user_id, wallet_address }
+```
+
+| Option        | Description                                                    |
+| ------------- | -------------------------------------------------------------- |
+| `--preset`    | Timerange: `1d` (today), `30d` (last 30 days), or `all`        |
+| `--limit <n>` | `activity` only — items per page                               |
+| `--page <n>`  | `activity` only — page number (1-indexed)                      |
+| `--raw`       | Print only the inner data, no JSON envelope (useful in shells) |
+
+These are **reads only** — to change limits or sellers, the user goes to the dashboard. The server scopes every response
+to the session's own agent, so sibling agents and cross-agent aggregates are unreachable.
 
 ## config
 
