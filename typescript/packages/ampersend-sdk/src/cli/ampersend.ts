@@ -5,6 +5,7 @@ import { VERSION } from "../version.ts"
 import { registerAgentCommand } from "./commands/agent.ts"
 import { registerConfigCommand } from "./commands/config.ts"
 import { registerFetchCommand } from "./commands/fetch.ts"
+import { registerFundCommand } from "./commands/fund.ts"
 import { registerMarketplaceCommand } from "./commands/marketplace.ts"
 import { registerSetupCommand } from "./commands/setup.ts"
 import { registerVersionCommand } from "./commands/version.ts"
@@ -46,6 +47,7 @@ async function main(): Promise<void> {
   registerSetupCommand(program)
   registerFetchCommand(program)
   registerAgentCommand(program)
+  registerFundCommand(program)
   registerMarketplaceCommand(program)
   registerVersionCommand(program)
 

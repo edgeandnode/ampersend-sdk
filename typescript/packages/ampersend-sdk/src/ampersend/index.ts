@@ -5,6 +5,7 @@ export { ApiClient } from "./client.ts"
 // re-exported — server's domain/Activity.ts owns the canonical versions.
 export {
   AgentAutoCollectConfigDTO,
+  AgentFundingLinkDTO,
   AgentOwnerDTO,
   AgentSelfDTO,
   AgentSelfPaymentDTO,

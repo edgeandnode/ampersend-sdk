@@ -120,3 +120,13 @@ export const AgentOwnerDTO = Schema.Struct({
   wallet_address: Address,
 })
 export type AgentOwnerDTO = typeof AgentOwnerDTO.Type
+
+/**
+ * Funding link the agent can present to its owner. The URL points at the
+ * dashboard's `/fund` page, prefilled per the requested destination. Pure
+ * URL formatter on the server — no DB row, no token, no side effects.
+ */
+export const AgentFundingLinkDTO = Schema.Struct({
+  url: Schema.String,
+})
+export type AgentFundingLinkDTO = typeof AgentFundingLinkDTO.Type

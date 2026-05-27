@@ -11,7 +11,7 @@ interface BaseOptions {
 const VALID_PRESETS = new Set(["1d", "30d", "all"])
 
 /** Build an `AgentReadClient` from local config, or print an envelope-style error and exit. */
-function buildClient(): AgentReadClient {
+export function buildClient(): AgentReadClient {
   const result = loadCredentials()
   if (!result.ok) {
     console.log(JSON.stringify(result.error, null, 2))
@@ -34,7 +34,7 @@ function buildClient(): AgentReadClient {
  * and the DTOs decode wire strings into bigint values, so we have to
  * project them back out when printing.
  */
-async function emit(label: string, options: BaseOptions, run: () => Promise<unknown>): Promise<void> {
+export async function emit(label: string, options: BaseOptions, run: () => Promise<unknown>): Promise<void> {
   try {
     const data = await run()
     const payload = options.raw ? data : ok(data)

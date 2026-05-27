@@ -3,6 +3,7 @@ import { Schema } from "effect"
 import {
   AgentActivityResponse,
   AgentAutoCollectConfigDTO,
+  AgentFundingLinkDTO,
   AgentOwnerDTO,
   AgentSelfDTO,
   AgentSelfPaymentDTO,
@@ -97,5 +98,22 @@ export class AgentReadClient {
   /** Narrow owner projection: `{ user_id, wallet_address }`. */
   getOwner(): Promise<AgentOwnerDTO> {
     return this.api.getAuthorized("/api/v1/agents/self/owner", AgentOwnerDTO)
+  }
+
+  /**
+   * Build a dashboard `/fund` URL the user can open to add USDC. The server
+   * is a pure URL formatter — no DB row, no token, no side effects. The
+   * returned URL preselects the calling agent (`destination: "agent"`, default)
+   * or the owner's main account (`destination: "main"`).
+   *
+   * `amount` is a decimal USDC string, strictly validated server-side as
+   * positive, ≤6 fractional digits, no leading zeros.
+   */
+  getFundingLink(params: { amount?: string; destination?: "agent" | "main" } = {}): Promise<AgentFundingLinkDTO> {
+    const qs = new URLSearchParams()
+    if (params.amount != null) qs.set("amount", params.amount)
+    if (params.destination != null) qs.set("destination", params.destination)
+    const suffix = qs.toString()
+    return this.api.getAuthorized(`/api/v1/agents/self/funding-link${suffix ? `?${suffix}` : ""}`, AgentFundingLinkDTO)
   }
 }
