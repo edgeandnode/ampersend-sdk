@@ -10,6 +10,7 @@ for example, when the user wants connect-mode setup, manual config, sandbox swit
 - [Setup mode: connect to an existing agent](#setup-mode-connect-to-an-existing-agent)
 - [Setup mode: manual key + account](#setup-mode-manual-key--account)
 - [fetch](#fetch)
+- [card](#card)
 - [agent](#agent)
 - [config](#config)
 
@@ -126,6 +127,87 @@ whether the operation succeeded. A 402 without `--pay`, an unparseable response,
 `ok: false` envelopes with exit 0. Exit 1 is reserved for caller errors: bad arguments (e.g. `--pay` and `--inspect`
 together), invalid headers, or a missing config when `--pay` is set. In `--raw` mode, exit 1 is also used for runtime
 failures (parse errors, network errors) so shell pipelines can branch on `$?`.
+
+## card
+
+Issue and read prepaid Visa cards. Three subcommands:
+
+```bash
+ampersend card issue --amount <usd>            # order a card (the spend)
+ampersend card details <id> [--pay] [--reveal] # status + data once ready
+ampersend card list [--pay]                    # all issued cards (masked)
+```
+
+`card issue`:
+
+| Option           | Description                                 |
+| ---------------- | ------------------------------------------- |
+| `--amount <usd>` | Card value in USD ($5–$1000). Required.     |
+| `--raw`          | Print only the inner data, no JSON envelope |
+
+`card details <id>` / `card list`:
+
+| Option     | Description                                                   |
+| ---------- | ------------------------------------------------------------- |
+| `--pay`    | Authorize minting a read token (~$0.001) when none is cached  |
+| `--reveal` | `details` only — show the full PAN and CVV instead of masking |
+| `--raw`    | Print only the inner data, no JSON envelope                   |
+
+### Spending model
+
+`issue` is the only stated-amount spend, so it has **no `--pay` flag** — the amount is in the command. It returns a
+`card_id` with `status: "pending"` and a `payment` receipt. It does not poll; poll `card details <id>` yourself until
+`status: "ready"`.
+
+Reads (`details`/`list`) need an access token minted by a tiny (~$0.001) paid call. That token is cached, so:
+
+- **After `issue`** — a token is cached as a side effect of ordering, so the first `details`/`list` poll is free, no
+  `--pay` needed.
+- **Warm cache** — reads are free; no `--pay` needed.
+- **Cold cache, no `--pay`** — returns `ok: false` with code `TOKEN_REQUIRED`. Pass `--pay` to authorize the mint.
+- **Cold cache, `--pay`** — mints the token, caches it, and includes a `payment` receipt for that spend.
+
+The cache is dropped automatically whenever the active agent identity or API URL changes.
+
+### Card data fields
+
+`details` and `list` return these fields per card (in addition to `card_id`):
+
+| Field          | Where          | Meaning                                                                    |
+| -------------- | -------------- | -------------------------------------------------------------------------- |
+| `status`       | both           | Lifecycle state — see the enum below                                       |
+| `amount`       | both           | Original load in USD                                                       |
+| `balance`      | both (ready)   | Spendable USD remaining now                                                |
+| `card_type`    | both           | e.g. `Non-Reloadable U.S.`                                                 |
+| `ordered_at`   | both           | When the card was ordered (ISO 8601)                                       |
+| `pan`          | both (ready)   | Card number — masked to last 4 unless `--reveal`                           |
+| `cvv`          | both (ready)   | Security code — `•••` unless `--reveal`                                    |
+| `expiry`       | both (ready)   | `MM/YY`, shown in clear (not a secret on its own)                          |
+| `transactions` | `details` only | History: `{ amount, date, description, is_credit }` — the load is a credit |
+
+**Has a card been used?** Compare `amount` (the load) with `balance` (what's left): unused when `balance == amount`,
+spent so far = `amount - balance`. `transactions` gives the itemized history (`is_credit: true` = the load or a refund;
+`false` = a spend).
+
+`balance`, `pan`/`cvv`/`expiry`, and `transactions` appear only once a card is ready.
+
+### Status values
+
+`status` is passed through from Laso verbatim: `pending` (provisioning), `ready` (US card usable), `refund-requested`,
+`refunded`, `archived`. (International cards, a fast-follow, add `queued` and `complete`.) Poll on `status` reaching
+`ready`; don't assume `ready` is the only terminal state.
+
+### Card data and masking
+
+Card secrets are **never written to disk** and are masked unless `--reveal`: PAN shows the last four digits
+(`•••• •••• •••• 4242`) and CVV shows `•••`. Expiry is shown in clear. A still-provisioning card returns `ok: true` with
+`status: "pending"` and no card data — that's a normal poll state, not an error. Branch on `data.status`, not `ok`.
+
+### Error codes
+
+`CARD_AMOUNT_OUT_OF_RANGE` (amount outside $5–$1000), `CARD_REGION_BLOCKED` (issuance is US-IP only), `TOKEN_REQUIRED`
+(cold read cache without `--pay`), `CARD_NOT_FOUND` (no card with that id). All are `ok: false` envelopes with exit 0;
+exit 1 is reserved for caller misuse (e.g. bad `--amount`) and missing config.
 
 ## agent
 

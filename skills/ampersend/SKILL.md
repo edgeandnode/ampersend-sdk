@@ -92,8 +92,8 @@ Categories of things the agent can do via ampersend today:
 - **Job search** — querying live job openings with structured filters.
 - **Travel search** — searching flights, hotels, activities, and transfers in one place.
 - **Real-world purchases** — buying things that come back as a redeemable artifact (today, a prepaid card the agent can
-  then use for online purchases). The agent gets back the artifact, not a service response — flag this to the user
-  before suggesting.
+  then use for online purchases, via `ampersend card issue` / `card details`). The agent gets back the artifact, not a
+  service response — flag this to the user before suggesting.
 
 Look up the references file before naming a specific service — don't recommend providers from training, since the
 curated list is what we have actually validated against ampersend.

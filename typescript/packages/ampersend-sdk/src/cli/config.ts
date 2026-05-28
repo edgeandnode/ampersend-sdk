@@ -86,6 +86,27 @@ export interface PendingApproval {
   expiresAt: string // ISO timestamp — informational, `setup start` enforces locally; `setup finish` lets API decide
 }
 
+const HexString = Schema.TemplateLiteral(Schema.Literal("0x"), Schema.String)
+
+/**
+ * Cached Laso Bearer token for `card details`/`list`, so a warm read costs
+ * nothing. Stamped with the identity (`agentKey`) and `apiUrl` it was minted
+ * under: `readLasoToken` treats it as absent if either no longer matches the
+ * active config (covers env-var overrides) or it has expired. Self-correcting,
+ * so the identity/URL write paths only need to drop it, not re-thread it.
+ *
+ * Schema is the source of truth; the `LasoToken` type is derived from it so the
+ * two can't drift (the same pattern as the schemas in `src/ampersend/`).
+ */
+const LasoTokenSchema = Schema.Struct({
+  idToken: Schema.String,
+  expiresAt: Schema.String, // ISO timestamp
+  agentKey: HexString,
+  apiUrl: Schema.optional(Schema.String),
+})
+
+export type LasoToken = typeof LasoTokenSchema.Type
+
 /** Stored configuration V1 */
 export interface StoredConfigV1 {
   version: 1
@@ -93,12 +114,11 @@ export interface StoredConfigV1 {
   agentAccount?: `0x${string}`
   apiUrl?: string
   pendingApproval?: PendingApproval
+  lasoToken?: LasoToken
 }
 
 /** Current stored config type */
 export type StoredConfig = StoredConfigV1
-
-const HexString = Schema.TemplateLiteral(Schema.Literal("0x"), Schema.String)
 
 /** Schema for validating stored config read from disk.
  *
@@ -116,6 +136,7 @@ const StoredConfigSchema = Schema.Struct({
       expiresAt: Schema.String,
     }),
   ),
+  lasoToken: Schema.optional(LasoTokenSchema),
 })
 
 /** Runtime configuration with derived fields */
@@ -124,6 +145,7 @@ export interface RuntimeConfig {
   agentAccount?: `0x${string}`
   apiUrl?: string
   pendingApproval?: PendingApproval
+  lasoToken?: LasoToken
   status: ConfigStatus
 }
 
@@ -224,6 +246,8 @@ export function setConfig(
   }
 
   const existing = readConfig()
+  // lasoToken intentionally not carried over: changing the active identity
+  // invalidates any cached Laso token (it's stamped with the old agentKey).
   writeConfig({
     agentKey: agentKey as `0x${string}`,
     agentAccount: agentAccount as `0x${string}`,
@@ -254,6 +278,9 @@ export function setApiUrl(apiUrl: string | undefined): JsonEnvelope<{ apiUrl: st
   }
 
   const existing = readConfig()
+  // lasoToken intentionally not carried over: changing the API URL points reads
+  // at a different Laso/facilitator context, so a token minted under the old
+  // URL no longer applies.
   writeConfig({
     ...(existing?.agentKey ? { agentKey: existing.agentKey } : {}),
     ...(existing?.agentAccount ? { agentAccount: existing.agentAccount } : {}),
@@ -274,6 +301,9 @@ export function storePendingApproval(pending: PendingApproval): void {
     ...(existing?.agentKey ? { agentKey: existing.agentKey } : {}),
     ...(existing?.agentAccount ? { agentAccount: existing.agentAccount } : {}),
     ...(existing?.apiUrl ? { apiUrl: existing.apiUrl } : {}),
+    // Active identity is unchanged by a pending approval, so a cached Laso
+    // token stays valid — preserve it.
+    ...(existing?.lasoToken ? { lasoToken: existing.lasoToken } : {}),
     pendingApproval: pending,
   })
 }
@@ -302,7 +332,10 @@ export function promotePending(agentAccount: `0x${string}`): JsonEnvelope<{
     return err("NO_PENDING", "No pending approval to promote")
   }
 
-  const { agentKey: _oldKey, pendingApproval, version: _version, ...rest } = existing
+  // Drop lasoToken alongside the old key: the active identity changes here, so
+  // a token minted under the previous key no longer matches. readLasoToken
+  // would reject it anyway; dropping it keeps the file honest.
+  const { agentKey: _oldKey, lasoToken: _lasoToken, pendingApproval, version: _version, ...rest } = existing
   const agentKeyAddress = privateKeyToAddress(pendingApproval.agentKey)
 
   // Promote: pending key becomes active, pending cleared
@@ -318,6 +351,40 @@ export function promotePending(agentAccount: `0x${string}`): JsonEnvelope<{
     agentAccount,
     status: "ready" as ConfigStatus,
   })
+}
+
+/**
+ * Cache a Laso Bearer token, preserving the rest of the config file.
+ * The token is stamped with the identity/URL it was minted under so
+ * `readLasoToken` can reject it after an env-var or config change.
+ *
+ * No-op when credentials come purely from env vars (no file to write): the
+ * config file is the only cache, and we don't create one just to hold a token.
+ */
+export function storeLasoToken(token: LasoToken): void {
+  const existing = readConfig()
+  if (!existing) return
+  const { version: _version, ...rest } = existing
+  writeConfig({ ...rest, lasoToken: token })
+}
+
+/**
+ * Read the cached Laso token, or null if there's no usable one. Treated as
+ * absent when: no token cached, expired, or its stamped `agentKey`/`apiUrl`
+ * no longer match the active credentials (covers env-var overrides and any
+ * write path that forgot to drop it). Self-correcting by construction.
+ */
+export function readLasoToken(active: ResolvedCredentials): LasoToken | null {
+  const stored = readConfig()?.lasoToken
+  if (!stored) return null
+  if (new Date(stored.expiresAt).getTime() <= Date.now()) return null
+  if (stored.agentKey !== active.agentKey) return null
+  // apiUrl absent on either side means production default; normalize so an
+  // explicit prod URL and an implicit one are treated as the same context.
+  const storedUrl = stored.apiUrl ?? DEFAULT_API_URL
+  const activeUrl = active.apiUrl ?? DEFAULT_API_URL
+  if (storedUrl !== activeUrl) return null
+  return stored
 }
 
 /** Configuration source */

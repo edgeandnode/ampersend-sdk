@@ -3,6 +3,7 @@ import { Command, CommanderError } from "commander"
 
 import { VERSION } from "../version.ts"
 import { registerAgentCommand } from "./commands/agent.ts"
+import { registerCardCommand } from "./commands/card.ts"
 import { registerConfigCommand } from "./commands/config.ts"
 import { registerFetchCommand } from "./commands/fetch.ts"
 import { registerFundCommand } from "./commands/fund.ts"
@@ -47,6 +48,7 @@ async function main(): Promise<void> {
   registerSetupCommand(program)
   registerFetchCommand(program)
   registerAgentCommand(program)
+  registerCardCommand(program)
   registerFundCommand(program)
   registerMarketplaceCommand(program)
   registerVersionCommand(program)

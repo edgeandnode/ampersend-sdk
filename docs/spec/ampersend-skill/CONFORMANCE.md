@@ -4,7 +4,7 @@ Latest verdict for each rule in [`SPEC.md`](SPEC.md). Regenerate when
 [`skills/ampersend/SKILL.md`](../../../skills/ampersend/SKILL.md) or `SPEC.md` changes.
 
 - **Generated against:** `skills/ampersend/SKILL.md` at HEAD
-- **Date:** 2026-06-01
+- **Date:** 2026-06-02
 - **By:** Claude
 
 1. PASS — `name: ampersend` (9 chars, kebab-case); description ~430 chars (under 1024); `version: 0.0.22` is the only
@@ -21,10 +21,10 @@ Latest verdict for each rule in [`SPEC.md`](SPEC.md). Regenerate when
    are numbered steps or command blocks.
 7. PASS — `references/` contains three files (`commands.md`, `example-services.md`, `marketplace.md`); no
    subdirectories.
-8. PASS — `references/commands.md` is 165 lines and starts with "Contents" (lists `agent` between `fetch` and `config`).
-   `references/example-services.md` is 326 lines and starts with a Contents section listing all 14 capability headings
-   plus the Response patterns section. `references/marketplace.md` is 81 lines — under the 100-line TOC threshold — and
-   still opens with a Contents section.
+8. PASS — `references/commands.md` is 247 lines and starts with "Contents" (lists `card` between `fetch` and `agent`).
+   `references/example-services.md` is 336 lines and starts with a Contents section listing all 14 capability headings
+   plus the Response patterns section. `references/marketplace.md` is 80 lines — under the 100-line TOC threshold — so a
+   table of contents is not required.
 9. PASS — Body content is system-specific. The body's capability list names categories in user-voice (no "pay-per-...",
    "API-key relationship", or "x402-paid" framing leaking from the agent-economy register); curated third-party services
    and the Pinata response pattern live only in `references/example-services.md`, both covered by the rule's carve-outs.
@@ -54,9 +54,9 @@ Latest verdict for each rule in [`SPEC.md`](SPEC.md). Regenerate when
     verification → Apollo people-enrich + Hunter email-verifier (via StableEnrich); Voice calls → StablePhone; Property
     valuation → RentCast (via StableEnrich); Domain registration → Bloomfilter; File hosting → StableUpload; Image and
     video generation → StableStudio; LLM inference → BlockRun; Social data → StableSocial; News and market data →
-    Gloria; Job search → StableJobs; Travel search → StableTravel; Real-world purchases → Laso. Pinata sits in the
-    Response patterns section (it's a URL-shape the agent must handle, not a thing the agent suggests). No orphan
-    capabilities, no orphan suggestable services.
+    Gloria; Job search → StableJobs; Travel search → StableTravel; Real-world purchases → Prepaid Visa cards
+    (`ampersend card`). Pinata sits in the Response patterns section (it's a URL-shape the agent must handle, not a
+    thing the agent suggests). No orphan capabilities, no orphan suggestable services.
 17. PASS — "Suggesting things to try" opens with: "Ampersend is the agentic payments layer between the agent and the
     services below. Services don't need to know ampersend exists — they accept payments from any agent capable of paying
     as part of making an HTTP request, and ampersend handles the agent's side: enforcing the user's spending limits,

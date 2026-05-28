@@ -9,9 +9,14 @@ import {
   loadCredentials,
   promotePending,
   readConfig,
+  readLasoToken,
+  setApiUrl,
   setConfig,
+  storeLasoToken,
   storePendingApproval,
   writeConfig,
+  type LasoToken,
+  type ResolvedCredentials,
 } from "@/cli/config.ts"
 import { generatePrivateKey, privateKeyToAddress } from "viem/accounts"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
@@ -395,6 +400,113 @@ describe("CLI Config", () => {
       if (result.ok) {
         expect(result.credentials.apiUrl).toBe("https://api.staging.ampersend.ai")
       }
+    })
+  })
+
+  describe("lasoToken", () => {
+    const VALID_ACCOUNT = "0x1111111111111111111111111111111111111111" as `0x${string}`
+    const agentKey = generatePrivateKey()
+    const creds: ResolvedCredentials = { agentAccount: VALID_ACCOUNT, agentKey }
+
+    function freshToken(overrides: Partial<LasoToken> = {}): LasoToken {
+      return {
+        idToken: "tok-123",
+        expiresAt: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+        agentKey,
+        ...overrides,
+      }
+    }
+
+    function seedIdentity(): void {
+      setConfig(`${agentKey}:::${VALID_ACCOUNT}`)
+    }
+
+    it("stores and reads back a valid token for the active identity", () => {
+      seedIdentity()
+      storeLasoToken(freshToken())
+
+      expect(readLasoToken(creds)?.idToken).toBe("tok-123")
+    })
+
+    it("treats an expired token as absent", () => {
+      seedIdentity()
+      storeLasoToken(freshToken({ expiresAt: new Date(Date.now() - 1000).toISOString() }))
+
+      expect(readLasoToken(creds)).toBeNull()
+    })
+
+    it("treats a token stamped with a different agentKey as absent", () => {
+      seedIdentity()
+      storeLasoToken(freshToken())
+
+      const otherCreds: ResolvedCredentials = { agentAccount: VALID_ACCOUNT, agentKey: generatePrivateKey() }
+      expect(readLasoToken(otherCreds)).toBeNull()
+    })
+
+    it("treats a token stamped with a different apiUrl as absent", () => {
+      seedIdentity()
+      storeLasoToken(freshToken({ apiUrl: "https://api.staging.ampersend.ai" }))
+
+      // Active creds default to production; stamped staging URL no longer matches.
+      expect(readLasoToken(creds)).toBeNull()
+    })
+
+    it("normalizes absent vs explicit production URL as the same context", () => {
+      seedIdentity()
+      storeLasoToken(freshToken({ apiUrl: "https://api.ampersend.ai" }))
+
+      expect(readLasoToken(creds)?.idToken).toBe("tok-123")
+    })
+
+    it("is a no-op when there is no config file to write", () => {
+      // No identity seeded → no file. storeLasoToken must not create one.
+      storeLasoToken(freshToken())
+      expect(readConfig()).toBeNull()
+    })
+
+    it("preserves the token across storePendingApproval (active identity unchanged)", () => {
+      seedIdentity()
+      storeLasoToken(freshToken())
+
+      storePendingApproval({
+        token: "approval-token",
+        agentKey: generatePrivateKey(),
+        expiresAt: computeApprovalExpiry(),
+      })
+
+      expect(readConfig()?.lasoToken?.idToken).toBe("tok-123")
+    })
+
+    it("drops the token on setConfig (identity changes)", () => {
+      seedIdentity()
+      storeLasoToken(freshToken())
+
+      setConfig(`${generatePrivateKey()}:::${VALID_ACCOUNT}`)
+
+      expect(readConfig()?.lasoToken).toBeUndefined()
+    })
+
+    it("drops the token on setApiUrl (read context changes)", () => {
+      seedIdentity()
+      storeLasoToken(freshToken())
+
+      setApiUrl("https://api.staging.ampersend.ai")
+
+      expect(readConfig()?.lasoToken).toBeUndefined()
+    })
+
+    it("drops the token on promotePending (identity changes)", () => {
+      seedIdentity()
+      storeLasoToken(freshToken())
+      storePendingApproval({
+        token: "approval-token",
+        agentKey: generatePrivateKey(),
+        expiresAt: computeApprovalExpiry(),
+      })
+
+      promotePending(VALID_ACCOUNT)
+
+      expect(readConfig()?.lasoToken).toBeUndefined()
     })
   })
 })

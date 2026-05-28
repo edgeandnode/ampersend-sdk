@@ -295,18 +295,28 @@ Services in this category produce a redeemable artifact (today, a prepaid card),
 confirm with the user that they want the agent to make the purchase — the funds leave the agent's account and the
 artifact is the only thing returned.
 
-### Laso
+### Prepaid Visa cards
 
-Ordering a prepaid virtual Visa card the agent can then use for online purchases. Three calls total: pay for an auth
-token, order the card, then poll for the card details once it's ready.
+Ordering a prepaid virtual Visa card the agent can then use for online purchases. Use `ampersend card` — it handles the
+underlying provider flow (auth token, order, poll) for you.
 
-- `GET https://laso.finance/auth` — pays a tiny x402 cost, returns an `id_token` (1-hour Bearer) plus a refresh token.
-- `GET https://laso.finance/get-card?amount=<usd>` — pays via x402, returns a `card_id` with `status: "pending"`.
-  `amount` is in USD, $5–$1000.
-- `GET https://laso.finance/get-card-data?card_id=<id>` — uses the Bearer token from `/auth`, free, poll every 2–3
-  seconds until `status: "ready"` to get the card number, CVV, and expiry.
-- US-only (IP-locked) and non-reloadable today. `--inspect` before ordering — `get-card` is the real spend.
-- Docs: <https://laso.finance/>
+- `ampersend card issue --amount <usd>` — orders a card. This is the spend (the amount is stated, so no `--pay` flag).
+  `amount` is in USD, $5–$1000. Returns a `card_id` with `status: "pending"`.
+  ```bash
+  ampersend card issue --amount 25
+  ```
+- `ampersend card details <id>` — poll this until `status: "ready"`, then add `--reveal` to read the full card number,
+  CVV, and expiry (masked by default). The first read after `issue` is free (a token is cached when you order);
+  otherwise reads are free on a warm token and the first cold read needs `--pay` to mint one (~$0.001):
+  ```bash
+  ampersend card details card_abc123          # poll for status (masked)
+  ampersend card details card_abc123 --reveal  # full PAN/CVV once ready
+  ```
+- `ampersend card list` — all issued cards (masked).
+- To check whether a card has been spent, compare `amount` (the load) with `balance` (what's left); `details` also
+  returns a `transactions` history.
+- US-only (IP-locked) and non-reloadable today. Confirm with the user before `issue` — that's the real spend, and the
+  card is the only thing returned.
 
 ## Response patterns
 

@@ -1,5 +1,6 @@
 import {
   buildPaymentReceipt,
+  buildReceiptFromResponse,
   buildRequestInit,
   decodeBase64Header,
   executeFetch,
@@ -440,6 +441,35 @@ describe("CLI Fetch Behavior", () => {
       expect(receipt).not.toHaveProperty("payer")
       expect(receipt.txHash).toBe("0xabc123")
       expect(receipt.amount).toBe("1000")
+    })
+  })
+
+  describe("buildReceiptFromResponse", () => {
+    const selected = {
+      amount: "1000",
+      asset: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+      network: "eip155:8453",
+      payTo: "0x1234567890123456789012345678901234567890",
+      scheme: "exact",
+    }
+
+    it("returns undefined when no payment was made (no selected requirements)", () => {
+      const response = new Response("", { status: 200 })
+      expect(buildReceiptFromResponse(undefined, response)).toBeUndefined()
+    })
+
+    it("returns undefined when the server sent no settle header", () => {
+      const response = new Response("", { status: 200 })
+      expect(buildReceiptFromResponse(selected, response)).toBeUndefined()
+    })
+
+    it("builds a receipt from selected requirements + settle header", () => {
+      const response = new Response("", {
+        status: 200,
+        headers: { "payment-response": encodeHeader({ transaction: "0xabc", payer: "0xpayer" }) },
+      })
+      const receipt = buildReceiptFromResponse(selected, response)
+      expect(receipt).toMatchObject({ amount: "1000", txHash: "0xabc", payer: "0xpayer" })
     })
   })
 

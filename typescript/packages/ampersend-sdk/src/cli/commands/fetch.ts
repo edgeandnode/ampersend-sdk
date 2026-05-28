@@ -3,7 +3,7 @@ import type { Command } from "commander"
 
 import { createAmpersendHttpClient } from "../../x402/http/factory.ts"
 import { wrapFetchWithAmpersendSiwx } from "../../x402/siwx.ts"
-import { loadCredentials } from "../config.ts"
+import { loadCredentials, type ResolvedCredentials } from "../config.ts"
 import { err, ok } from "../envelope.ts"
 
 interface SelectedRequirements {
@@ -12,6 +12,68 @@ interface SelectedRequirements {
   network: string
   payTo: string
   scheme: string
+}
+
+/**
+ * A fetch that pays x402 invoices on the agent's behalf, plus a way to read
+ * back what it signed. `getSelected()` returns the requirements captured by
+ * the `onAfterPaymentCreation` hook, or undefined if no payment happened —
+ * the caller pairs it with the server's `payment-response` header to build a
+ * truthful receipt (see `buildPaymentReceipt`).
+ */
+interface PaidFetch {
+  fetchWithPayment: typeof globalThis.fetch
+  getSelected: () => SelectedRequirements | undefined
+}
+
+/**
+ * Wire up the Ampersend paid-fetch path used by every spending command:
+ * `createAmpersendHttpClient` → (optional SIWX) → `wrapFetchWithPayment`,
+ * with the `onAfterPaymentCreation` hook capturing the signed requirements.
+ *
+ * One instance captures one payment. Callers making more than one paid
+ * request (e.g. `card` minting a token then ordering) build a fresh
+ * `createPaidFetch` per request so each capture is isolated.
+ *
+ * SIWX defaults on, matching `fetch --pay`: it satisfies auth-only routes and
+ * re-entry to already-paid resources via signature alone; if the server
+ * doesn't speak SIWX or rejects our signature, the 402 falls through to the
+ * payment wrapper.
+ */
+function createPaidFetch(credentials: ResolvedCredentials, opts: { siwx: boolean } = { siwx: true }): PaidFetch {
+  const apiUrl = credentials.apiUrl ?? "https://api.ampersend.ai"
+
+  const ampersendClient = createAmpersendHttpClient({
+    smartAccountAddress: credentials.agentAccount,
+    sessionKeyPrivateKey: credentials.agentKey,
+    apiUrl,
+    clientName: "ampersend-cli",
+  })
+
+  // The hook fires right after createPaymentPayload and before the retry to
+  // the server, so by the time fetchWithPayment resolves this is populated
+  // iff a payment happened. The amount here is what we authorized — what the
+  // server settles can only equal this (it can't settle a different value
+  // than was signed).
+  let selected: SelectedRequirements | undefined
+  ampersendClient.onAfterPaymentCreation(async (ctx) => {
+    const r = ctx.selectedRequirements
+    selected = { amount: r.amount, asset: r.asset, network: r.network, payTo: r.payTo, scheme: r.scheme }
+  })
+
+  const innerFetch = opts.siwx
+    ? wrapFetchWithAmpersendSiwx(fetch, {
+        smartAccountAddress: credentials.agentAccount,
+        sessionKeyPrivateKey: credentials.agentKey,
+        apiUrl,
+        clientName: "ampersend-cli",
+      })
+    : fetch
+
+  return {
+    fetchWithPayment: wrapFetchWithPayment(innerFetch, ampersendClient),
+    getSelected: () => selected,
+  }
 }
 
 interface FetchOptions {
@@ -133,6 +195,22 @@ function buildPaymentReceipt(
 }
 
 /**
+ * Build a PaymentReceipt from a paid response, or undefined when no payment
+ * happened (no captured `selected`, e.g. a free/warm-cache path) or the server
+ * sent no settle header. Combines the signed requirements with the facilitator's
+ * `payment-response` settle header.
+ */
+function buildReceiptFromResponse(
+  selected: SelectedRequirements | undefined,
+  response: Response,
+): PaymentReceipt | undefined {
+  const paymentResponse = response.headers.get("payment-response")
+  if (!paymentResponse || !selected) return undefined
+  const settle = decodeBase64Header(paymentResponse) as { transaction: string; payer?: string }
+  return buildPaymentReceipt(selected, settle)
+}
+
+/**
  * Build RequestInit from options, handling undefined body correctly
  */
 function buildRequestInit(options: FetchOptions, headers: Headers): RequestInit {
@@ -234,10 +312,9 @@ async function emitSuccessResponse(
 
   // Build receipt only when both halves are present: the signed requirements
   // (what we authorized) and the settle response (proof it landed).
-  const paymentResponse = response.headers.get("payment-response")
-  if (paymentResponse && selected) {
-    const settle = decodeBase64Header(paymentResponse) as { transaction: string; payer?: string }
-    data.payment = buildPaymentReceipt(selected, settle)
+  const receipt = buildReceiptFromResponse(selected, response)
+  if (receipt) {
+    data.payment = receipt
   }
 
   console.log(JSON.stringify(ok(data), null, 2))
@@ -314,42 +391,9 @@ async function runFetch(url: string, options: FetchOptions): Promise<void> {
     process.exit(1)
   }
 
-  const config = configResult.credentials
-  const apiUrl = config.apiUrl ?? "https://api.ampersend.ai"
-
-  const ampersendClient = createAmpersendHttpClient({
-    smartAccountAddress: config.agentAccount,
-    sessionKeyPrivateKey: config.agentKey,
-    apiUrl,
-    clientName: "ampersend-cli",
-  })
-
-  // Capture the requirements the client signed against. The hook fires right
-  // after createPaymentPayload and before the retry to the server, so by the
-  // time fetchWithPayment resolves this is populated iff a payment happened.
-  // The amount here is what we authorized — what the server actually settles
-  // can only equal this (it can't settle a different value than was signed).
-  let selected: SelectedRequirements | undefined
-  ampersendClient.onAfterPaymentCreation(async (ctx) => {
-    const r = ctx.selectedRequirements
-    selected = { amount: r.amount, asset: r.asset, network: r.network, payTo: r.payTo, scheme: r.scheme }
-  })
-
-  // SIWX runs inside the payment wrapper: it satisfies auth-only routes and
-  // re-entry to already-paid resources via signature alone; if the server
-  // doesn't speak SIWX or rejects our signature, the 402 falls through to
-  // the payment wrapper.
-  const innerFetch = options.siwx
-    ? wrapFetchWithAmpersendSiwx(fetch, {
-        smartAccountAddress: config.agentAccount,
-        sessionKeyPrivateKey: config.agentKey,
-        apiUrl,
-        clientName: "ampersend-cli",
-      })
-    : fetch
-  const fetchWithPayment = wrapFetchWithPayment(innerFetch, ampersendClient)
+  const { fetchWithPayment, getSelected } = createPaidFetch(configResult.credentials, { siwx: options.siwx })
   const response = await fetchWithPayment(url, init)
-  await emitSuccessResponse(response, options, selected)
+  await emitSuccessResponse(response, options, getSelected())
 }
 
 /**
@@ -429,7 +473,9 @@ Examples:
 
 export {
   buildPaymentReceipt,
+  buildReceiptFromResponse,
   buildRequestInit,
+  createPaidFetch,
   decodeBase64Header,
   executeFetch,
   headersToObject,
@@ -437,3 +483,4 @@ export {
   runFetch,
   runInspect,
 }
+export type { PaidFetch, PaymentReceipt, SelectedRequirements }
