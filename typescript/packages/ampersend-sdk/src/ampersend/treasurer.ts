@@ -24,6 +24,8 @@ export interface SimpleAmpersendTreasurerConfig {
   sessionKeyPrivateKey: Hex
   /** Defaults to the production Ampersend API. */
   apiUrl?: string
+  /** Client name for product-analytics attribution. Defaults to `sdk-typescript`. */
+  clientName?: string
 }
 
 /** Full config for EOA wallets or custom SIWE auth. */
@@ -36,6 +38,8 @@ export interface FullAmpersendTreasurerConfig {
     /** SIWE statement. */
     statement?: string
   }
+  /** Client name for product-analytics attribution. Defaults to `sdk-typescript`. */
+  clientName?: string
 }
 
 export type AmpersendTreasurerConfig = SimpleAmpersendTreasurerConfig | FullAmpersendTreasurerConfig
@@ -139,6 +143,7 @@ export function createAmpersendTreasurer(config: AmpersendTreasurerConfig): X402
       baseUrl: config.apiUrl ?? DEFAULT_API_URL,
       sessionKeyPrivateKey: config.sessionKeyPrivateKey,
       agentAddress: config.smartAccountAddress,
+      ...(config.clientName !== undefined ? { clientName: config.clientName } : {}),
     })
 
     const wallet = createWalletFromConfig(walletConfig)
@@ -158,6 +163,7 @@ export function createAmpersendTreasurer(config: AmpersendTreasurerConfig): X402
     baseUrl: apiUrl,
     sessionKeyPrivateKey: authPrivateKey,
     agentAddress,
+    ...(config.clientName !== undefined ? { clientName: config.clientName } : {}),
     ...authConfig,
   })
 

@@ -24,6 +24,8 @@ export interface SimpleHttpClientOptions {
   sessionKeyPrivateKey: Hex
   /** Ampersend API URL. Defaults to production. */
   apiUrl?: string
+  /** Client name for product-analytics attribution. Defaults to `sdk-typescript`. */
+  clientName?: string
 }
 
 /**
@@ -55,6 +57,7 @@ export function createAmpersendHttpClient(options: SimpleHttpClientOptions): Amp
     smartAccountAddress: options.smartAccountAddress,
     sessionKeyPrivateKey: options.sessionKeyPrivateKey,
     apiUrl: options.apiUrl ?? DEFAULT_API_URL,
+    ...(options.clientName !== undefined ? { clientName: options.clientName } : {}),
   })
 
   return new AmpersendX402Client(treasurer).withNetworks({

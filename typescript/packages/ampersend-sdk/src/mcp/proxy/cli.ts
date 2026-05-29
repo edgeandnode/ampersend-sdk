@@ -97,6 +97,7 @@ function parseOptions(args: Array<string>, envPrefix = "TS__MCP_PROXY__"): Proxy
     ? createAmpersendTreasurer({
         apiUrl: envConfig.AMPERSEND_API_URL,
         walletConfig,
+        clientName: "ampersend-mcp-proxy",
       })
     : createNaiveTreasurer(walletConfig)
 

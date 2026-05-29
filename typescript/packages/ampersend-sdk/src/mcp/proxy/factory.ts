@@ -26,6 +26,8 @@ export interface SimpleProxyOptions {
   sessionKeyPrivateKey: Hex
   /** Ampersend API URL (defaults to production) */
   apiUrl?: string
+  /** Client name for product-analytics attribution. Defaults to `sdk-typescript`. */
+  clientName?: string
 }
 
 /**
@@ -53,10 +55,12 @@ export interface SimpleProxyOptions {
  */
 export async function createAmpersendProxy(options: SimpleProxyOptions): Promise<{ server: ProxyServer }> {
   const apiUrl = options.apiUrl ?? DEFAULT_API_URL
+  const clientNameOverride = options.clientName !== undefined ? { clientName: options.clientName } : {}
   const treasurer = createAmpersendTreasurer({
     smartAccountAddress: options.smartAccountAddress,
     sessionKeyPrivateKey: options.sessionKeyPrivateKey,
     apiUrl,
+    ...clientNameOverride,
   })
 
   return initializeProxyServerInternal({
@@ -66,6 +70,7 @@ export async function createAmpersendProxy(options: SimpleProxyOptions): Promise
       smartAccountAddress: options.smartAccountAddress,
       sessionKeyPrivateKey: options.sessionKeyPrivateKey,
       apiUrl,
+      ...clientNameOverride,
     },
   })
 }

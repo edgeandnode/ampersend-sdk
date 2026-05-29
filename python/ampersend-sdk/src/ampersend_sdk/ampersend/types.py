@@ -19,6 +19,11 @@ class ApiClientOptions(BaseModel):
     session_key_private_key: Optional[str] = None
     agent_address: str
     timeout: int = 30000
+    # Identifies the calling client for the API's product-analytics
+    # attribution. Sent on every authenticated request as
+    # `Ampersend-Client: <client_name>/<version>`. Library callers default
+    # to "sdk-python".
+    client_name: Optional[str] = None
 
     @field_validator("agent_address")
     @classmethod

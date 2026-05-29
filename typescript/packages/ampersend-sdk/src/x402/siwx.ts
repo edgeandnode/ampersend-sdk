@@ -33,6 +33,8 @@ export interface SiwxSignerConfig {
   apiUrl: string
   /** CoSignerValidator address. Defaults to the standard CoSignerValidator. */
   validatorAddress?: Address
+  /** Client name for product-analytics attribution. Defaults to `sdk-typescript`. */
+  clientName?: string
 }
 
 /**
@@ -61,6 +63,7 @@ export function createSiwxSigner(config: SiwxSignerConfig): EVMSigner {
     baseUrl: config.apiUrl,
     sessionKeyPrivateKey: config.sessionKeyPrivateKey,
     agentAddress: config.smartAccountAddress,
+    ...(config.clientName !== undefined ? { clientName: config.clientName } : {}),
   })
 
   return {

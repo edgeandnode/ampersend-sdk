@@ -3,6 +3,7 @@ import { DateTime, Schema } from "effect"
 import { SiweMessage } from "siwe"
 import { privateKeyToAccount } from "viem/accounts"
 
+import { VERSION } from "../version.ts"
 import type { PaymentAuthorization, PaymentRequest } from "../x402/envelopes.ts"
 import {
   AgentAuthorizeRequest,
@@ -58,6 +59,13 @@ export class ApiClient {
   private sessionKeyPrivateKey: `0x${string}` | undefined
   private agentAddress: Address
   private timeout: number
+  /**
+   * `Ampersend-Client` header value sent on every authenticated request.
+   * Format: `<name>/<version>`. Used by the API for product-analytics
+   * client attribution. Defaults to `sdk-typescript/<VERSION>`; the
+   * `ampersend` CLI overrides `clientName` to `ampersend-cli`.
+   */
+  private clientHeader: string
   private authMutex = new Mutex()
   private auth: AuthenticationState = {
     token: null,
@@ -69,6 +77,8 @@ export class ApiClient {
     this.sessionKeyPrivateKey = options.sessionKeyPrivateKey
     this.agentAddress = options.agentAddress
     this.timeout = options.timeout ?? 30000
+    const clientName = options.clientName ?? "sdk-typescript"
+    this.clientHeader = `${clientName}/${VERSION}`
   }
 
   /**
@@ -288,8 +298,17 @@ export class ApiClient {
     const url = `${this.baseUrl}${path}`
 
     try {
+      // Merge in the Ampersend-Client header so the API can attribute
+      // product-analytics events to SDK vs CLI vs library callers.
+      // Caller-supplied headers win on conflict.
+      const headers = new Headers(init.headers)
+      if (!headers.has("Ampersend-Client")) {
+        headers.set("Ampersend-Client", this.clientHeader)
+      }
+
       const response = await fetch(url, {
         ...init,
+        headers,
         signal: AbortSignal.timeout(this.timeout),
       })
 

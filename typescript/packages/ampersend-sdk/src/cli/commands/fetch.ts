@@ -321,6 +321,7 @@ async function runFetch(url: string, options: FetchOptions): Promise<void> {
     smartAccountAddress: config.agentAccount,
     sessionKeyPrivateKey: config.agentKey,
     apiUrl,
+    clientName: "ampersend-cli",
   })
 
   // Capture the requirements the client signed against. The hook fires right
@@ -343,6 +344,7 @@ async function runFetch(url: string, options: FetchOptions): Promise<void> {
         smartAccountAddress: config.agentAccount,
         sessionKeyPrivateKey: config.agentKey,
         apiUrl,
+        clientName: "ampersend-cli",
       })
     : fetch
   const fetchWithPayment = wrapFetchWithPayment(innerFetch, ampersendClient)

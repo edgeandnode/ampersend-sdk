@@ -1,5 +1,6 @@
 import asyncio
 from datetime import datetime
+from importlib.metadata import PackageNotFoundError, version
 from types import TracebackType
 from typing import Any, Dict, List, Optional, Self
 from urllib.parse import urlparse
@@ -49,6 +50,13 @@ class ApiClient:
         self._auth_lock = asyncio.Lock()
         self._auth = AuthenticationState()
         self._http_client: Optional[httpx.AsyncClient] = None
+        # Ampersend-Client header value for product-analytics attribution.
+        client_name = options.client_name or "sdk-python"
+        try:
+            sdk_version = version("ampersend-sdk")
+        except PackageNotFoundError:
+            sdk_version = "unknown"
+        self._client_header = f"{client_name}/{sdk_version}"
 
     async def __aenter__(self) -> Self:
         """Async context manager entry."""
@@ -264,7 +272,12 @@ class ApiClient:
     ) -> Any:
         """Internal fetch wrapper with error handling."""
         url = f"{self.base_url}{path}"
-        request_headers = {"Content-Type": "application/json"}
+        request_headers = {
+            "Content-Type": "application/json",
+            # Product-analytics attribution. A caller-supplied
+            # Ampersend-Client header overrides the SDK default.
+            "Ampersend-Client": self._client_header,
+        }
         if headers:
             request_headers.update(headers)
 
