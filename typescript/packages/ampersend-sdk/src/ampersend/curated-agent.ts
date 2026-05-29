@@ -2,7 +2,7 @@ import * as Schema from "effect/Schema"
 
 import { Address, ConvertedTimestamp, ID, Scheme } from "./types.js"
 
-export const CuratedAgentSource = Schema.Literal("catalog", "bazaar", "ampersend")
+export const CuratedAgentSource = Schema.Literal("catalog", "bazaar", "ampersend", "registry")
 export type CuratedAgentSource = typeof CuratedAgentSource.Type
 
 export const HTTPMethod = Schema.Literal("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS")
