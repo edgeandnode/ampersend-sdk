@@ -32,21 +32,11 @@ export type { AmpersendNetworks, SimpleHttpClientOptions } from "./http/index.ts
 export { createSiwxSigner, wrapFetchWithAmpersendSiwx } from "./siwx.ts"
 export type { SiwxSignerConfig } from "./siwx.ts"
 
-// Seller-side server executors + adapters (Express adapter is subpath-only —
-// see ./server/express.ts — so buyer/MCP consumers don't pull express).
-export type { X402ServerExecutor } from "./server/index.ts"
-export {
-  AmpersendX402ServerExecutor,
-  FacilitatorX402ServerExecutor,
-  GENERIC_DENY_REASON,
-  createExecutorOnPayment,
-  withAmpersendX402Payment,
-  withAmpersendX402PaymentMcp,
-} from "./server/index.ts"
-export type {
-  AmpersendX402Outcome,
-  AmpersendX402ServerExecutorOptions,
-  ComplianceLogger,
-  FacilitatorX402ServerExecutorOptions,
-  WithAmpersendX402PaymentMcpOptions,
-} from "./server/index.ts"
+// Seller-side server executors + adapters are intentionally NOT re-exported
+// from this general barrel. They live only behind the dedicated subpaths
+// `@ampersend_ai/ampersend-sdk/x402/server` and `.../x402/server/express`.
+// Re-exporting them here would pull the node-only server deps
+// (`@x402/core/server` -> `node:module`) into every consumer of this module —
+// including `ampersend/treasurer.ts`, which imports from here and is bundled
+// into browser/client builds downstream (the monorepo dashboard). Keeping the
+// server surface subpath-only is what stops that node:module leak.
