@@ -6,6 +6,7 @@ import { privateKeyToAccount } from "viem/accounts"
 import { VERSION } from "../version.ts"
 import type { PaymentAuthorization, PaymentRequest } from "../x402/envelopes.ts"
 import {
+  AgentAuthorizeReceiptResponse,
   AgentAuthorizeRequest,
   AgentAuthorizeResponse,
   AgentPaymentEventReport,
@@ -194,6 +195,77 @@ export class ApiClient {
   }
 
   /**
+   * Run seller-side compliance screening on an incoming payment.
+   *
+   * Called by the seller's x402 server executor after decoding the
+   * X-PAYMENT payload and before honoring the payment. The configured
+   * `agentAddress` is the seller agent (the receiver); SIWE auth is
+   * performed under that agent's identity.
+   *
+   * Returns a discriminated union: `{ authorized: true, screeningId }`
+   * for allow and `{ authorized: false, reason, reasonCode, screeningId }`
+   * for deny — both HTTP 200. The deny detail must NOT be echoed to the
+   * buyer; it's for server-side audit only.
+   *
+   * On a 401 the cached bearer is stale (e.g. expired between calls): the
+   * client re-authenticates once and retries the request a single time
+   * before surfacing the error.
+   *
+   * `paymentRequirements` is the single wire requirement the payer is
+   * satisfying (an `@x402/core` `PaymentRequirementsV1` object); it is
+   * forwarded as-is. `signal` lets a caller impose its own timeout on top
+   * of the client's default request timeout.
+   */
+  async authorizeReceipt(
+    params: {
+      payerAddress: string
+      paymentRequirements: unknown
+      nonce: string
+      paymentSignature: string
+      context?: AgentAuthorizeRequest["context"]
+    },
+    options?: { signal?: AbortSignal },
+  ): Promise<AgentAuthorizeReceiptResponse> {
+    const body = JSON.stringify({
+      payerAddress: params.payerAddress,
+      paymentRequirements: params.paymentRequirements,
+      nonce: params.nonce,
+      paymentSignature: params.paymentSignature,
+      ...(params.context ? { context: params.context } : {}),
+    })
+
+    const send = async (): Promise<AgentAuthorizeReceiptResponse> => {
+      await this.ensureAuthenticated()
+      return this.fetch(
+        `/api/v1/agents/${this.agentAddress}/payment/authorize-receipt`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${this.auth.token}`,
+          },
+          body,
+          ...(options?.signal ? { signal: options.signal } : {}),
+        },
+        AgentAuthorizeReceiptResponse,
+      )
+    }
+
+    try {
+      return await send()
+    } catch (error) {
+      // A stale bearer (expired or revoked between calls) surfaces as a
+      // 401. Force a fresh SIWE login and retry exactly once; any other
+      // error, or a second 401, propagates to the caller.
+      if (error instanceof ApiError && error.status === 401) {
+        this.clearAuth()
+        return send()
+      }
+      throw error
+    }
+  }
+
+  /**
    * Ask the Ampersend API to co-sign a Sign-In-With-X (CAIP-122 / EIP-4361)
    * message. The service parses the message, verifies it claims this agent's
    * smart account, and signs `hashMessage(message)` with the service key.
@@ -310,10 +382,16 @@ export class ApiClient {
         headers.set("Ampersend-Client", this.clientHeader)
       }
 
+      // Always enforce the client's default request timeout. If the caller
+      // supplied its own signal (e.g. a tighter per-call deadline), abort on
+      // whichever fires first.
+      const timeoutSignal = AbortSignal.timeout(this.timeout)
+      const signal = init.signal ? AbortSignal.any([init.signal, timeoutSignal]) : timeoutSignal
+
       const response = await fetch(url, {
         ...init,
         headers,
-        signal: AbortSignal.timeout(this.timeout),
+        signal,
       })
 
       if (!response.ok) {
