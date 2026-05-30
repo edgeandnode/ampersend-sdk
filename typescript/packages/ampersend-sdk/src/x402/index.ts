@@ -31,3 +31,22 @@ export type { AmpersendNetworks, SimpleHttpClientOptions } from "./http/index.ts
 // Sign-In-With-X integration
 export { createSiwxSigner, wrapFetchWithAmpersendSiwx } from "./siwx.ts"
 export type { SiwxSignerConfig } from "./siwx.ts"
+
+// Seller-side server executors + adapters (Express adapter is subpath-only —
+// see ./server/express.ts — so buyer/MCP consumers don't pull express).
+export type { X402ServerExecutor } from "./server/index.ts"
+export {
+  AmpersendX402ServerExecutor,
+  FacilitatorX402ServerExecutor,
+  GENERIC_DENY_REASON,
+  createExecutorOnPayment,
+  withAmpersendX402Payment,
+  withAmpersendX402PaymentMcp,
+} from "./server/index.ts"
+export type {
+  AmpersendX402Outcome,
+  AmpersendX402ServerExecutorOptions,
+  ComplianceLogger,
+  FacilitatorX402ServerExecutorOptions,
+  WithAmpersendX402PaymentMcpOptions,
+} from "./server/index.ts"

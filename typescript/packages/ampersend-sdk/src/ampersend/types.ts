@@ -309,6 +309,35 @@ export const AgentAuthorizeResponse = Schema.Struct({
 })
 export type AgentAuthorizeResponse = typeof AgentAuthorizeResponse.Type
 
+// ============ Seller-side authorize-receipt ============
+
+/**
+ * Response body for `POST /api/v1/agents/:agent/payment/authorize-receipt`.
+ *
+ * Discriminated union on `authorized`. Both branches are HTTP 200; the
+ * caller decides how to surface a deny. `screeningId` references the
+ * persisted `screening_result` for audit / support-ticket correlation
+ * and may be `null` on short-circuit deny paths that skipped screening.
+ *
+ * The deny detail (`reason`, `reasonCode`, `screeningId`) must NOT be
+ * echoed to the buyer — it is server-side audit only. Surfacing which
+ * category flagged a wallet lets a sanctioned counterparty wallet-shop
+ * or feel out the thresholds.
+ */
+export const AgentAuthorizeReceiptResponse = Schema.Union([
+  Schema.Struct({
+    authorized: Schema.Literal(true),
+    screeningId: Schema.NullOr(Schema.String),
+  }),
+  Schema.Struct({
+    authorized: Schema.Literal(false),
+    reason: Schema.String,
+    reasonCode: Schema.String,
+    screeningId: Schema.NullOr(Schema.String),
+  }),
+])
+export type AgentAuthorizeReceiptResponse = typeof AgentAuthorizeReceiptResponse.Type
+
 // ============ Payment Event Types ============
 
 export const PaymentEventType = Schema.Union([
