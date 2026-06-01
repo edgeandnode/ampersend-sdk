@@ -351,7 +351,13 @@ export class AgentPaymentEventResponse extends Schema.Class<AgentPaymentEventRes
 export interface ApiClientOptions {
   baseUrl: string
   sessionKeyPrivateKey?: `0x${string}`
-  agentAddress: Address
+  /**
+   * The agent's smart-account address. Required for any authenticated call
+   * (the SIWE login binds to it); optional when the client is used only for
+   * unauthenticated reads. Authenticated paths throw a clear error if it's
+   * missing — see `ApiClient.performAuthentication`.
+   */
+  agentAddress?: Address
   timeout?: number
   /**
    * Identifies the calling client for the API's product-analytics

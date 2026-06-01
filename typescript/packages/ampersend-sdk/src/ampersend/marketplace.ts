@@ -18,29 +18,28 @@ export interface ListMarketplaceAgentsFilters {
  *
  * Discovers curated agents, their endpoints, and their skills. `listAgents`
  * authenticates (SIWE login with the session key) before reading from
- * `/api/v1/agents/marketplace/agentic/discover`, so the client must be
- * constructed with credentials. `getAgent` hits an unauthenticated endpoint
- * and does not require them.
+ * `/api/v1/agents/marketplace/agentic/discover`, so it requires credentials.
+ * `getAgent` hits an unauthenticated endpoint and needs none — the client can
+ * be constructed with just a `baseUrl` for read-only `getAgent` use.
  *
  * @example
  * ```typescript
  * import { MarketplaceClient } from "@ampersend_ai/ampersend-sdk/ampersend"
  *
- * const client = new MarketplaceClient({
- *   baseUrl,
- *   agentAddress,
- *   sessionKeyPrivateKey,
- * })
+ * // Unauthenticated: getAgent only.
+ * const reader = new MarketplaceClient({ baseUrl })
+ * const agent = await reader.getAgent(id)
  *
+ * // Authenticated: listAgents requires credentials.
+ * const client = new MarketplaceClient({ baseUrl, agentAddress, sessionKeyPrivateKey })
  * const agents = await client.listAgents({ source: "catalog" })
- * const agent = await client.getAgent(agents[0].id)
  * ```
  */
 export class MarketplaceClient {
   private readonly api: ApiClient
 
   constructor(options: MarketplaceClientOptions | ApiClient) {
-    this.api = "getAuthorized" in options ? options : new ApiClient(options)
+    this.api = options instanceof ApiClient ? options : new ApiClient(options)
   }
 
   /**

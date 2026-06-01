@@ -6,9 +6,8 @@ endpoints in detail.
 
 The marketplace is the live, broad-but-curated list of services known to ampersend. `marketplace list` requires an
 authenticated agent — run `ampersend setup` first, or the command exits with a credentials error. `marketplace show`
-hits an unauthenticated endpoint, but the CLI still needs credentials configured to run it. It is one way to find
-services, not the only place they can come from — `ampersend fetch` works against any x402 endpoint, marketplace listing
-or not.
+hits an unauthenticated endpoint and needs neither setup nor credentials. It is one way to find services, not the only
+place they can come from — `ampersend fetch` works against any x402 endpoint, marketplace listing or not.
 
 ## Contents
 

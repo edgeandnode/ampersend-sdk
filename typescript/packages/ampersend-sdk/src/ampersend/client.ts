@@ -55,10 +55,10 @@ function formatServerErrorBody(body: string): string {
  * including SIWE authentication and payment lifecycle management.
  */
 export class ApiClient {
-  private baseUrl: string
-  private sessionKeyPrivateKey: `0x${string}` | undefined
-  private agentAddress: Address
-  private timeout: number
+  private readonly baseUrl: string
+  private readonly sessionKeyPrivateKey: `0x${string}` | undefined
+  private readonly agentAddress: Address | undefined
+  private readonly timeout: number
   /**
    * `Ampersend-Client` header value sent on every authenticated request.
    * Format: `<name>/<version>`. Used by the API for product-analytics
@@ -87,6 +87,9 @@ export class ApiClient {
   private async performAuthentication(): Promise<void> {
     if (!this.sessionKeyPrivateKey) {
       throw new ApiError("Session key private key is required for authentication")
+    }
+    if (!this.agentAddress) {
+      throw new ApiError("Agent address is required for authentication")
     }
 
     try {
@@ -267,9 +270,10 @@ export class ApiClient {
   }
 
   /**
-   * Get the configured agent address
+   * Get the configured agent address, or `undefined` if the client was
+   * constructed for unauthenticated reads only.
    */
-  getAgentAddress(): Address {
+  getAgentAddress(): Address | undefined {
     return this.agentAddress
   }
 

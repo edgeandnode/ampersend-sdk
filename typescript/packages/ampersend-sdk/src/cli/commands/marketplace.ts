@@ -67,6 +67,13 @@ export function buildClient(): MarketplaceClient {
   })
 }
 
+// `marketplace show` reads a single agent from an unauthenticated endpoint, so
+// it must work without setup. Build a credential-free client rather than going
+// through `buildClient`, which exits when no agent is configured.
+export function buildReadOnlyClient(): MarketplaceClient {
+  return new MarketplaceClient({ baseUrl: resolveApiUrl() })
+}
+
 async function executeList(options: ListOptions): Promise<void> {
   const filtersResult = buildFilters(options)
   if (!filtersResult.ok) {
@@ -100,7 +107,7 @@ async function executeList(options: ListOptions): Promise<void> {
 }
 
 async function executeShow(id: string, options: ShowOptions): Promise<void> {
-  const client = buildClient()
+  const client = buildReadOnlyClient()
 
   try {
     const agent = await client.getAgent(id)
