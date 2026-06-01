@@ -1,6 +1,15 @@
 import { Schema } from "effect"
 
-import { Address, Caip2ID, ConvertedTimestamp, ID, NonEmptyTrimmedString, NonNegativeInt, Scheme, TxHash } from "./types.ts"
+import {
+  Address,
+  Caip2ID,
+  ConvertedTimestamp,
+  ID,
+  NonEmptyTrimmedString,
+  NonNegativeInt,
+  Scheme,
+  TxHash,
+} from "./types.ts"
 
 // Response DTOs for `/v1/agents/self/*`. These are the canonical wire shapes
 // for the agent-led read surface: the closed-source server imports them from
@@ -52,7 +61,7 @@ export const AgentSelfSpendConfigDTO = AgentSpendConfigDTO.pipe(
   Schema.fieldsAssign({
     daily_remaining_usdc_micro: Schema.NullOr(Schema.BigInt),
     monthly_remaining_usdc_micro: Schema.NullOr(Schema.BigInt),
-  })
+  }),
 )
 export type AgentSelfSpendConfigDTO = typeof AgentSelfSpendConfigDTO.Type
 

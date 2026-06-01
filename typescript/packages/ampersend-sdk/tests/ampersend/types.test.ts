@@ -198,18 +198,18 @@ describe("AgentAuthorizeResponse", () => {
   }
 
   it("decodes a rejected item with reasonCode set", () => {
-    const result = Schema.decodeUnknownEither(AgentAuthorizeResponse)(wireWithReasonCode)
-    expect(result._tag).toBe("Right")
-    if (result._tag === "Right") {
-      expect(result.right.rejected[0].reasonCode).toBe("daily_limit_exceeded")
+    const result = Schema.decodeUnknownResult(AgentAuthorizeResponse)(wireWithReasonCode)
+    expect(result._tag).toBe("Success")
+    if (result._tag === "Success") {
+      expect(result.success.rejected[0].reasonCode).toBe("daily_limit_exceeded")
     }
   })
 
   it("decodes a rejected item without reasonCode (back-compat with older APIs)", () => {
-    const result = Schema.decodeUnknownEither(AgentAuthorizeResponse)(wireWithoutReasonCode)
-    expect(result._tag).toBe("Right")
-    if (result._tag === "Right") {
-      expect(result.right.rejected[0].reasonCode).toBeUndefined()
+    const result = Schema.decodeUnknownResult(AgentAuthorizeResponse)(wireWithoutReasonCode)
+    expect(result._tag).toBe("Success")
+    if (result._tag === "Success") {
+      expect(result.success.rejected[0].reasonCode).toBeUndefined()
     }
   })
 
