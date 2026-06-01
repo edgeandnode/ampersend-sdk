@@ -217,9 +217,12 @@ ampersend marketplace list --category <category>      # Filter by category
 ampersend marketplace show <id>                       # Inspect endpoints + pricing for one provider
 ```
 
-No setup needed to look around. Each provider carries one or more `endpoints[]` with a `url`, `methods`, and a
-`pricing_config.amount`. The price comes as an integer in millionths of a dollar — `1000` is $0.001, `1000000` is $1.00.
-Pick an endpoint and `ampersend fetch --pay <url>` it (or omit `--pay` to see the price first).
+`marketplace list` requires an authenticated agent — run `ampersend setup` first, or it exits with a credentials error.
+It searches across all sources by default — ampersend's own curated agents, the Bazaar agents, and agents published to
+the ERC-8004 registry (a public, open registry of agents) — or narrow to one with `--source`. Each provider carries one
+or more `endpoints[]` with a `url`, `methods`, and a `pricing_config.amount`. The price comes as an integer in
+millionths of a dollar — `1000` is $0.001, `1000000` is $1.00. Pick an endpoint and `ampersend fetch --pay <url>` it (or
+omit `--pay` to see the price first).
 
 `marketplace list` against the sandbox returns a smaller catalog than production — feature absence in the sandbox does
 not imply feature absence in production.

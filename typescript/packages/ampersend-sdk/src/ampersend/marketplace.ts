@@ -16,14 +16,21 @@ export interface ListMarketplaceAgentsFilters {
 /**
  * Client for the agent marketplace API.
  *
- * Reads from the unauthenticated `/api/v1/agents/marketplace` endpoints
- * to discover curated agents, their endpoints, and their skills.
+ * Discovers curated agents, their endpoints, and their skills. `listAgents`
+ * authenticates (SIWE login with the session key) before reading from
+ * `/api/v1/agents/marketplace/agentic/discover`, so the client must be
+ * constructed with credentials. `getAgent` hits an unauthenticated endpoint
+ * and does not require them.
  *
  * @example
  * ```typescript
  * import { MarketplaceClient } from "@ampersend_ai/ampersend-sdk/ampersend"
  *
- * const client = new MarketplaceClient()
+ * const client = new MarketplaceClient({
+ *   baseUrl,
+ *   agentAddress,
+ *   sessionKeyPrivateKey,
+ * })
  *
  * const agents = await client.listAgents({ source: "catalog" })
  * const agent = await client.getAgent(agents[0].id)
@@ -39,8 +46,10 @@ export class MarketplaceClient {
   /**
    * List curated agents in the marketplace.
    *
-   * Filters are optional and combine on the server side. `search` performs a
-   * fuzzy match across name, description, tags, and category.
+   * Searches across all sources by default — ampersend's own curated agents,
+   * the Bazaar agents, and the ERC-8004 registry agents — unless narrowed via
+   * `source`. Filters are optional and combine on the server side. `search`
+   * performs a fuzzy match across name, description, tags, and category.
    */
   async listAgents(filters: ListMarketplaceAgentsFilters = {}): Promise<ReadonlyArray<CuratedAgentDTO>> {
     Schema.decodeUnknownSync(AgentMarketplaceListQueryParams)(filters)
