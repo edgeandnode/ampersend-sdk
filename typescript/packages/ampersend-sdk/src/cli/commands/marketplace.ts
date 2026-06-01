@@ -7,7 +7,7 @@ import {
   type CuratedAgentSource,
   type ListMarketplaceAgentsFilters,
 } from "../../ampersend/index.ts"
-import { DEFAULT_API_URL, getRuntimeConfig } from "../config.ts"
+import { DEFAULT_API_URL, getRuntimeConfig, loadCredentials } from "../config.ts"
 import { err, ok, type JsonEnvelope } from "../envelope.ts"
 
 // Decoded DTOs hold bigints (e.g. pricing_config.amount), which JSON.stringify
@@ -16,7 +16,7 @@ import { err, ok, type JsonEnvelope } from "../envelope.ts"
 const encodeAgent = Schema.encodeSync(CuratedAgentDTO)
 const encodeAgents = Schema.encodeSync(Schema.Array(CuratedAgentDTO))
 
-const VALID_SOURCES: ReadonlyArray<CuratedAgentSource> = ["catalog", "bazaar", "ampersend"]
+const VALID_SOURCES: ReadonlyArray<CuratedAgentSource> = ["catalog", "bazaar", "ampersend", "registry"]
 
 interface ListOptions {
   source?: string
@@ -53,6 +53,20 @@ function buildFilters(options: ListOptions): JsonEnvelope<ListMarketplaceAgentsF
   return ok(filters)
 }
 
+export function buildClient(): MarketplaceClient {
+  const result = loadCredentials()
+  if (!result.ok) {
+    console.log(JSON.stringify(result.error, null, 2))
+    process.exit(1)
+  }
+  const { agentAccount, agentKey } = result.credentials
+  return new MarketplaceClient({
+    baseUrl: resolveApiUrl(),
+    agentAddress: agentAccount,
+    sessionKeyPrivateKey: agentKey,
+  })
+}
+
 async function executeList(options: ListOptions): Promise<void> {
   const filtersResult = buildFilters(options)
   if (!filtersResult.ok) {
@@ -64,7 +78,7 @@ async function executeList(options: ListOptions): Promise<void> {
     process.exit(1)
   }
 
-  const client = new MarketplaceClient({ apiUrl: resolveApiUrl() })
+  const client = buildClient()
 
   try {
     const agents = await client.listAgents(filtersResult.data)
@@ -86,7 +100,7 @@ async function executeList(options: ListOptions): Promise<void> {
 }
 
 async function executeShow(id: string, options: ShowOptions): Promise<void> {
-  const client = new MarketplaceClient({ apiUrl: resolveApiUrl() })
+  const client = buildClient()
 
   try {
     const agent = await client.getAgent(id)

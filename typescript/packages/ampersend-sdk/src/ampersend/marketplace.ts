@@ -1,14 +1,10 @@
 import { Schema } from "effect"
 
-import { AgentMarketplaceListQueryParams, CuratedAgentDTO, type CuratedAgentSource } from "./curated-agent.js"
-import { ApiError } from "./types.js"
+import { ApiClient } from "./client.ts"
+import { AgentMarketplaceListQueryParams, CuratedAgentDTO, type CuratedAgentSource } from "./curated-agent.ts"
+import type { ApiClientOptions } from "./types.ts"
 
-const DEFAULT_API_URL = "https://api.ampersend.ai"
-
-export interface MarketplaceClientOptions {
-  apiUrl?: string
-  timeout?: number
-}
+export interface MarketplaceClientOptions extends ApiClientOptions {}
 
 export interface ListMarketplaceAgentsFilters {
   source?: CuratedAgentSource
@@ -34,12 +30,10 @@ export interface ListMarketplaceAgentsFilters {
  * ```
  */
 export class MarketplaceClient {
-  private baseUrl: string
-  private timeout: number
+  private readonly api: ApiClient
 
-  constructor(options: MarketplaceClientOptions = {}) {
-    this.baseUrl = (options.apiUrl ?? DEFAULT_API_URL).replace(/\/$/, "")
-    this.timeout = options.timeout ?? 30000
+  constructor(options: MarketplaceClientOptions | ApiClient) {
+    this.api = "getAuthorized" in options ? options : new ApiClient(options)
   }
 
   /**
@@ -56,8 +50,10 @@ export class MarketplaceClient {
     if (filters.search) query.set("search", filters.search)
     if (filters.network) query.set("network", filters.network)
     const qs = query.toString()
-    const path = qs ? `/api/v1/agents/marketplace?${qs}` : "/api/v1/agents/marketplace"
-    return this.fetch("GET", path, Schema.Array(CuratedAgentDTO))
+    const path = qs
+      ? `/api/v1/agents/marketplace/agentic/discover?${qs}`
+      : "/api/v1/agents/marketplace/agentic/discover"
+    return this.api.getAuthorized(path, Schema.Array(CuratedAgentDTO))
   }
 
   /**
@@ -66,41 +62,6 @@ export class MarketplaceClient {
    * @throws ApiError with status 404 if the agent is not found.
    */
   async getAgent(id: string): Promise<CuratedAgentDTO> {
-    return this.fetch("GET", `/api/v1/agents/marketplace/${encodeURIComponent(id)}`, CuratedAgentDTO)
-  }
-
-  private async fetch<A, I>(method: string, path: string, schema: Schema.Schema<A, I>): Promise<A> {
-    const url = `${this.baseUrl}${path}`
-
-    try {
-      const response = await globalThis.fetch(url, {
-        method,
-        signal: AbortSignal.timeout(this.timeout),
-      })
-
-      if (!response.ok) {
-        let errorMessage = `HTTP ${response.status} ${response.statusText}`
-        try {
-          const errorBody = await response.text()
-          if (errorBody) {
-            errorMessage += `: ${errorBody}`
-          }
-        } catch {
-          // Ignore error body parsing failures
-        }
-        throw new ApiError(errorMessage, response.status, response)
-      }
-
-      const data = await response.json()
-      return Schema.decodeUnknownSync(schema)(data)
-    } catch (error) {
-      if (error instanceof ApiError) {
-        throw error
-      }
-      if (error instanceof Error && error.name === "AbortError") {
-        throw new ApiError(`Request timeout after ${this.timeout}ms`)
-      }
-      throw new ApiError(`Request failed: ${error}`)
-    }
+    return this.api.fetch(`/api/v1/agents/marketplace/${encodeURIComponent(id)}`, { method: "GET" }, CuratedAgentDTO)
   }
 }
