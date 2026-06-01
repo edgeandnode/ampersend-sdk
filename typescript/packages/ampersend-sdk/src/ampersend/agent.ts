@@ -36,16 +36,16 @@ export const AgentSelfDTO = Schema.Struct({
   published: Schema.Boolean,
   registry_id: Schema.NullOr(NonEmptyTrimmedString),
   registry_uri: Schema.NullOr(NonEmptyTrimmedString),
-  balance_usdc_micro: Schema.BigInt,
+  balance_usdc_micro: Schema.BigIntFromString,
 })
 export type AgentSelfDTO = typeof AgentSelfDTO.Type
 
 /** Spend policy (per-tx / daily / monthly limits, auto-topup). */
 export const AgentSpendConfigDTO = Schema.Struct({
   agent_address: Address,
-  daily_limit: Schema.NullOr(Schema.BigInt),
-  monthly_limit: Schema.NullOr(Schema.BigInt),
-  per_transaction_limit: Schema.NullOr(Schema.BigInt),
+  daily_limit: Schema.NullOr(Schema.BigIntFromString),
+  monthly_limit: Schema.NullOr(Schema.BigIntFromString),
+  per_transaction_limit: Schema.NullOr(Schema.BigIntFromString),
   auto_topup_allowed: Schema.Boolean,
   created_at: ConvertedTimestamp,
   updated_at: ConvertedTimestamp,
@@ -59,8 +59,8 @@ export type AgentSpendConfigDTO = typeof AgentSpendConfigDTO.Type
  */
 export const AgentSelfSpendConfigDTO = AgentSpendConfigDTO.pipe(
   Schema.fieldsAssign({
-    daily_remaining_usdc_micro: Schema.NullOr(Schema.BigInt),
-    monthly_remaining_usdc_micro: Schema.NullOr(Schema.BigInt),
+    daily_remaining_usdc_micro: Schema.NullOr(Schema.BigIntFromString),
+    monthly_remaining_usdc_micro: Schema.NullOr(Schema.BigIntFromString),
   }),
 )
 export type AgentSelfSpendConfigDTO = typeof AgentSelfSpendConfigDTO.Type
@@ -70,8 +70,8 @@ export const AgentAutoCollectConfigDTO = Schema.Struct({
   agent_address: Address,
   enabled: Schema.Boolean,
   target_address: Schema.NullOr(Address),
-  threshold: Schema.BigInt,
-  minimum_remaining: Schema.NullOr(Schema.BigInt),
+  threshold: Schema.BigIntFromString,
+  minimum_remaining: Schema.NullOr(Schema.BigIntFromString),
   created_at: ConvertedTimestamp,
   updated_at: ConvertedTimestamp,
 })
@@ -80,7 +80,7 @@ export type AgentAutoCollectConfigDTO = typeof AgentAutoCollectConfigDTO.Type
 /** Outgoing payment as exposed to the calling agent (excludes signature, EIP-3009 nonce, internal row id, signing-key details). */
 export const AgentSelfPaymentDTO = Schema.Struct({
   seller_address: Address,
-  amount_usdc_micro: Schema.BigInt,
+  amount_usdc_micro: Schema.BigIntFromString,
   scheme: Schema.NullOr(Scheme),
   status: Schema.Literals([
     "requested",
@@ -108,7 +108,7 @@ export const UnifiedAgentActivityDTO = Schema.Struct({
   receiver: Address,
   amount: Schema.Union([Schema.Number, Schema.NumberFromString]),
   status: Schema.Literals(["received", "settled", "authorized", "failed", "denied"]),
-  timestamp: Schema.BigInt,
+  timestamp: Schema.BigIntFromString,
   tx_hash: Schema.NullOr(Schema.String),
   chain_caip2id: Schema.NullOr(Schema.String),
 })
