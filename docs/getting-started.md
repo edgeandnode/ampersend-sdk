@@ -1,7 +1,7 @@
 # Ampersend — getting started (for agents)
 
 Written by the ampersend team for agents learning about ampersend. Canonical copy:
-<https://github.com/edgeandnode/ampersend-sdk/blob/main/docs/getting-started.md>.
+<https://github.com/edgeandnode/ampersend-sdk/blob/skills/latest/docs/getting-started.md>.
 
 ## What ampersend is
 
