@@ -8,14 +8,15 @@ const DEFAULT_API_URL = "https://api.ampersend.ai"
 
 // ============ Response Schemas ============
 
-export class AgentInitData extends Schema.Class<AgentInitData>("AgentInitData")({
+export const AgentInitData = Schema.Struct({
   address: Schema.optional(Schema.String),
   factory: Schema.optional(Schema.String),
   factoryData: Schema.optional(Schema.String),
   intentExecutorInstalled: Schema.optional(Schema.Boolean),
-}) {}
+}).annotate({ identifier: "AgentInitData" })
+export type AgentInitData = typeof AgentInitData.Type
 
-export class AgentResponse extends Schema.Class<AgentResponse>("AgentResponse")({
+export const AgentResponse = Schema.Struct({
   address: AddressSchema,
   name: NonEmptyTrimmedString,
   userId: Schema.String,
@@ -24,7 +25,8 @@ export class AgentResponse extends Schema.Class<AgentResponse>("AgentResponse")(
   nonce: Schema.String,
   createdAt: Schema.Number,
   updatedAt: Schema.Number,
-}) {}
+}).annotate({ identifier: "AgentResponse" })
+export type AgentResponse = typeof AgentResponse.Type
 
 // ============ Request Types ============
 

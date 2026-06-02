@@ -78,16 +78,17 @@ export type ConvertedTimestamp = typeof ConvertedTimestamp.Type
 
 // ============ SIWE Authentication Schemas ============
 
-export class SIWENonceResponse extends Schema.Class<SIWENonceResponse>("SIWENonceResponse")({
+export const SIWENonceResponse = Schema.Struct({
   nonce: NonEmptyTrimmedString.annotate({
     description: "Random nonce for SIWE message",
   }),
   sessionId: NonEmptyTrimmedString.annotate({
     description: "Session identifier for nonce validation",
   }),
-}) {}
+}).annotate({ identifier: "SIWENonceResponse" })
+export type SIWENonceResponse = typeof SIWENonceResponse.Type
 
-export class SIWELoginRequest extends Schema.Class<SIWELoginRequest>("SIWELoginRequest")({
+export const SIWELoginRequest = Schema.Struct({
   signature: NonEmptyTrimmedString.annotate({
     description: "SIWE signature signed by session key",
   }),
@@ -100,9 +101,10 @@ export class SIWELoginRequest extends Schema.Class<SIWELoginRequest>("SIWELoginR
   agentAddress: Address.annotate({
     description: "Agent smart account address",
   }),
-}) {}
+}).annotate({ identifier: "SIWELoginRequest" })
+export type SIWELoginRequest = typeof SIWELoginRequest.Type
 
-export class SIWELoginResponse extends Schema.Class<SIWELoginResponse>("SIWELoginResponse")({
+export const SIWELoginResponse = Schema.Struct({
   token: NonEmptyTrimmedString.annotate({
     description: "Random session token for agent",
   }),
@@ -117,19 +119,21 @@ export class SIWELoginResponse extends Schema.Class<SIWELoginResponse>("SIWELogi
       description: "Token expiration time in ISO 8601 format",
     },
   }),
-}) {}
+}).annotate({ identifier: "SIWELoginResponse" })
+export type SIWELoginResponse = typeof SIWELoginResponse.Type
 
 // ============ Sign-In-With-X co-sign ============
 
-export class SignSiwxResponse extends Schema.Class<SignSiwxResponse>("SignSiwxResponse")({
+export const SignSiwxResponse = Schema.Struct({
   serverSignature: Hex65Bytes.annotate({
     description: "Server-key ECDSA signature over hashMessage(message) — 65 bytes as 0x-prefixed hex",
   }),
-}) {}
+}).annotate({ identifier: "SignSiwxResponse" })
+export type SignSiwxResponse = typeof SignSiwxResponse.Type
 
 // ============ ERC-3009 Authorization (for co-signed payments) ============
 
-export class ERC3009AuthorizationData extends Schema.Class<ERC3009AuthorizationData>("ERC3009AuthorizationData")({
+export const ERC3009AuthorizationData = Schema.Struct({
   from: Address.annotate({
     description: "Sender address (agent smart account)",
   }),
@@ -148,16 +152,18 @@ export class ERC3009AuthorizationData extends Schema.Class<ERC3009AuthorizationD
   nonce: Hex32Bytes.annotate({
     description: "Random 32-byte nonce as hex string for replay protection",
   }),
-}) {}
+}).annotate({ identifier: "ERC3009AuthorizationData" })
+export type ERC3009AuthorizationData = typeof ERC3009AuthorizationData.Type
 
-export class ServerAuthorizationData extends Schema.Class<ServerAuthorizationData>("ServerAuthorizationData")({
+export const ServerAuthorizationData = Schema.Struct({
   authorizationData: ERC3009AuthorizationData.annotate({
     description: "ERC-3009 TransferWithAuthorization data",
   }),
   serverSignature: Hex65Bytes.annotate({
     description: "Server's ECDSA signature (65 bytes as hex string)",
   }),
-}) {}
+}).annotate({ identifier: "ServerAuthorizationData" })
+export type ServerAuthorizationData = typeof ServerAuthorizationData.Type
 
 // ============ Protocol envelopes (wire) ============
 
@@ -223,14 +229,15 @@ const AuthorizedLimits = Schema.Struct({
  * ERC-3009 authorization data + server signature for co-signed agent keys;
  * the agent signs alongside. Scheme-specific today (exact EVM).
  */
-export class CoSignature extends Schema.Class<CoSignature>("CoSignature")({
+export const CoSignature = Schema.Struct({
   authorizationData: ERC3009AuthorizationData.annotate({
     description: "Server-generated ERC-3009 authorization data",
   }),
   serverSignature: Hex65Bytes.annotate({
     description: "Server's co-signature (65 bytes as hex string)",
   }),
-}) {}
+}).annotate({ identifier: "CoSignature" })
+export type CoSignature = typeof CoSignature.Type
 
 const SuggestedNonce = Schema.Struct({
   nonce: Hex32Bytes.annotate({
@@ -342,14 +349,15 @@ export const AgentPaymentEventReport = Schema.Struct({
 })
 export type AgentPaymentEventReport = typeof AgentPaymentEventReport.Type
 
-export class AgentPaymentEventResponse extends Schema.Class<AgentPaymentEventResponse>("AgentPaymentEventResponse")({
+export const AgentPaymentEventResponse = Schema.Struct({
   received: Schema.Boolean.annotate({
     description: "Confirmation that event was received",
   }),
   paymentId: Schema.optional(Schema.String.check(Schema.isUUID())).annotate({
     description: "Internal payment record ID if created",
   }),
-}) {}
+}).annotate({ identifier: "AgentPaymentEventResponse" })
+export type AgentPaymentEventResponse = typeof AgentPaymentEventResponse.Type
 
 // ============ SDK-specific types ============
 
@@ -406,7 +414,7 @@ export const SpendConfigInput = Schema.Struct({
   ),
 })
 
-export class AgentApprovalRequest extends Schema.Class<AgentApprovalRequest>("AgentApprovalRequest")({
+export const AgentApprovalRequest = Schema.Struct({
   name: Schema.NullOr(Schema.String).pipe(
     Schema.annotate({
       description: "Optional name for the agent",
@@ -434,9 +442,10 @@ export class AgentApprovalRequest extends Schema.Class<AgentApprovalRequest>("Ag
       description: "Address of existing agent to connect to (required when mode is 'connect')",
     }),
   ),
-}) {}
+}).annotate({ identifier: "AgentApprovalRequest" })
+export type AgentApprovalRequest = typeof AgentApprovalRequest.Type
 
-export class ApprovalResponse extends Schema.Class<ApprovalResponse>("ApprovalResponse")({
+export const ApprovalResponse = Schema.Struct({
   token: NonEmptyTrimmedString.annotate({
     description: "Unique token for this approval request",
   }),
@@ -446,7 +455,8 @@ export class ApprovalResponse extends Schema.Class<ApprovalResponse>("ApprovalRe
   user_approve_url: NonEmptyTrimmedString.annotate({
     description: "URL for user to open in browser to approve the action",
   }),
-}) {}
+}).annotate({ identifier: "ApprovalResponse" })
+export type ApprovalResponse = typeof ApprovalResponse.Type
 
 export const ApprovalStatusPending = Schema.Struct({
   status: Schema.Literal("pending"),
