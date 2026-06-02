@@ -4,9 +4,10 @@ Full flag and option reference for `ampersend marketplace`. Read this when the D
 [`SKILL.md`](../SKILL.md) is not enough — for example, when narrowing to a single source or inspecting one provider's
 endpoints in detail.
 
-The marketplace is the live, broad-but-curated list of services known to ampersend. No setup or agent key is needed to
-look around. It is one way to find services, not the only place they can come from — `ampersend fetch` works against any
-x402 endpoint, marketplace listing or not.
+The marketplace is the live, broad-but-curated list of services known to ampersend. `marketplace list` requires an
+authenticated agent — run `ampersend setup` first, or the command exits with a credentials error. `marketplace show`
+hits an unauthenticated endpoint and needs neither setup nor credentials. It is one way to find services, not the only
+place they can come from — `ampersend fetch` works against any x402 endpoint, marketplace listing or not.
 
 ## Contents
 
@@ -17,19 +18,23 @@ x402 endpoint, marketplace listing or not.
 
 ## marketplace list
 
-List curated agents, optionally filtered. Filters combine on the server side.
+List curated agents, optionally filtered. Filters combine on the server side. Requires an authenticated agent (run
+`ampersend setup` first).
+
+By default `list` searches across all sources: ampersend's own curated agents, the Bazaar agents, and the ERC-8004
+registry agents. Use `--source` to narrow to one of them.
 
 ```bash
 ampersend marketplace list [--source <source>] [--category <category>] [--search <query>] [--network <network>] [--raw]
 ```
 
-| Option                  | Description                                                                |
-| ----------------------- | -------------------------------------------------------------------------- |
-| `--source <source>`     | One of: `catalog`, `bazaar`, `ampersend`                                   |
-| `--category <category>` | Filter by category (e.g. `Crypto`, `AI/LLM`, `Data/Search`, `Agent Infra`) |
-| `--search <query>`      | Fuzzy match across name, description, tags, and category                   |
-| `--network <network>`   | Override the default network. Most agents do not need this.                |
-| `--raw`                 | Output raw JSON array instead of the standard envelope                     |
+| Option                  | Description                                                                                                                                                      |
+| ----------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `--source <source>`     | Narrow to one source: `ampersend` (ampersend-curated agents), `bazaar` (Bazaar agents), `registry` (ERC-8004 registry agents), or `catalog`. Omit to search all. |
+| `--category <category>` | Filter by category (e.g. `Crypto`, `AI/LLM`, `Data/Search`, `Agent Infra`)                                                                                       |
+| `--search <query>`      | Fuzzy match across name, description, tags, and category                                                                                                         |
+| `--network <network>`   | Override the default network. Most agents do not need this.                                                                                                      |
+| `--raw`                 | Output raw JSON array instead of the standard envelope                                                                                                           |
 
 Returns an array of providers. Each provider includes `id`, `name`, `description`, `category`, `tags`, `endpoints[]`,
 and `skills[]`.
