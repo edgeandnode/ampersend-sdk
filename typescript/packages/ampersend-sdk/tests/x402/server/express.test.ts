@@ -66,8 +66,21 @@ describe("ampersendPaymentMiddleware (Express adapter)", () => {
     const res = await fetch(`${started.baseUrl}/api/insight`)
 
     expect(res.status).toBe(402)
-    const body = (await res.json()) as { accepts: Array<unknown> }
+    const body = (await res.json()) as {
+      x402Version: number
+      accepts: Array<Record<string, unknown>>
+    }
+    expect(body.x402Version).toBe(1)
     expect(body.accepts).toHaveLength(1)
+    const accept = body.accepts[0]
+    // v1-wire superset: v1-wire fields present for v1 buyers + authorize-receipt,
+    // `amount` retained for the @x402/core facilitator.
+    expect(accept.maxAmountRequired).toBe("1000")
+    expect(accept.amount).toBe("1000")
+    expect(accept.description).toBe("An insight")
+    expect(accept.mimeType).toBe("application/json")
+    // `resource` is injected per-request from the requested URL.
+    expect(accept.resource).toBe(`${started.baseUrl}/api/insight`)
   })
 
   it("allow -> 200 with handler body and X-PAYMENT-RESPONSE header", async () => {

@@ -1,21 +1,26 @@
 import type { X402ServerExecutor } from "@/x402/server/executor.ts"
-import type { PaymentPayload, PaymentRequirements, SettleResponse, VerifyResponse } from "@x402/core/types"
+import type { AmpersendPaymentRequirements } from "@/x402/server/express.ts"
+import type { PaymentPayload, SettleResponse, VerifyResponse } from "@x402/core/types"
 import { vi } from "vitest"
 
-/** A minimal valid v1 `exact` requirement the seller advertises. */
-export const sampleRequirements: PaymentRequirements = {
+/**
+ * A minimal `exact` requirement the seller advertises, in the v1-wire superset
+ * shape used by the Express adapter: v1-wire fields (`maxAmountRequired`,
+ * `description`, `mimeType`) + the v2 `amount`. `resource` is omitted so the
+ * adapter fills it per-request from the request URL.
+ */
+export const sampleRequirements: AmpersendPaymentRequirements = {
   scheme: "exact",
   network: "base-sepolia",
   maxAmountRequired: "1000",
-  resource: "https://api.example.com/insight",
+  amount: "1000",
   description: "An insight",
   mimeType: "application/json",
-  outputSchema: {},
   payTo: "0x2222222222222222222222222222222222222222",
   maxTimeoutSeconds: 300,
   asset: "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
   extra: { name: "USDC", version: "2" },
-} as PaymentRequirements
+}
 
 /** A decoded v1 `exact` payment payload from a given payer. */
 export function samplePayment(payer = "0x1111111111111111111111111111111111111111", scheme = "exact"): PaymentPayload {
