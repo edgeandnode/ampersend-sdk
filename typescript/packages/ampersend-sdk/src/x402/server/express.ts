@@ -7,18 +7,40 @@ import { withAmpersendX402Payment } from "./core.ts"
 import type { X402ServerExecutor } from "./executor.ts"
 
 /**
+ * The requirements shape the seller advertises. A **v1-wire superset**: it
+ * carries the v1-wire fields (`maxAmountRequired`, `resource`, `description`,
+ * `mimeType`) on top of the `@x402/core` v2 {@link PaymentRequirements}
+ * (which keeps `amount`). v1 clients — including the `ampersend` CLI buyer —
+ * and the Effect/Zod `authorize-receipt` contract require the v1-wire fields
+ * and ignore unknown keys; the `@x402/core` facilitator reads `amount`. So a
+ * single superset object is wire-compatible with all three.
+ *
+ * The intersection stays assignable to `PaymentRequirements`, so this type
+ * flows unchanged into the executor / facilitator verify+settle path.
+ *
+ * `resource` is optional here because the middleware fills it per-request
+ * from the incoming request URL (mirroring upstream `@x402/express`).
+ */
+export type AmpersendPaymentRequirements = PaymentRequirements & {
+  maxAmountRequired: string
+  resource?: string
+  description?: string
+  mimeType?: string
+}
+
+/**
  * Per-route payment config. Mirrors the upstream `@x402/express`
  * route-keyed config shape (`"GET /api/joke": { accepts, ... }`) but the
  * verification/settlement run through an {@link X402ServerExecutor} instead
  * of the upstream facilitator-only verifier, so compliance gating applies.
  *
- * `accepts` are full wire `PaymentRequirements` (the requirements the seller
- * advertises in its 402). Keeping them explicit avoids re-deriving price ->
- * atomic amount here; sellers that want price strings can build the
+ * `accepts` are full v1-wire superset requirements (the requirements the
+ * seller advertises in its 402). Keeping them explicit avoids re-deriving
+ * price -> atomic amount here; sellers that want price strings can build the
  * requirements with the SDK's existing helpers.
  */
 export interface AmpersendRoutePaymentConfig {
-  accepts: Array<PaymentRequirements>
+  accepts: Array<AmpersendPaymentRequirements>
 }
 
 export type AmpersendRoutesConfig = Record<string, AmpersendRoutePaymentConfig>
@@ -55,7 +77,7 @@ function matchRoute(routes: Array<CompiledRoute>, method: string, path: string):
   return routes.find((r) => (r.method === "*" || r.method === method.toUpperCase()) && r.path === path)
 }
 
-function send402(res: Response, accepts: Array<PaymentRequirements>, error: string): void {
+function send402(res: Response, accepts: Array<AmpersendPaymentRequirements>, error: string): void {
   // 402 with the full requirements body — the buyer can fix this by paying
   // (or paying differently). Mirrors the upstream x402 unpaid response.
   res.status(402).json({ x402Version: 1, accepts, error })
@@ -97,7 +119,15 @@ export function ampersendPaymentMiddleware(options: AmpersendExpressPaymentOptio
         return
       }
 
-      const accepts = route.config.accepts
+      // Fill `resource` per-request from the requested URL (mirrors upstream
+      // @x402/express, where resource = the resource URL being paid for). This
+      // completes the v1-wire object sent both in the 402 body and — on the
+      // allow path — to authorize-receipt and the facilitator.
+      const resourceUrl = `${req.protocol}://${req.get("host")}${req.originalUrl.split("?")[0]}`
+      const accepts: Array<AmpersendPaymentRequirements> = route.config.accepts.map((r) =>
+        r.resource === undefined ? { ...r, resource: resourceUrl } : r,
+      )
+
       const paymentHeader = req.header("X-PAYMENT")
       if (!paymentHeader) {
         send402(res, accepts, "No X-PAYMENT header provided")
