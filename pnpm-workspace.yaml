@@ -15,11 +15,6 @@ allowBuilds:
 # break the `domain` build — Schema.* type identities don't match).
 minimumReleaseAge: 10080
 
-minimumReleaseAgeExclude:
-  - effect
-  - fast-check # TODO: remove
-  - yaml # TODO: remove
-
 # Verify package integrity in content-addressable store
 verifyStoreIntegrity: true
 
