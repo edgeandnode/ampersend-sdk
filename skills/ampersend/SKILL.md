@@ -251,16 +251,23 @@ All commands return JSON. Check `ok` first.
 
 ## Common config tweaks
 
+Config is organised into named **contexts** — each a self-contained identity (agent key + account + its own API URL).
+One context is active at a time; commands use the active one unless you pass `--context <name>` to target another for a
+single call.
+
 ```bash
-ampersend config status                                          # Show current state
-ampersend config set --api-url https://api.sandbox.ampersend.ai  # Use the sandbox (no real money)
-ampersend config set --clear-api-url                             # Back to the real one
+ampersend config status                                          # Show every context and which is active
+ampersend config use <name>                                      # Switch the active context
+ampersend config rm <name>                                       # Delete a context
+ampersend agent payments --context <name>                        # Run one command against a non-active context
 ```
 
 The API URL decides which side of ampersend your agent talks to: the real one with real money, or the sandbox with play
-money for trying things out. Switching the URL after setup does **not** carry your existing agent across — each side is
-its own agent, set up separately. Most people start with the sandbox, then set up a fresh agent on the real side when
-they are ready to spend.
+money for trying things out. Each side is its own agent — they don't carry across — but you no longer have to choose:
+set each up as its own named **context** (`setup start --api-url https://api.sandbox.ampersend.ai`) and flip between
+them with `config use <name>`, no re-setup required. A context's API URL is fixed when it's created — to point somewhere
+else, create another context, or set `AMPERSEND_API_URL` to override the URL for a single process. Most people start
+with the sandbox, then add a production context when they are ready to spend.
 
 The sandbox covers the payment flow end-to-end, but only a subset of services and capabilities are wired up there —
 feature absence in the sandbox doesn't mean feature absence in production. When the user wants to validate a real

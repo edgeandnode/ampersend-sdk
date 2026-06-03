@@ -1,22 +1,31 @@
-import { existsSync, rmSync } from "node:fs"
+import { existsSync, mkdirSync, rmSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 
 import {
-  clearPendingApproval,
+  autoContextName,
+  clearPendingContext,
   computeApprovalExpiry,
+  CONFIG_FILE,
+  finishContext,
+  getActiveApiUrl,
   getStatus,
   isPendingExpired,
   loadCredentials,
-  promotePending,
   readConfig,
   readLasoToken,
-  setApiUrl,
+  removeContext,
+  resolveContextName,
   setConfig,
+  startContext,
   storeLasoToken,
-  storePendingApproval,
+  uniqueContextName,
+  useContext,
   writeConfig,
+  type Context,
+  type ContextSummary,
   type LasoToken,
   type ResolvedCredentials,
+  type StoredConfigV2,
 } from "@/cli/config.ts"
 import { generatePrivateKey, privateKeyToAddress } from "viem/accounts"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
@@ -28,6 +37,34 @@ vi.mock("node:os", () => ({
   homedir: () => join(process.env.TMPDIR ?? "/tmp", "ampersend-config-test"),
   tmpdir: () => join(process.env.TMPDIR ?? "/tmp", "ampersend-config-test"),
 }))
+
+/** Build a ready context shorthand. */
+function readyContext(overrides: Partial<Extract<Context, { status: "ready" }>> = {}): Context {
+  return {
+    status: "ready",
+    agentKey: generatePrivateKey(),
+    agentAccount: "0x1111111111111111111111111111111111111111",
+    createdAt: new Date().toISOString(),
+    ...overrides,
+  }
+}
+
+/** Build a pending context shorthand. */
+function pendingContext(overrides: Partial<Extract<Context, { status: "pending" }>> = {}): Context {
+  return {
+    status: "pending",
+    agentKey: generatePrivateKey(),
+    token: "t",
+    expiresAt: computeApprovalExpiry(),
+    createdAt: new Date().toISOString(),
+    ...overrides,
+  }
+}
+
+/** Write a single-context config with that context active. */
+function writeSingle(name: string, context: Context): void {
+  writeConfig({ activeContext: name, contexts: { [name]: context } })
+}
 
 describe("CLI Config", () => {
   const configDir = join(TEMP_DIR, ".ampersend")
@@ -46,6 +83,7 @@ describe("CLI Config", () => {
     delete process.env.AMPERSEND_AGENT_ACCOUNT
     delete process.env.AMPERSEND_AGENT_KEY
     delete process.env.AMPERSEND_API_URL
+    delete process.env.AMPERSEND_CONTEXT
   })
 
   describe("setConfig", () => {
@@ -58,19 +96,61 @@ describe("CLI Config", () => {
       if (result.ok) {
         expect(result.data.status).toBe("ready")
         expect(result.data.agentAccount).toBe(agentAccount)
+        // No `default` context: a bare set auto-names from the key.
+        expect(result.data.context).toBe(autoContextName(undefined, result.data.agentKeyAddress))
         expect(result.data.agentKeyAddress).toMatch(/^0x[a-fA-F0-9]{40}$/)
       }
     })
 
-    it("should store config with version field", () => {
+    it("should store config as an active ready context under its auto-name", () => {
       const agentKey = generatePrivateKey()
-      setConfig(`${agentKey}:::0x1234567890123456789012345678901234567890`)
+      const result = setConfig(`${agentKey}:::0x1234567890123456789012345678901234567890`)
+      if (!result.ok) throw new Error("expected ok")
 
       const config = readConfig()
       expect(config).not.toBeNull()
-      expect(config?.version).toBe(1)
-      expect(config?.agentKey).toBe(agentKey)
-      expect(config?.agentAccount).toBe("0x1234567890123456789012345678901234567890")
+      expect(config?.version).toBe(2)
+      expect(config?.activeContext).toBe(result.data.context)
+      const ctx = config?.contexts[result.data.context]
+      expect(ctx?.status).toBe("ready")
+      expect(ctx?.agentKey).toBe(agentKey)
+      if (ctx?.status === "ready") {
+        expect(ctx.agentAccount).toBe("0x1234567890123456789012345678901234567890")
+        expect(ctx.createdAt).toMatch(/^\d{4}-\d{2}-\d{2}T/)
+      }
+    })
+
+    it("should write to a named context with --context", () => {
+      const agentKey = generatePrivateKey()
+      const result = setConfig(`${agentKey}:::0x1234567890123456789012345678901234567890`, { name: "sandbox" })
+
+      expect(result.ok).toBe(true)
+      const config = readConfig()
+      expect(config?.activeContext).toBe("sandbox")
+      expect(config?.contexts.sandbox?.agentKey).toBe(agentKey)
+    })
+
+    it("auto-names a fresh context on each bare set (never overwrites)", () => {
+      const a = setConfig(`${generatePrivateKey()}:::0x1111111111111111111111111111111111111111`)
+      const b = setConfig(`${generatePrivateKey()}:::0x2222222222222222222222222222222222222222`)
+      if (!a.ok || !b.ok) throw new Error("expected ok")
+
+      expect(a.data.context).not.toBe(b.data.context)
+      const config = readConfig()
+      expect(Object.keys(config?.contexts ?? {})).toHaveLength(2)
+      expect(config?.activeContext).toBe(b.data.context) // latest wins
+    })
+
+    it("disambiguates an auto-name collision with a counter", () => {
+      // Two keys that hash to the same 4-hex prefix would collide; force it by
+      // pre-seeding the base name, then setting an identity that derives it.
+      const agentKey = generatePrivateKey()
+      const base = autoContextName(undefined, privateKeyToAddress(agentKey))
+      writeSingle(base, readyContext())
+
+      const result = setConfig(`${agentKey}:::0x2222222222222222222222222222222222222222`)
+      if (!result.ok) throw new Error("expected ok")
+      expect(result.data.context).toBe(`${base}-2`)
     })
 
     it("should reject invalid format (missing separator)", () => {
@@ -98,128 +178,296 @@ describe("CLI Config", () => {
       }
     })
 
-    it("should preserve existing apiUrl", () => {
-      writeConfig({ apiUrl: "https://api.staging.ampersend.ai" })
+    it("preserves an overwritten named context's existing apiUrl", () => {
+      // Overwriting a named context's identity (no new --api-url) keeps its URL.
+      writeSingle("sandbox", readyContext({ apiUrl: "https://api.staging.ampersend.ai" }))
 
       const agentKey = generatePrivateKey()
-      setConfig(`${agentKey}:::0x1234567890123456789012345678901234567890`)
+      setConfig(`${agentKey}:::0x1234567890123456789012345678901234567890`, { name: "sandbox" })
+
+      const ctx = readConfig()?.contexts.sandbox
+      expect(ctx?.apiUrl).toBe("https://api.staging.ampersend.ai")
+    })
+
+    it("sets apiUrl on the named context at creation", () => {
+      // `--context X --api-url Y` lands on X with Y as its fixed URL.
+      const prod = setConfig(`${generatePrivateKey()}:::0x1111111111111111111111111111111111111111`)
+      if (!prod.ok) throw new Error("expected ok")
+      setConfig(`${generatePrivateKey()}:::0x2222222222222222222222222222222222222222`, {
+        name: "sandbox",
+        apiUrl: "https://api.sandbox.ampersend.ai",
+      })
 
       const config = readConfig()
-      expect(config?.apiUrl).toBe("https://api.staging.ampersend.ai")
+      expect(config?.contexts[prod.data.context]?.apiUrl).toBeUndefined()
+      expect(config?.contexts.sandbox?.apiUrl).toBe("https://api.sandbox.ampersend.ai")
+    })
+
+    it("rejects an invalid apiUrl", () => {
+      const result = setConfig(`${generatePrivateKey()}:::0x1111111111111111111111111111111111111111`, {
+        apiUrl: "not a url",
+      })
+      expect(result.ok).toBe(false)
+      if (!result.ok) expect(result.error.code).toBe("INVALID_URL")
     })
   })
 
-  describe("pendingApproval", () => {
-    it("should store and read pending approval", () => {
+  describe("pending contexts", () => {
+    it("should create and read a pending context as active", () => {
       const agentKey = generatePrivateKey()
-      storePendingApproval({
-        token: "test-token-abc",
-        agentKey,
-        expiresAt: computeApprovalExpiry(),
-      })
+      startContext("default", { token: "test-token-abc", agentKey, expiresAt: computeApprovalExpiry() })
 
       const config = readConfig()
-      expect(config?.pendingApproval).toBeDefined()
-      expect(config?.pendingApproval?.token).toBe("test-token-abc")
-      expect(config?.pendingApproval?.agentKey).toBe(agentKey)
+      expect(config?.activeContext).toBe("default")
+      const ctx = config?.contexts.default
+      expect(ctx?.status).toBe("pending")
+      if (ctx?.status === "pending") {
+        expect(ctx.token).toBe("test-token-abc")
+        expect(ctx.agentKey).toBe(agentKey)
+      }
     })
 
-    it("should preserve active config when storing pending", () => {
-      const activeKey = generatePrivateKey()
-      writeConfig({
-        agentKey: activeKey,
-        agentAccount: "0x1111111111111111111111111111111111111111",
-      })
-
-      const pendingKey = generatePrivateKey()
-      storePendingApproval({
-        token: "test-token",
-        agentKey: pendingKey,
-        expiresAt: computeApprovalExpiry(),
-      })
+    it("should not activate a detached pending context", () => {
+      const agentKey = generatePrivateKey()
+      const seeded = setConfig(`${generatePrivateKey()}:::0x1111111111111111111111111111111111111111`)
+      if (!seeded.ok) throw new Error("expected ok")
+      startContext("probe", { token: "t", agentKey, expiresAt: computeApprovalExpiry() }, { detach: true })
 
       const config = readConfig()
-      expect(config?.agentKey).toBe(activeKey)
-      expect(config?.agentAccount).toBe("0x1111111111111111111111111111111111111111")
-      expect(config?.pendingApproval?.agentKey).toBe(pendingKey)
+      expect(config?.activeContext).toBe(seeded.data.context) // unchanged
+      expect(config?.contexts.probe?.status).toBe("pending")
+    })
+
+    it("should keep other contexts when creating a pending one", () => {
+      const activeKey = generatePrivateKey()
+      writeSingle("default", readyContext({ agentKey: activeKey }))
+
+      const pendingKey = generatePrivateKey()
+      startContext("sandbox", { token: "test-token", agentKey: pendingKey, expiresAt: computeApprovalExpiry() })
+
+      const config = readConfig()
+      expect(config?.contexts.default?.agentKey).toBe(activeKey)
+      expect(config?.contexts.sandbox?.agentKey).toBe(pendingKey)
     })
 
     it("should detect expired pending approvals", () => {
-      const pending = {
-        token: "expired-token",
-        agentKey: generatePrivateKey(),
-        expiresAt: new Date(Date.now() - 1000).toISOString(), // 1 second ago
-      }
-      expect(isPendingExpired(pending)).toBe(true)
+      expect(isPendingExpired({ expiresAt: new Date(Date.now() - 1000).toISOString() })).toBe(true)
     })
 
     it("should detect non-expired pending approvals", () => {
-      const pending = {
-        token: "valid-token",
-        agentKey: generatePrivateKey(),
-        expiresAt: computeApprovalExpiry(),
-      }
-      expect(isPendingExpired(pending)).toBe(false)
+      expect(isPendingExpired({ expiresAt: computeApprovalExpiry() })).toBe(false)
     })
 
-    it("should clear pending approval", () => {
-      const activeKey = generatePrivateKey()
+    it("should prune expired pending contexts on write", () => {
       writeConfig({
-        agentKey: activeKey,
-        agentAccount: "0x1111111111111111111111111111111111111111",
-        pendingApproval: {
-          token: "test-token",
-          agentKey: generatePrivateKey(),
-          expiresAt: computeApprovalExpiry(),
+        activeContext: "prod",
+        contexts: {
+          prod: readyContext(),
+          stale: pendingContext({ expiresAt: new Date(Date.now() - 1000).toISOString() }),
         },
       })
 
-      clearPendingApproval()
-
       const config = readConfig()
-      expect(config?.pendingApproval).toBeUndefined()
-      expect(config?.agentKey).toBe(activeKey) // active config preserved
+      expect(config?.contexts.stale).toBeUndefined()
+      expect(config?.contexts.prod).toBeDefined()
     })
 
-    it("should promote pending to active", () => {
+    it("should clear a pending context", () => {
+      const activeKey = generatePrivateKey()
+      writeConfig({
+        activeContext: "prod",
+        contexts: {
+          prod: readyContext({ agentKey: activeKey }),
+          sandbox: pendingContext({ token: "test-token" }),
+        },
+      })
+
+      clearPendingContext("sandbox")
+
+      const config = readConfig()
+      expect(config?.contexts.sandbox).toBeUndefined()
+      expect(config?.contexts.prod?.agentKey).toBe(activeKey) // other context preserved
+    })
+
+    it("should promote a pending context to ready and active, preserving createdAt", () => {
       const pendingKey = generatePrivateKey()
       const pendingKeyAddress = privateKeyToAddress(pendingKey)
+      const createdAt = "2026-01-01T00:00:00.000Z"
 
       writeConfig({
-        pendingApproval: {
-          token: "test-token",
-          agentKey: pendingKey,
-          expiresAt: computeApprovalExpiry(),
-        },
+        contexts: { sandbox: pendingContext({ agentKey: pendingKey, token: "test-token", createdAt }) },
       })
 
       const agentAccount = "0x2222222222222222222222222222222222222222" as `0x${string}`
-      const result = promotePending(agentAccount)
+      const result = finishContext("sandbox", agentAccount)
 
       expect(result.ok).toBe(true)
       if (result.ok) {
         expect(result.data.agentKeyAddress).toBe(pendingKeyAddress)
         expect(result.data.agentAccount).toBe(agentAccount)
+        expect(result.data.context).toBe("sandbox")
         expect(result.data.status).toBe("ready")
       }
 
-      // Verify config was updated
       const config = readConfig()
-      expect(config?.agentKey).toBe(pendingKey)
-      expect(config?.agentAccount).toBe(agentAccount)
-      expect(config?.pendingApproval).toBeUndefined()
+      expect(config?.activeContext).toBe("sandbox")
+      const ctx = config?.contexts.sandbox
+      expect(ctx?.status).toBe("ready")
+      expect(ctx?.agentKey).toBe(pendingKey)
+      if (ctx?.status === "ready") {
+        expect(ctx.agentAccount).toBe(agentAccount)
+        expect(ctx.createdAt).toBe(createdAt) // carried over from the pending context
+      }
     })
 
-    it("should error when promoting with no pending", () => {
+    it("should error when finishing an unknown context", () => {
+      const result = finishContext("nope", "0x2222222222222222222222222222222222222222")
+      expect(result.ok).toBe(false)
+      if (!result.ok) expect(result.error.code).toBe("UNKNOWN_CONTEXT")
+    })
+
+    it("should error when finishing an already-ready context", () => {
+      writeSingle("default", readyContext())
+      const result = finishContext("default", "0x2222222222222222222222222222222222222222")
+      expect(result.ok).toBe(false)
+      if (!result.ok) expect(result.error.code).toBe("NOT_PENDING")
+    })
+  })
+
+  describe("useContext / removeContext", () => {
+    it("switches the active context", () => {
       writeConfig({
-        agentKey: generatePrivateKey(),
+        activeContext: "prod",
+        contexts: { prod: readyContext(), sandbox: readyContext() },
       })
 
-      const result = promotePending("0x2222222222222222222222222222222222222222")
+      const result = useContext("sandbox")
+      expect(result.ok).toBe(true)
+      expect(readConfig()?.activeContext).toBe("sandbox")
+    })
+
+    it("errors on an unknown context name for use", () => {
+      writeSingle("prod", readyContext())
+      const result = useContext("nope")
       expect(result.ok).toBe(false)
-      if (!result.ok) {
-        expect(result.error.code).toBe("NO_PENDING")
+      if (!result.ok) expect(result.error.code).toBe("UNKNOWN_CONTEXT")
+    })
+
+    it("deletes a non-active context, leaving active intact", () => {
+      writeConfig({
+        activeContext: "prod",
+        contexts: { prod: readyContext(), sandbox: readyContext() },
+      })
+
+      const result = removeContext("sandbox")
+      expect(result.ok).toBe(true)
+      if (result.ok) expect(result.data.wasActive).toBe(false)
+      const config = readConfig()
+      expect(config?.contexts.sandbox).toBeUndefined()
+      expect(config?.activeContext).toBe("prod")
+    })
+
+    it("clears the active selection when deleting the active context", () => {
+      writeSingle("prod", readyContext())
+
+      const result = removeContext("prod")
+      expect(result.ok).toBe(true)
+      if (result.ok) expect(result.data.wasActive).toBe(true)
+      const config = readConfig()
+      expect(config?.contexts.prod).toBeUndefined()
+      expect(config?.activeContext).toBeUndefined()
+    })
+
+    it("errors on an unknown context name for rm", () => {
+      const result = removeContext("nope")
+      expect(result.ok).toBe(false)
+      if (!result.ok) expect(result.error.code).toBe("UNKNOWN_CONTEXT")
+    })
+  })
+
+  describe("autoContextName / uniqueContextName", () => {
+    const ADDR = "0x1a2b3c4d5e6f00000000000000000000000000ab"
+
+    it("derives ctx-<4 hex of key> for production URLs", () => {
+      expect(autoContextName(undefined, ADDR)).toBe("ctx-1a2b")
+      expect(autoContextName("https://api.ampersend.ai", ADDR)).toBe("ctx-1a2b")
+    })
+
+    it("prepends the host for non-production URLs", () => {
+      expect(autoContextName("https://api.sandbox.ampersend.ai", ADDR)).toBe("api.sandbox.ampersend.ai-ctx-1a2b")
+    })
+
+    it("returns the base name when free", () => {
+      const config: StoredConfigV2 = { version: 2, contexts: {} }
+      expect(uniqueContextName(config, undefined, ADDR)).toBe("ctx-1a2b")
+    })
+
+    it("appends a counter on collision", () => {
+      const config: StoredConfigV2 = {
+        version: 2,
+        contexts: { "ctx-1a2b": readyContext(), "ctx-1a2b-2": readyContext() },
       }
+      expect(uniqueContextName(config, undefined, ADDR)).toBe("ctx-1a2b-3")
+    })
+  })
+
+  describe("getActiveApiUrl", () => {
+    it("returns the active context's apiUrl", () => {
+      writeSingle("default", readyContext({ apiUrl: "https://api.staging.ampersend.ai" }))
+      expect(getActiveApiUrl()).toBe("https://api.staging.ampersend.ai")
+    })
+
+    it("env var overrides the active context's apiUrl", () => {
+      writeSingle("default", readyContext({ apiUrl: "https://api.staging.ampersend.ai" }))
+      process.env.AMPERSEND_API_URL = "https://api.sandbox.ampersend.ai"
+      expect(getActiveApiUrl()).toBe("https://api.sandbox.ampersend.ai")
+    })
+
+    it("falls back to the production default", () => {
+      expect(getActiveApiUrl()).toBe("https://api.ampersend.ai")
+    })
+
+    it("uses the --context-selected context's apiUrl over the active one", () => {
+      writeConfig({
+        activeContext: "prod",
+        contexts: {
+          prod: readyContext(),
+          sandbox: readyContext({ apiUrl: "https://api.sandbox.ampersend.ai" }),
+        },
+      })
+      expect(getActiveApiUrl({ context: "sandbox" })).toBe("https://api.sandbox.ampersend.ai")
+    })
+
+    it("AMPERSEND_API_URL is a hard bypass over a --context-selected context", () => {
+      writeConfig({
+        activeContext: "prod",
+        contexts: { prod: readyContext(), sandbox: readyContext({ apiUrl: "https://api.sandbox.ampersend.ai" }) },
+      })
+      process.env.AMPERSEND_API_URL = "https://api.hardbypass.ampersend.ai"
+      expect(getActiveApiUrl({ context: "sandbox" })).toBe("https://api.hardbypass.ampersend.ai")
+    })
+  })
+
+  describe("context selection (resolveContextName)", () => {
+    it("--context flag wins over env and active", () => {
+      writeConfig({ activeContext: "prod", contexts: { prod: readyContext(), sandbox: readyContext() } })
+      process.env.AMPERSEND_CONTEXT = "sandbox"
+      expect(resolveContextName({ context: "explicit" })).toBe("explicit")
+    })
+
+    it("AMPERSEND_CONTEXT wins over the persisted active when no flag", () => {
+      writeConfig({ activeContext: "prod", contexts: { prod: readyContext(), sandbox: readyContext() } })
+      process.env.AMPERSEND_CONTEXT = "sandbox"
+      expect(resolveContextName()).toBe("sandbox")
+    })
+
+    it("falls back to the persisted active context", () => {
+      writeConfig({ activeContext: "prod", contexts: { prod: readyContext() } })
+      expect(resolveContextName()).toBe("prod")
+    })
+
+    it("returns undefined when nothing resolves", () => {
+      expect(resolveContextName()).toBeUndefined()
     })
   })
 
@@ -234,21 +482,23 @@ describe("CLI Config", () => {
       }
     })
 
-    it("should return pending_agent status for config without account", () => {
-      writeConfig({ agentKey: generatePrivateKey() })
+    it("should return pending_agent status when the active context is pending", () => {
+      startContext("sandbox", { token: "t", agentKey: generatePrivateKey(), expiresAt: computeApprovalExpiry() })
       const result = getStatus()
 
       expect(result.ok).toBe(true)
       if (result.ok) {
         expect(result.data.status).toBe("pending_agent")
         expect(result.data.credentialSource).toBe("file")
+        expect(result.data.activeContext).toBe("sandbox")
         expect(result.data.agentKeyAddress).toMatch(/^0x[a-fA-F0-9]{40}$/)
       }
     })
 
-    it("should return ready status for full config", () => {
+    it("should return ready status and list contexts for full config", () => {
       const agentKey = generatePrivateKey()
-      setConfig(`${agentKey}:::0x1234567890123456789012345678901234567890`)
+      const set = setConfig(`${agentKey}:::0x1234567890123456789012345678901234567890`)
+      if (!set.ok) throw new Error("expected ok")
 
       const result = getStatus()
 
@@ -256,8 +506,32 @@ describe("CLI Config", () => {
       if (result.ok) {
         expect(result.data.status).toBe("ready")
         expect(result.data.credentialSource).toBe("file")
+        expect(result.data.activeContext).toBe(set.data.context)
         expect(result.data.agentKeyAddress).toMatch(/^0x[a-fA-F0-9]{40}$/)
         expect(result.data.agentAccount).toBe("0x1234567890123456789012345678901234567890")
+        expect(result.data.contexts).toHaveLength(1)
+        expect(result.data.contexts?.[0]).toMatchObject({ name: set.data.context, status: "ready", active: true })
+        expect(result.data.contexts?.[0]?.createdAt).toMatch(/^\d{4}-\d{2}-\d{2}T/)
+      }
+    })
+
+    it("should list every context with its status, oldest first", () => {
+      writeConfig({
+        activeContext: "prod",
+        contexts: {
+          // sandbox created earlier than prod — should sort ahead of it.
+          prod: readyContext({ createdAt: "2026-02-01T00:00:00.000Z" }),
+          sandbox: pendingContext({ createdAt: "2026-01-01T00:00:00.000Z" }),
+        },
+      })
+
+      const result = getStatus()
+      expect(result.ok).toBe(true)
+      if (result.ok) {
+        expect(result.data.contexts?.map((c: ContextSummary) => c.name)).toEqual(["sandbox", "prod"])
+        const sandbox = result.data.contexts?.find((c: ContextSummary) => c.name === "sandbox")
+        expect(sandbox?.status).toBe("pending_agent")
+        expect(sandbox?.pendingExpired).toBe(false)
       }
     })
 
@@ -278,39 +552,6 @@ describe("CLI Config", () => {
         expect(result.data.agentAccount).toBe("0x2222222222222222222222222222222222222222")
       }
     })
-
-    it("should show pending approval info", () => {
-      const pendingKey = generatePrivateKey()
-      storePendingApproval({
-        token: "test-token",
-        agentKey: pendingKey,
-        expiresAt: computeApprovalExpiry(),
-      })
-
-      const result = getStatus()
-
-      expect(result.ok).toBe(true)
-      if (result.ok) {
-        expect(result.data.pendingApproval).toBeDefined()
-        expect(result.data.pendingApproval?.agentKeyAddress).toMatch(/^0x[a-fA-F0-9]{40}$/)
-        expect(result.data.pendingApproval?.expired).toBe(false)
-      }
-    })
-
-    it("should show expired pending approval", () => {
-      storePendingApproval({
-        token: "expired-token",
-        agentKey: generatePrivateKey(),
-        expiresAt: new Date(Date.now() - 1000).toISOString(),
-      })
-
-      const result = getStatus()
-
-      expect(result.ok).toBe(true)
-      if (result.ok) {
-        expect(result.data.pendingApproval?.expired).toBe(true)
-      }
-    })
   })
 
   describe("loadCredentials", () => {
@@ -326,8 +567,8 @@ describe("CLI Config", () => {
       }
     })
 
-    it("returns SETUP_INCOMPLETE when file has only a key (no account)", () => {
-      writeConfig({ agentKey: generatePrivateKey() })
+    it("returns SETUP_INCOMPLETE when the active context is pending", () => {
+      startContext("default", { token: "t", agentKey: generatePrivateKey(), expiresAt: computeApprovalExpiry() })
 
       const result = loadCredentials()
 
@@ -338,7 +579,7 @@ describe("CLI Config", () => {
       }
     })
 
-    it("reads from file when config is ready", () => {
+    it("reads from the active context when ready", () => {
       const agentKey = generatePrivateKey()
       setConfig(`${agentKey}:::${VALID_ACCOUNT}`)
 
@@ -369,13 +610,8 @@ describe("CLI Config", () => {
       }
     })
 
-    it("AMPERSEND_API_URL overrides the file's apiUrl", () => {
-      const agentKey = generatePrivateKey()
-      writeConfig({
-        agentKey,
-        agentAccount: VALID_ACCOUNT,
-        apiUrl: "https://api.staging.ampersend.ai",
-      })
+    it("AMPERSEND_API_URL overrides the active context's apiUrl", () => {
+      writeSingle("default", readyContext({ agentAccount: VALID_ACCOUNT, apiUrl: "https://api.staging.ampersend.ai" }))
       process.env.AMPERSEND_API_URL = "https://api.sandbox.ampersend.ai"
 
       const result = loadCredentials()
@@ -386,13 +622,8 @@ describe("CLI Config", () => {
       }
     })
 
-    it("falls back to file's apiUrl when env var is unset", () => {
-      const agentKey = generatePrivateKey()
-      writeConfig({
-        agentKey,
-        agentAccount: VALID_ACCOUNT,
-        apiUrl: "https://api.staging.ampersend.ai",
-      })
+    it("falls back to the active context's apiUrl when env var is unset", () => {
+      writeSingle("default", readyContext({ agentAccount: VALID_ACCOUNT, apiUrl: "https://api.staging.ampersend.ai" }))
 
       const result = loadCredentials()
 
@@ -400,6 +631,172 @@ describe("CLI Config", () => {
       if (result.ok) {
         expect(result.credentials.apiUrl).toBe("https://api.staging.ampersend.ai")
       }
+    })
+
+    it("reads credentials from the active context, not other contexts", () => {
+      const prodKey = generatePrivateKey()
+      const sandboxKey = generatePrivateKey()
+      writeConfig({
+        activeContext: "sandbox",
+        contexts: {
+          prod: readyContext({ agentKey: prodKey, agentAccount: VALID_ACCOUNT }),
+          sandbox: readyContext({
+            agentKey: sandboxKey,
+            agentAccount: "0x3333333333333333333333333333333333333333",
+            apiUrl: "https://api.sandbox.ampersend.ai",
+          }),
+        },
+      })
+
+      const result = loadCredentials()
+      expect(result.ok).toBe(true)
+      if (result.ok) {
+        expect(result.credentials.agentKey).toBe(sandboxKey)
+        expect(result.credentials.apiUrl).toBe("https://api.sandbox.ampersend.ai")
+      }
+    })
+
+    it("--context override reads a non-active context", () => {
+      const prodKey = generatePrivateKey()
+      const sandboxKey = generatePrivateKey()
+      writeConfig({
+        activeContext: "prod",
+        contexts: {
+          prod: readyContext({ agentKey: prodKey, agentAccount: VALID_ACCOUNT }),
+          sandbox: readyContext({
+            agentKey: sandboxKey,
+            agentAccount: "0x3333333333333333333333333333333333333333",
+            apiUrl: "https://api.sandbox.ampersend.ai",
+          }),
+        },
+      })
+
+      const result = loadCredentials({ context: "sandbox" })
+      expect(result.ok).toBe(true)
+      if (result.ok) {
+        expect(result.credentials.agentKey).toBe(sandboxKey)
+        expect(result.credentials.apiUrl).toBe("https://api.sandbox.ampersend.ai")
+      }
+    })
+
+    it("AMPERSEND_CONTEXT selects the context when no flag is passed", () => {
+      const prodKey = generatePrivateKey()
+      const sandboxKey = generatePrivateKey()
+      writeConfig({
+        activeContext: "prod",
+        contexts: {
+          prod: readyContext({ agentKey: prodKey, agentAccount: VALID_ACCOUNT }),
+          sandbox: readyContext({ agentKey: sandboxKey, agentAccount: "0x3333333333333333333333333333333333333333" }),
+        },
+      })
+      process.env.AMPERSEND_CONTEXT = "sandbox"
+
+      const result = loadCredentials()
+      expect(result.ok).toBe(true)
+      if (result.ok) expect(result.credentials.agentKey).toBe(sandboxKey)
+    })
+
+    it("SETUP_INCOMPLETE when the --context-selected context is pending", () => {
+      writeConfig({
+        activeContext: "prod",
+        contexts: {
+          prod: readyContext({ agentAccount: VALID_ACCOUNT }),
+          sandbox: pendingContext(),
+        },
+      })
+
+      const result = loadCredentials({ context: "sandbox" })
+      expect(result.ok).toBe(false)
+      if (!result.ok) expect(result.error.error.code).toBe("SETUP_INCOMPLETE")
+    })
+  })
+
+  describe("v1 → v2 migration", () => {
+    function writeRawV1(v1: Record<string, unknown>): void {
+      mkdirSync(configDir, { recursive: true })
+      writeFileSync(CONFIG_FILE, JSON.stringify({ version: 1, ...v1 }, null, 2))
+    }
+
+    it("migrates a complete v1 identity into an active auto-named ready context", () => {
+      const agentKey = generatePrivateKey()
+      const apiUrl = "https://api.staging.ampersend.ai"
+      const name = autoContextName(apiUrl, privateKeyToAddress(agentKey))
+      writeRawV1({ agentKey, agentAccount: "0x1111111111111111111111111111111111111111", apiUrl })
+
+      const config = readConfig()
+      expect(config?.version).toBe(2)
+      expect(config?.activeContext).toBe(name)
+      const ctx = config?.contexts[name]
+      expect(ctx?.status).toBe("ready")
+      expect(ctx?.agentKey).toBe(agentKey)
+      expect(ctx?.apiUrl).toBe(apiUrl)
+      // No creation timestamp in v1 — migration stamps one.
+      if (ctx?.status === "ready") expect(ctx.createdAt).toMatch(/^\d{4}-\d{2}-\d{2}T/)
+    })
+
+    it("carries the v1 lasoToken onto the migrated context", () => {
+      const agentKey = generatePrivateKey()
+      const name = autoContextName(undefined, privateKeyToAddress(agentKey))
+      const lasoToken = {
+        idToken: "tok-v1",
+        expiresAt: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+        agentKey,
+      }
+      writeRawV1({ agentKey, agentAccount: "0x1111111111111111111111111111111111111111", lasoToken })
+
+      const ctx = readConfig()?.contexts[name]
+      if (ctx?.status === "ready") expect(ctx.lasoToken?.idToken).toBe("tok-v1")
+    })
+
+    it("migrates a standalone v1 pending approval into an auto-named pending context", () => {
+      const pendingKey = generatePrivateKey()
+      const name = autoContextName(undefined, privateKeyToAddress(pendingKey))
+      writeRawV1({
+        pendingApproval: { token: "pending-tok", agentKey: pendingKey, expiresAt: computeApprovalExpiry() },
+      })
+
+      const config = readConfig()
+      expect(config?.activeContext).toBe(name)
+      const ctx = config?.contexts[name]
+      expect(ctx?.status).toBe("pending")
+      if (ctx?.status === "pending") expect(ctx.token).toBe("pending-tok")
+    })
+
+    it("migrates both an identity and a pending approval, identity stays active", () => {
+      const agentKey = generatePrivateKey()
+      const pendingKey = generatePrivateKey()
+      const readyName = autoContextName(undefined, privateKeyToAddress(agentKey))
+      const pendingName = autoContextName(undefined, privateKeyToAddress(pendingKey))
+      writeRawV1({
+        agentKey,
+        agentAccount: "0x1111111111111111111111111111111111111111",
+        pendingApproval: { token: "pending-tok", agentKey: pendingKey, expiresAt: computeApprovalExpiry() },
+      })
+
+      const config = readConfig()
+      expect(config?.activeContext).toBe(readyName)
+      expect(config?.contexts[readyName]?.status).toBe("ready")
+      expect(config?.contexts[pendingName]?.status).toBe("pending")
+    })
+
+    it("drops an orphan key-only v1 file (no account)", () => {
+      writeRawV1({ agentKey: generatePrivateKey() })
+
+      const config = readConfig()
+      expect(config?.contexts).toEqual({})
+      expect(config?.activeContext).toBeUndefined()
+    })
+
+    it("rewrites the file as v2 on the next write", () => {
+      const agentKey = generatePrivateKey()
+      const name = autoContextName(undefined, privateKeyToAddress(agentKey))
+      writeRawV1({ agentKey, agentAccount: "0x1111111111111111111111111111111111111111" })
+
+      // Trigger a write through a normal path.
+      useContext(name)
+
+      const config = readConfig()
+      expect(config?.version).toBe(2)
     })
   })
 
@@ -417,11 +814,14 @@ describe("CLI Config", () => {
       }
     }
 
-    function seedIdentity(): void {
-      setConfig(`${agentKey}:::${VALID_ACCOUNT}`)
+    /** Seed the active identity and return its auto-derived context name. */
+    function seedIdentity(): string {
+      const result = setConfig(`${agentKey}:::${VALID_ACCOUNT}`)
+      if (!result.ok) throw new Error("expected ok")
+      return result.data.context
     }
 
-    it("stores and reads back a valid token for the active identity", () => {
+    it("stores and reads back a valid token for the active context", () => {
       seedIdentity()
       storeLasoToken(freshToken())
 
@@ -458,55 +858,83 @@ describe("CLI Config", () => {
       expect(readLasoToken(creds)?.idToken).toBe("tok-123")
     })
 
-    it("is a no-op when there is no config file to write", () => {
+    it("is a no-op when there is no active ready context", () => {
       // No identity seeded → no file. storeLasoToken must not create one.
       storeLasoToken(freshToken())
       expect(readConfig()).toBeNull()
     })
 
-    it("preserves the token across storePendingApproval (active identity unchanged)", () => {
-      seedIdentity()
+    it("keeps each context's token across config use (no cross-context leakage)", () => {
+      // prod gets a token; switching to sandbox and back must keep prod's token.
+      const prodKey = generatePrivateKey()
+      const prodCreds: ResolvedCredentials = { agentAccount: VALID_ACCOUNT, agentKey: prodKey }
+      writeConfig({
+        activeContext: "prod",
+        contexts: {
+          prod: readyContext({ agentKey: prodKey, agentAccount: VALID_ACCOUNT }),
+          sandbox: readyContext(),
+        },
+      })
+      storeLasoToken({
+        idToken: "prod-tok",
+        expiresAt: new Date(Date.now() + 3600_000).toISOString(),
+        agentKey: prodKey,
+      })
+
+      useContext("sandbox")
+      expect(readLasoToken(prodCreds)).toBeNull() // sandbox active, prod's token not visible
+
+      useContext("prod")
+      expect(readLasoToken(prodCreds)?.idToken).toBe("prod-tok") // prod's token intact
+    })
+
+    it("stores and reads a token against a --context-selected context", () => {
+      const prodKey = generatePrivateKey()
+      const sandboxKey = generatePrivateKey()
+      const sandboxCreds: ResolvedCredentials = { agentAccount: VALID_ACCOUNT, agentKey: sandboxKey }
+      writeConfig({
+        activeContext: "prod",
+        contexts: {
+          prod: readyContext({ agentKey: prodKey, agentAccount: VALID_ACCOUNT }),
+          sandbox: readyContext({ agentKey: sandboxKey, agentAccount: VALID_ACCOUNT }),
+        },
+      })
+
+      // Store against sandbox while prod is active; read it back via the selector.
+      storeLasoToken(
+        { idToken: "sandbox-tok", expiresAt: new Date(Date.now() + 3600_000).toISOString(), agentKey: sandboxKey },
+        { context: "sandbox" },
+      )
+
+      expect(readLasoToken(sandboxCreds, { context: "sandbox" })?.idToken).toBe("sandbox-tok")
+      // The active (prod) context has no token of its own.
+      const prodCtx = readConfig()?.contexts.prod
+      if (prodCtx?.status === "ready") expect(prodCtx.lasoToken).toBeUndefined()
+    })
+
+    it("overwriting a context's identity drops its token (config set --context)", () => {
+      // Overwriting a named context with a new key invalidates its cached token.
+      const name = seedIdentity()
       storeLasoToken(freshToken())
 
-      storePendingApproval({
+      setConfig(`${generatePrivateKey()}:::${VALID_ACCOUNT}`, { name })
+
+      const ctx = readConfig()?.contexts[name]
+      if (ctx?.status === "ready") expect(ctx.lasoToken).toBeUndefined()
+    })
+
+    it("drops the token on finishContext (pending → ready, fresh identity)", () => {
+      // A pending context has no lasoToken; finishing produces a ready context
+      // with no token. (No carry-over by construction.)
+      startContext("sandbox", {
         token: "approval-token",
         agentKey: generatePrivateKey(),
         expiresAt: computeApprovalExpiry(),
       })
+      finishContext("sandbox", VALID_ACCOUNT)
 
-      expect(readConfig()?.lasoToken?.idToken).toBe("tok-123")
-    })
-
-    it("drops the token on setConfig (identity changes)", () => {
-      seedIdentity()
-      storeLasoToken(freshToken())
-
-      setConfig(`${generatePrivateKey()}:::${VALID_ACCOUNT}`)
-
-      expect(readConfig()?.lasoToken).toBeUndefined()
-    })
-
-    it("drops the token on setApiUrl (read context changes)", () => {
-      seedIdentity()
-      storeLasoToken(freshToken())
-
-      setApiUrl("https://api.staging.ampersend.ai")
-
-      expect(readConfig()?.lasoToken).toBeUndefined()
-    })
-
-    it("drops the token on promotePending (identity changes)", () => {
-      seedIdentity()
-      storeLasoToken(freshToken())
-      storePendingApproval({
-        token: "approval-token",
-        agentKey: generatePrivateKey(),
-        expiresAt: computeApprovalExpiry(),
-      })
-
-      promotePending(VALID_ACCOUNT)
-
-      expect(readConfig()?.lasoToken).toBeUndefined()
+      const ctx = readConfig()?.contexts.sandbox
+      if (ctx?.status === "ready") expect(ctx.lasoToken).toBeUndefined()
     })
   })
 })

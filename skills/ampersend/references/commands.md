@@ -5,6 +5,7 @@ for example, when the user wants connect-mode setup, manual config, sandbox swit
 
 ## Contents
 
+- [Selecting a context](#selecting-a-context)
 - [setup start](#setup-start)
 - [setup finish](#setup-finish)
 - [Setup mode: connect to an existing agent](#setup-mode-connect-to-an-existing-agent)
@@ -14,42 +15,62 @@ for example, when the user wants connect-mode setup, manual config, sandbox swit
 - [agent](#agent)
 - [config](#config)
 
+## Selecting a context
+
+Config holds multiple named **contexts** (identity + API URL); one is active at a time. Every command that talks to the
+API (`fetch`, `agent …`, `card …`, `marketplace …`, `setup finish`) accepts a uniform `--context <name>` flag to run
+against a non-active context for that one invocation, without switching the active one. Resolution precedence:
+
+1. `--context <name>` flag (per command)
+2. `AMPERSEND_CONTEXT` env var (selects the active context for the process)
+3. the persisted active context (set by `config use` / `setup`)
+
+Two env vars sit above context selection entirely: `AMPERSEND_AGENT_SECRET` (or `AMPERSEND_AGENT_KEY` +
+`AMPERSEND_AGENT_ACCOUNT`) supplies a complete identity with no config file — the CI/deploy path — and
+`AMPERSEND_API_URL` is a hard override of the API URL that always wins when set.
+
 ## setup start
 
 Step 1 of the approval flow: generate a key and request agent creation.
 
 ```bash
-ampersend setup start [--mode <create|connect>] [--name <name>] [--agent <address>] [--key-name <name>] [--force] [--daily-limit <amount>] [--monthly-limit <amount>] [--per-transaction-limit <amount>] [--auto-topup]
+ampersend setup start [--context <name>] [--api-url <url>] [--detach] [--mode <create|connect>] [--name <name>] [--agent <address>] [--key-name <name>] [--force] [--daily-limit <amount>] [--monthly-limit <amount>] [--per-transaction-limit <amount>] [--auto-topup]
 ```
 
-| Option                          | Description                                                                         |
-| ------------------------------- | ----------------------------------------------------------------------------------- |
-| `--mode <mode>`                 | `create` (new agent, default) or `connect` (key to existing agent)                  |
-| `--name <name>`                 | Name for the agent (create mode only)                                               |
-| `--agent <address>`             | Address of existing agent to connect to (connect mode; omit to choose in dashboard) |
-| `--key-name <name>`             | Name for the agent key                                                              |
-| `--force`                       | Overwrite an existing pending approval                                              |
-| `--daily-limit <amount>`        | Daily spending limit in atomic units, 1000000 = 1 USDC (create mode only)           |
-| `--monthly-limit <amount>`      | Monthly spending limit in atomic units (create mode only)                           |
-| `--per-transaction-limit <amt>` | Per-transaction spending limit in atomic units (create mode only)                   |
-| `--auto-topup`                  | Allow automatic balance top-up from main account (create mode only)                 |
+| Option                          | Description                                                                           |
+| ------------------------------- | ------------------------------------------------------------------------------------- |
+| `--context <name>`              | Name for the context. Omit to auto-name one (`ctx-<key>`, host-prefixed for non-prod) |
+| `--api-url <url>`               | API URL this context targets (for non-production environments)                        |
+| `--detach`                      | Create the context without making it the active one                                   |
+| `--mode <mode>`                 | `create` (new agent, default) or `connect` (key to existing agent)                    |
+| `--name <name>`                 | Name for the agent (create mode only)                                                 |
+| `--agent <address>`             | Address of existing agent to connect to (connect mode; omit to choose in dashboard)   |
+| `--key-name <name>`             | Name for the agent key                                                                |
+| `--force`                       | Overwrite an existing context (ready or live pending) with the same name              |
+| `--daily-limit <amount>`        | Daily spending limit in atomic units, 1000000 = 1 USDC (create mode only)             |
+| `--monthly-limit <amount>`      | Monthly spending limit in atomic units (create mode only)                             |
+| `--per-transaction-limit <amt>` | Per-transaction spending limit in atomic units (create mode only)                     |
+| `--auto-topup`                  | Allow automatic balance top-up from main account (create mode only)                   |
 
-Returns `token`, `user_approve_url`, `agentKeyAddress`, and `verificationCode`. The verification code must be shown to
-the user alongside the approval URL.
+Each `setup start` creates a new **context** (a named identity: agent key + account + its own API URL) and, unless
+`--detach` is passed, makes it active. Returns `token`, `user_approve_url`, `agentKeyAddress`, `verificationCode`, and
+the `context` name. The verification code must be shown to the user alongside the approval URL.
 
 ## setup finish
 
-Step 2 of the approval flow: poll for approval and activate the agent config.
+Step 2 of the approval flow: poll for approval and promote a pending context to `ready`. With no flags it finishes the
+**active** context; `--context <name>` finishes (and activates) a specific pending context instead — useful after a
+`--detach`'d `setup start`.
 
 ```bash
-ampersend setup finish [--force] [--poll-interval <seconds>] [--timeout <seconds>]
+ampersend setup finish [--context <name>] [--poll-interval <seconds>] [--timeout <seconds>]
 ```
 
-| Option                      | Description                               |
-| --------------------------- | ----------------------------------------- |
-| `--force`                   | Overwrite existing active config          |
-| `--poll-interval <seconds>` | Seconds between status checks (default 5) |
-| `--timeout <seconds>`       | Maximum seconds to wait (default 600)     |
+| Option                      | Description                                              |
+| --------------------------- | -------------------------------------------------------- |
+| `--context <name>`          | Finish and activate a specific context (default: active) |
+| `--poll-interval <seconds>` | Seconds between status checks (default 5)                |
+| `--timeout <seconds>`       | Maximum seconds to wait (default 600)                    |
 
 ## Setup mode: connect to an existing agent
 
@@ -76,7 +97,7 @@ Skips the approval flow entirely.
 
 ```bash
 ampersend config set "0xagentKey:::0xagentAccount"
-# {"ok": true, "data": {"agentKeyAddress": "0x...", "agentAccount": "0x...", "status": "ready"}}
+# {"ok": true, "data": {"agentKeyAddress": "0x...", "agentAccount": "0x...", "context": "ctx-...", "status": "ready"}}
 ```
 
 ## fetch
@@ -236,12 +257,27 @@ to the session's own agent, so sibling agents and cross-agent aggregates are unr
 
 ## config
 
-Manage local configuration.
+Manage local configuration. Config is organised into named **contexts**, each carrying its own agent key, account, and
+API URL — so a sandbox identity and a production identity can coexist. One context is "active" at a time; every
+authenticated command uses the active context.
 
 ```bash
-ampersend config set <key:::account>                             # Set active config manually
-ampersend config set --api-url https://api.sandbox.ampersend.ai  # Set sandbox API URL
-ampersend config set --clear-api-url                             # Revert to production API
-ampersend config set <key:::account> --api-url <url>             # Set both at once
-ampersend config status                                          # Show current status
+ampersend config set <key:::account>                                       # Create an auto-named context, make it active
+ampersend config set <key:::account> --context sandbox --api-url <url>     # Create a named context with its own URL
+ampersend config status                                                    # Show all contexts and which is active
+ampersend config use <name>                                                # Switch the active context
+ampersend config rm <name>                                                 # Delete a context
 ```
+
+| Subcommand            | Description                                                                          |
+| --------------------- | ------------------------------------------------------------------------------------ |
+| `set <key:::account>` | Create a context from an identity and make it active (`--context <name>` to name it) |
+| `set --api-url <url>` | Only with a secret — the URL a newly-created context targets (non-production)        |
+| `status`              | Show every context (oldest first), its status, and which one is active               |
+| `use <name>`          | Make `<name>` the active context without re-running setup                            |
+| `rm <name>`           | Delete `<name>`; clears the active selection if it was active                        |
+
+A context's API URL is fixed at creation. There is no in-place URL edit: re-run `setup start` / `config set` with a new
+`--api-url` to create another context, or set `AMPERSEND_API_URL` to override the URL for a single process. `config set`
+with no `--context` always mints a fresh auto-named context (`ctx-<key>`, host-prefixed for non-prod) and never
+overwrites an existing one; pass `--context <name>` to write a specific one.

@@ -7,7 +7,7 @@ import {
   type CuratedAgentSource,
   type ListMarketplaceAgentsFilters,
 } from "../../ampersend/index.ts"
-import { DEFAULT_API_URL, getRuntimeConfig, loadCredentials } from "../config.ts"
+import { getActiveApiUrl, loadCredentials, type ContextSelector } from "../config.ts"
 import { err, ok, type JsonEnvelope } from "../envelope.ts"
 
 // Decoded DTOs hold bigints (e.g. pricing_config.amount), which JSON.stringify
@@ -24,16 +24,16 @@ interface ListOptions {
   search?: string
   network?: string
   raw: boolean
+  context?: string
 }
 
 interface ShowOptions {
   raw: boolean
+  context?: string
 }
 
-function resolveApiUrl(): string {
-  // Precedence: env var > config file > default. Mirrors `fetch.ts`.
-  return process.env.AMPERSEND_API_URL ?? getRuntimeConfig()?.apiUrl ?? DEFAULT_API_URL
-}
+/** `--context <name>` option, shared across marketplace subcommands. */
+const CONTEXT_DESCRIPTION = "Run against a specific context instead of the active one"
 
 function isCuratedAgentSource(value: string): value is CuratedAgentSource {
   return (VALID_SOURCES as ReadonlyArray<string>).includes(value)
@@ -53,15 +53,15 @@ function buildFilters(options: ListOptions): JsonEnvelope<ListMarketplaceAgentsF
   return ok(filters)
 }
 
-export function buildClient(): MarketplaceClient {
-  const result = loadCredentials()
+export function buildClient(opts: ContextSelector = {}): MarketplaceClient {
+  const result = loadCredentials(opts)
   if (!result.ok) {
     console.log(JSON.stringify(result.error, null, 2))
     process.exit(1)
   }
   const { agentAccount, agentKey } = result.credentials
   return new MarketplaceClient({
-    baseUrl: resolveApiUrl(),
+    baseUrl: getActiveApiUrl(opts),
     agentAddress: agentAccount,
     sessionKeyPrivateKey: agentKey,
   })
@@ -70,8 +70,8 @@ export function buildClient(): MarketplaceClient {
 // `marketplace show` reads a single agent from an unauthenticated endpoint, so
 // it must work without setup. Build a credential-free client rather than going
 // through `buildClient`, which exits when no agent is configured.
-export function buildReadOnlyClient(): MarketplaceClient {
-  return new MarketplaceClient({ baseUrl: resolveApiUrl() })
+export function buildReadOnlyClient(opts: ContextSelector = {}): MarketplaceClient {
+  return new MarketplaceClient({ baseUrl: getActiveApiUrl(opts) })
 }
 
 async function executeList(options: ListOptions): Promise<void> {
@@ -85,7 +85,7 @@ async function executeList(options: ListOptions): Promise<void> {
     process.exit(1)
   }
 
-  const client = buildClient()
+  const client = buildClient(options)
 
   try {
     const agents = await client.listAgents(filtersResult.data)
@@ -107,7 +107,7 @@ async function executeList(options: ListOptions): Promise<void> {
 }
 
 async function executeShow(id: string, options: ShowOptions): Promise<void> {
-  const client = buildReadOnlyClient()
+  const client = buildReadOnlyClient(options)
 
   try {
     const agent = await client.getAgent(id)
@@ -143,6 +143,7 @@ export function registerMarketplaceCommand(program: Command): void {
     .option("--search <query>", "Fuzzy search across name, description, tags, and category")
     .option("--network <network>", "Filter by supported network (e.g. base, base-sepolia)")
     .option("--raw", "Output raw JSON array instead of envelope", false)
+    .option("--context <name>", CONTEXT_DESCRIPTION)
     .action(async (options: ListOptions) => {
       await executeList(options)
     })
@@ -152,6 +153,7 @@ export function registerMarketplaceCommand(program: Command): void {
     .description("Show details for a single curated agent")
     .argument("<id>", "Curated agent id (UUID)")
     .option("--raw", "Output raw JSON object instead of envelope", false)
+    .option("--context <name>", CONTEXT_DESCRIPTION)
     .action(async (id: string, options: ShowOptions) => {
       await executeShow(id, options)
     })

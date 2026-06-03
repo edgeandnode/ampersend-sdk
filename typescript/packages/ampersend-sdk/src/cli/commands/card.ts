@@ -1,7 +1,14 @@
 import type { Command } from "commander"
 import { Schema } from "effect"
 
-import { loadCredentials, readLasoToken, storeLasoToken, type LasoToken, type ResolvedCredentials } from "../config.ts"
+import {
+  loadCredentials,
+  readLasoToken,
+  storeLasoToken,
+  type ContextSelector,
+  type LasoToken,
+  type ResolvedCredentials,
+} from "../config.ts"
 import { err, ok, type JsonEnvelope } from "../envelope.ts"
 import { buildReceiptFromResponse, createPaidFetch, type PaymentReceipt } from "./fetch.ts"
 
@@ -117,18 +124,24 @@ const DEFAULT_TOKEN_TTL_SECONDS = 60 * 60
 interface IssueOptions {
   amount?: string
   raw: boolean
+  context?: string
 }
 
 interface DetailsOptions {
   pay: boolean
   reveal: boolean
   raw: boolean
+  context?: string
 }
 
 interface ListOptions {
   pay: boolean
   raw: boolean
+  context?: string
 }
+
+/** `--context <name>` option, shared across card subcommands. */
+const CONTEXT_DESCRIPTION = "Run against a specific context instead of the active one"
 
 /**
  * Validate and normalize the `--amount` flag. Returns the trimmed USD string
@@ -262,8 +275,8 @@ function emit<T>(envelope: JsonEnvelope<T>, raw: boolean): void {
 }
 
 /** Load credentials or print the err envelope and exit 1 (caller misuse / missing config). */
-function requireCredentials(raw: boolean): ResolvedCredentials {
-  const result = loadCredentials()
+function requireCredentials(raw: boolean, opts: ContextSelector = {}): ResolvedCredentials {
+  const result = loadCredentials(opts)
   if (!result.ok) {
     emit(result.error, raw)
     process.exit(1)
@@ -286,14 +299,18 @@ function isRegionBlocked(status: number, body: string): boolean {
  * Shared by the `/auth` mint (`ensureToken`) and the free token that rides
  * along on `/get-card` (`executeIssue`). Returns the stored token.
  */
-function cacheAuthCredentials(auth: typeof LasoAuthCredentials.Type, credentials: ResolvedCredentials): LasoToken {
+function cacheAuthCredentials(
+  auth: typeof LasoAuthCredentials.Type,
+  credentials: ResolvedCredentials,
+  opts: ContextSelector = {},
+): LasoToken {
   const token: LasoToken = {
     idToken: auth.id_token,
     expiresAt: tokenExpiry(auth.expires_in),
     agentKey: credentials.agentKey,
     ...(credentials.apiUrl ? { apiUrl: credentials.apiUrl } : {}),
   }
-  storeLasoToken(token)
+  storeLasoToken(token, opts)
   return token
 }
 
@@ -306,8 +323,9 @@ function cacheAuthCredentials(auth: typeof LasoAuthCredentials.Type, credentials
 async function ensureToken(
   credentials: ResolvedCredentials,
   pay: boolean,
+  opts: ContextSelector = {},
 ): Promise<JsonEnvelope<{ token: LasoToken; receipt?: PaymentReceipt }>> {
-  const cached = readLasoToken(credentials)
+  const cached = readLasoToken(credentials, opts)
   if (cached) {
     return ok({ token: cached })
   }
@@ -327,7 +345,7 @@ async function ensureToken(
   }
 
   const { auth } = decodeAuth(JSON.parse(body))
-  const token = cacheAuthCredentials(auth, credentials)
+  const token = cacheAuthCredentials(auth, credentials, opts)
 
   const receipt = buildReceiptFromResponse(getSelected(), response)
   return ok({ token, ...(receipt ? { receipt } : {}) })
@@ -346,7 +364,7 @@ async function executeIssue(options: IssueOptions): Promise<void> {
   }
   const amount = amountResult.data
 
-  const credentials = requireCredentials(options.raw)
+  const credentials = requireCredentials(options.raw, options)
   const { fetchWithPayment, getSelected } = createPaidFetch(credentials)
 
   const url = `${LASO_BASE_URL}/get-card?amount=${encodeURIComponent(amount)}`
@@ -365,7 +383,7 @@ async function executeIssue(options: IssueOptions): Promise<void> {
   const { auth, card } = decodeIssue(JSON.parse(body))
   // Cache the free token that rides along on /get-card so the agent's first
   // details/list poll needs no --pay. Best-effort: absent → reads mint their own.
-  if (auth) cacheAuthCredentials(auth, credentials)
+  if (auth) cacheAuthCredentials(auth, credentials, options)
 
   const receipt = buildReceiptFromResponse(getSelected(), response)
   emit(
@@ -387,9 +405,9 @@ async function executeIssue(options: IssueOptions): Promise<void> {
  * `status: "pending"` and no card data — not an error.
  */
 async function executeDetails(id: string, options: DetailsOptions): Promise<void> {
-  const credentials = requireCredentials(options.raw)
+  const credentials = requireCredentials(options.raw, options)
 
-  const tokenResult = await ensureToken(credentials, options.pay)
+  const tokenResult = await ensureToken(credentials, options.pay, options)
   if (!tokenResult.ok) {
     emit(tokenResult, options.raw)
     return
@@ -417,9 +435,9 @@ async function executeDetails(id: string, options: DetailsOptions): Promise<void
  * `details`.
  */
 async function executeList(options: ListOptions): Promise<void> {
-  const credentials = requireCredentials(options.raw)
+  const credentials = requireCredentials(options.raw, options)
 
-  const tokenResult = await ensureToken(credentials, options.pay)
+  const tokenResult = await ensureToken(credentials, options.pay, options)
   if (!tokenResult.ok) {
     emit(tokenResult, options.raw)
     return
@@ -464,6 +482,7 @@ export function registerCardCommand(program: Command): void {
     .description("Order a prepaid card. Spends the stated amount; returns a card_id to poll with `card details`.")
     .requiredOption("--amount <usd>", `Card value in USD ($${MIN_AMOUNT_USD}–$${MAX_AMOUNT_USD})`)
     .option("--raw", "Print only the inner data, no JSON envelope", false)
+    .option("--context <name>", CONTEXT_DESCRIPTION)
     .action(async (options: IssueOptions) => {
       await guard(options.raw, () => executeIssue(options))
     })
@@ -475,6 +494,7 @@ export function registerCardCommand(program: Command): void {
     .option("--pay", "Authorize minting a read token (~$0.001) if none is cached", false)
     .option("--reveal", "Show full PAN and CVV instead of masking", false)
     .option("--raw", "Print only the inner data, no JSON envelope", false)
+    .option("--context <name>", CONTEXT_DESCRIPTION)
     .action(async (id: string, options: DetailsOptions) => {
       await guard(options.raw, () => executeDetails(id, options))
     })
@@ -484,6 +504,7 @@ export function registerCardCommand(program: Command): void {
     .description("List all issued cards (always masked)")
     .option("--pay", "Authorize minting a read token (~$0.001) if none is cached", false)
     .option("--raw", "Print only the inner data, no JSON envelope", false)
+    .option("--context <name>", CONTEXT_DESCRIPTION)
     .action(async (options: ListOptions) => {
       await guard(options.raw, () => executeList(options))
     })

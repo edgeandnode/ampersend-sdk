@@ -12,7 +12,7 @@ import { err, ok, type ConfigStatus, type JsonEnvelope } from "./envelope.ts"
 /**
  * Resolved credentials for an authenticated command. Tries env vars first
  * (so a deploy can override without touching the local config file), then
- * the config file written by `setup` / `config set`.
+ * the active context in the config file written by `setup` / `config set`.
  */
 export interface ResolvedCredentials {
   agentAccount: `0x${string}`
@@ -25,9 +25,9 @@ export interface ResolvedCredentials {
  * Returns an `err` envelope when the local config isn't ready, so the
  * caller can print it and exit.
  */
-export function loadCredentials():
-  | { ok: true; credentials: ResolvedCredentials }
-  | { ok: false; error: JsonEnvelope<never> } {
+export function loadCredentials(
+  opts: ContextSelector = {},
+): { ok: true; credentials: ResolvedCredentials } | { ok: false; error: JsonEnvelope<never> } {
   try {
     const envConfig = parseEnvConfig()
     return {
@@ -42,20 +42,21 @@ export function loadCredentials():
     // Fall back to config file
   }
 
-  const fileConfig = getRuntimeConfig()
-  if (fileConfig?.status === "ready" && fileConfig.agentAccount && fileConfig.agentKey) {
-    const apiUrl = process.env.AMPERSEND_API_URL ?? fileConfig.apiUrl
+  const selected = getSelectedContext(opts)
+  if (selected?.context.status === "ready") {
+    // AMPERSEND_API_URL is a hard bypass: if set, it always wins.
+    const apiUrl = process.env.AMPERSEND_API_URL ?? selected.context.apiUrl
     return {
       ok: true,
       credentials: {
-        agentAccount: fileConfig.agentAccount,
-        agentKey: fileConfig.agentKey,
+        agentAccount: selected.context.agentAccount,
+        agentKey: selected.context.agentKey,
         ...(apiUrl ? { apiUrl } : {}),
       },
     }
   }
 
-  const status = fileConfig?.status ?? "not_initialized"
+  const status = getConfigStatus(opts).status
   const code = status === "not_initialized" ? "NOT_CONFIGURED" : "SETUP_INCOMPLETE"
   return {
     ok: false,
@@ -68,7 +69,7 @@ const CONFIG_DIR = join(homedir(), ".ampersend")
 export const CONFIG_FILE = join(CONFIG_DIR, "config.json")
 
 /** Current config version */
-const CONFIG_VERSION = 1
+const CONFIG_VERSION = 2
 
 /** Hard-coded approval expiration: 30 minutes */
 const APPROVAL_EXPIRY_MS = 30 * 60 * 1000
@@ -79,21 +80,17 @@ export type { ConfigStatus }
 /** Default API URL (production) */
 export const DEFAULT_API_URL = "https://api.ampersend.ai"
 
-/** Pending approval stored in config */
-export interface PendingApproval {
-  token: string
-  agentKey: `0x${string}`
-  expiresAt: string // ISO timestamp — informational, `setup start` enforces locally; `setup finish` lets API decide
-}
-
 const HexString = Schema.TemplateLiteral(Schema.Literal("0x"), Schema.String)
 
 /**
  * Cached Laso Bearer token for `card details`/`list`, so a warm read costs
  * nothing. Stamped with the identity (`agentKey`) and `apiUrl` it was minted
  * under: `readLasoToken` treats it as absent if either no longer matches the
- * active config (covers env-var overrides) or it has expired. Self-correcting,
+ * active context (covers env-var overrides) or it has expired. Self-correcting,
  * so the identity/URL write paths only need to drop it, not re-thread it.
+ *
+ * Lives inside the context it was minted under, so switching the active context
+ * (`config use`) keeps each context's token intact without any explicit drop.
  *
  * Schema is the source of truth; the `LasoToken` type is derived from it so the
  * two can't drift (the same pattern as the schemas in `src/ampersend/`).
@@ -107,24 +104,72 @@ const LasoTokenSchema = Schema.Struct({
 
 export type LasoToken = typeof LasoTokenSchema.Type
 
-/** Stored configuration V1 */
-export interface StoredConfigV1 {
+// ─── Context model (V2) ──────────────────────────────────────────────────────
+
+/**
+ * A named identity in the config. A context is either:
+ *  - `ready`:   resolved, carrying an active key + on-chain account (+ optional
+ *               per-context apiUrl and cached lasoToken).
+ *  - `pending`: an in-flight `setup start` — a generated key plus the approval
+ *               token and its local expiry, but no account yet. `setup finish`
+ *               promotes it to `ready`.
+ *
+ * Each context carries its own `apiUrl`, so e.g. a sandbox and a prod context
+ * can coexist pointed at different environments.
+ */
+const ReadyContextSchema = Schema.Struct({
+  status: Schema.Literal("ready"),
+  agentKey: HexString,
+  agentAccount: HexString,
+  createdAt: Schema.String, // ISO timestamp the context was first created
+  apiUrl: Schema.optional(Schema.String),
+  lasoToken: Schema.optional(LasoTokenSchema),
+})
+
+const PendingContextSchema = Schema.Struct({
+  status: Schema.Literal("pending"),
+  agentKey: HexString,
+  token: Schema.String,
+  expiresAt: Schema.String, // ISO timestamp — informational; `setup finish` lets the API decide
+  createdAt: Schema.String, // ISO timestamp the context was first created
+  apiUrl: Schema.optional(Schema.String),
+})
+
+const ContextSchema = Schema.Union(ReadyContextSchema, PendingContextSchema)
+
+export type ReadyContext = typeof ReadyContextSchema.Type
+export type PendingContext = typeof PendingContextSchema.Type
+export type Context = typeof ContextSchema.Type
+
+/** Stored configuration V2 — the multi-context model. */
+export interface StoredConfigV2 {
+  version: 2
+  activeContext?: string
+  contexts: Record<string, Context>
+}
+
+/** Current stored config type */
+export type StoredConfig = StoredConfigV2
+
+const StoredConfigV2Schema = Schema.Struct({
+  version: Schema.Literal(2),
+  activeContext: Schema.optional(Schema.String),
+  contexts: Schema.Record({ key: Schema.String, value: ContextSchema }),
+})
+
+// ─── Legacy V1 (read-only, for migration) ─────────────────────────────────────
+
+/** Stored configuration V1 (single-account). Read-only — migrated to V2 on load. */
+interface StoredConfigV1 {
   version: 1
   agentKey?: `0x${string}`
   agentAccount?: `0x${string}`
   apiUrl?: string
-  pendingApproval?: PendingApproval
+  pendingApproval?: { token: string; agentKey: `0x${string}`; expiresAt: string }
   lasoToken?: LasoToken
 }
 
-/** Current stored config type */
-export type StoredConfig = StoredConfigV1
-
-/** Schema for validating stored config read from disk.
- *
- * Effect Schema strips unknown keys, so legacy fields like `network` written
- * by older versions are silently dropped on next write. */
-const StoredConfigSchema = Schema.Struct({
+const StoredConfigV1Schema = Schema.Struct({
   version: Schema.Literal(1),
   agentKey: Schema.optional(HexString),
   agentAccount: Schema.optional(HexString),
@@ -139,14 +184,67 @@ const StoredConfigSchema = Schema.Struct({
   lasoToken: Schema.optional(LasoTokenSchema),
 })
 
-/** Runtime configuration with derived fields */
-export interface RuntimeConfig {
-  agentKey?: `0x${string}`
-  agentAccount?: `0x${string}`
-  apiUrl?: string
-  pendingApproval?: PendingApproval
-  lasoToken?: LasoToken
-  status: ConfigStatus
+/** Decodes either version; V1 is normalized to V2 by `readConfig`. */
+const StoredConfigSchema = Schema.Union(StoredConfigV2Schema, StoredConfigV1Schema)
+
+/**
+ * Migrate a legacy single-account V1 config to the V2 context model. There is
+ * no `default` context in V2 — both migrated contexts are auto-named from their
+ * key (the same scheme `setup`/`config set` use), and `createdAt` is stamped to
+ * the migration time since a V1 file carries no creation timestamp.
+ *
+ *  - A complete identity (key + account) becomes a `ready` context carrying the
+ *    old top-level apiUrl/lasoToken; it becomes active.
+ *  - A standalone pending approval becomes a `pending` context. If there was no
+ *    active identity, the pending context becomes active.
+ *  - A key-only V1 file (no account, no pending) was already non-functional for
+ *    reads, so we drop the orphan key and migrate to an empty (not_initialized)
+ *    config.
+ */
+function migrateV1toV2(v1: StoredConfigV1): StoredConfigV2 {
+  const config: StoredConfigV2 = { version: 2, contexts: {} }
+  const createdAt = new Date().toISOString()
+
+  if (v1.agentKey && v1.agentAccount) {
+    const name = uniqueContextName(config, v1.apiUrl, privateKeyToAddress(v1.agentKey))
+    config.contexts[name] = {
+      status: "ready",
+      agentKey: v1.agentKey,
+      agentAccount: v1.agentAccount,
+      createdAt,
+      ...(v1.apiUrl ? { apiUrl: v1.apiUrl } : {}),
+      ...(v1.lasoToken ? { lasoToken: v1.lasoToken } : {}),
+    }
+    config.activeContext = name
+  }
+
+  if (v1.pendingApproval) {
+    const name = uniqueContextName(config, v1.apiUrl, privateKeyToAddress(v1.pendingApproval.agentKey))
+    config.contexts[name] = {
+      status: "pending",
+      agentKey: v1.pendingApproval.agentKey,
+      token: v1.pendingApproval.token,
+      expiresAt: v1.pendingApproval.expiresAt,
+      createdAt,
+      ...(v1.apiUrl ? { apiUrl: v1.apiUrl } : {}),
+    }
+    config.activeContext ??= name
+  }
+
+  return config
+}
+
+/** Pending approval payload passed to `startContext` by `setup start`. */
+export interface PendingApproval {
+  token: string
+  agentKey: `0x${string}`
+  expiresAt: string
+}
+
+/** A context with its name, as returned by lookups. */
+export interface NamedContext {
+  name: string
+  context: Context
 }
 
 /**
@@ -159,17 +257,18 @@ function ensureConfigDir(): void {
 }
 
 /**
- * Read config file if it exists.
+ * Read config file if it exists, normalized to the V2 context model.
  * Returns null if the file is missing or corrupt.
  */
-export function readConfig(): StoredConfig | null {
+export function readConfig(): StoredConfigV2 | null {
   if (!existsSync(CONFIG_FILE)) {
     return null
   }
   const content = readFileSync(CONFIG_FILE, "utf-8")
   try {
     const parsed = JSON.parse(content)
-    return Schema.decodeUnknownSync(StoredConfigSchema)(parsed) as StoredConfig
+    const decoded = Schema.decodeUnknownSync(StoredConfigSchema)(parsed)
+    return decoded.version === 1 ? migrateV1toV2(decoded as StoredConfigV1) : (decoded as StoredConfigV2)
   } catch {
     // Corrupt or unrecognised config — treat as absent so commands can re-initialise
     return null
@@ -177,44 +276,81 @@ export function readConfig(): StoredConfig | null {
 }
 
 /**
- * Write config file with secure permissions
+ * Drop expired *pending* contexts so the map can't grow without bound. Ready
+ * contexts are never auto-pruned (only `config rm` removes them). If the active
+ * context is pruned, `activeContext` is cleared.
  */
-export function writeConfig(config: Omit<StoredConfig, "version">): void {
+function prunePendingExpired(config: StoredConfigV2): StoredConfigV2 {
+  const contexts: Record<string, Context> = {}
+  for (const [name, ctx] of Object.entries(config.contexts)) {
+    if (ctx.status === "pending" && isPendingExpired(ctx)) continue
+    contexts[name] = ctx
+  }
+  const activeContext = config.activeContext && contexts[config.activeContext] ? config.activeContext : undefined
+  return { version: 2, ...(activeContext ? { activeContext } : {}), contexts }
+}
+
+/**
+ * Write config file with secure permissions. Always writes V2 and prunes
+ * expired pending contexts on the way out.
+ */
+export function writeConfig(config: Omit<StoredConfigV2, "version">): void {
   ensureConfigDir()
-  const withVersion: StoredConfig = { version: CONFIG_VERSION, ...config }
-  writeFileSync(CONFIG_FILE, JSON.stringify(withVersion, null, 2), { mode: 0o600 })
+  const pruned = prunePendingExpired({ version: CONFIG_VERSION, ...config })
+  writeFileSync(CONFIG_FILE, JSON.stringify(pruned, null, 2), { mode: 0o600 })
 }
 
 /**
- * Get runtime config with status
+ * Per-invocation context selection. A `--context <name>` flag wins; otherwise
+ * `AMPERSEND_CONTEXT`; otherwise the persisted `activeContext`. Carried by every
+ * command so it can target a non-active context without switching.
  */
-export function getRuntimeConfig(): RuntimeConfig | null {
-  const stored = readConfig()
-  if (!stored) {
-    return null
-  }
-
-  const { version: _, ...rest } = stored
-  const status: ConfigStatus = rest.agentKey && rest.agentAccount ? "ready" : "pending_agent"
-
-  return { ...rest, status }
+export interface ContextSelector {
+  context?: string | undefined
 }
 
 /**
- * Get configuration status for error messages
+ * The context name to use this invocation: `--context` flag > `AMPERSEND_CONTEXT`
+ * env > persisted `activeContext`. Returns undefined if none resolves.
  */
-export function getConfigStatus(): { status: ConfigStatus } {
-  const config = getRuntimeConfig()
-  if (!config) {
-    return { status: "not_initialized" }
-  }
-  return { status: config.status }
+export function resolveContextName(opts: ContextSelector = {}): string | undefined {
+  return opts.context ?? process.env.AMPERSEND_CONTEXT ?? readConfig()?.activeContext ?? undefined
+}
+
+/**
+ * The selected context (name + value) after applying flag/env/active precedence,
+ * or null if no config file exists or the resolved name has no context.
+ */
+export function getSelectedContext(opts: ContextSelector = {}): NamedContext | null {
+  const config = readConfig()
+  const name = resolveContextName(opts)
+  if (!config || !name) return null
+  const context = config.contexts[name]
+  if (!context) return null
+  return { name, context }
+}
+
+/**
+ * Effective API URL for unauthenticated calls and setup flows.
+ * Precedence: AMPERSEND_API_URL (hard bypass) > selected context's apiUrl > default.
+ */
+export function getActiveApiUrl(opts: ContextSelector = {}): string {
+  return process.env.AMPERSEND_API_URL ?? getSelectedContext(opts)?.context.apiUrl ?? DEFAULT_API_URL
+}
+
+/**
+ * Per-context status for the selected context, for error messages and `status`.
+ */
+export function getConfigStatus(opts: ContextSelector = {}): { status: ConfigStatus } {
+  const selected = getSelectedContext(opts)
+  if (!selected) return { status: "not_initialized" }
+  return { status: selected.context.status === "ready" ? "ready" : "pending_agent" }
 }
 
 /**
  * Check if a pending approval has expired locally.
  */
-export function isPendingExpired(pending: PendingApproval): boolean {
+export function isPendingExpired(pending: { expiresAt: string }): boolean {
   return new Date(pending.expiresAt).getTime() <= Date.now()
 }
 
@@ -225,13 +361,66 @@ export function computeApprovalExpiry(): string {
   return new Date(Date.now() + APPROVAL_EXPIRY_MS).toISOString()
 }
 
+/** Empty V2 config used when starting from scratch. */
+function emptyConfig(): StoredConfigV2 {
+  return { version: 2, contexts: {} }
+}
+
+/** Return a copy of `record` without `key` (avoids dynamic `delete`). */
+function omitKey<T>(record: Record<string, T>, key: string): Record<string, T> {
+  const { [key]: _omitted, ...rest } = record
+  return rest
+}
+
 /**
- * Set active config directly using "agentKey:::agentAccount" format.
- * Replaces the old `config init` + `config set-agent` flow.
+ * Production = the default URL, or no URL at all. Auto-derived context names get
+ * the URL host prepended only for non-production environments.
+ */
+export function isProductionUrl(apiUrl: string | undefined): boolean {
+  return !apiUrl || apiUrl === DEFAULT_API_URL
+}
+
+/**
+ * Auto-derive a context name from the agent key when `--context` is omitted.
+ * The base is `ctx-<4 hex of key address>`; non-production URLs prepend the host
+ * so contexts targeting different environments stay distinct (e.g.
+ * `api.sandbox.ampersend.ai-ctx-1a2b`). Not guaranteed unique on its own —
+ * callers go through `uniqueContextName` to disambiguate.
+ */
+export function autoContextName(apiUrl: string | undefined, keyAddress: string): string {
+  const base = `ctx-${keyAddress.slice(2, 6).toLowerCase()}`
+  if (isProductionUrl(apiUrl)) return base
+  try {
+    return `${new URL(apiUrl as string).host}-${base}`
+  } catch {
+    return base
+  }
+}
+
+/**
+ * An auto-derived context name guaranteed free in `config`. Appends `-2`, `-3`,
+ * … if the base name (or a prior counter) is already taken.
+ */
+export function uniqueContextName(config: StoredConfigV2, apiUrl: string | undefined, keyAddress: string): string {
+  const base = autoContextName(apiUrl, keyAddress)
+  if (!config.contexts[base]) return base
+  for (let n = 2; ; n++) {
+    const candidate = `${base}-${n}`
+    if (!config.contexts[candidate]) return candidate
+  }
+}
+
+/**
+ * Set a context's identity directly using "agentKey:::agentAccount" format and
+ * make it active. With `--context <name>` the identity is written to that named
+ * context (creating or overwriting it); without one, a fresh auto-named context
+ * is minted. A context's `apiUrl` is fixed at creation — `setConfig` only sets
+ * it on a brand-new context, never edits an existing one's URL.
  */
 export function setConfig(
   secret: string,
-): JsonEnvelope<{ agentKeyAddress: string; agentAccount: string; status: ConfigStatus }> {
+  opts: { name?: string | undefined; apiUrl?: string | undefined } = {},
+): JsonEnvelope<{ agentKeyAddress: string; agentAccount: string; context: string; status: ConfigStatus }> {
   const parts = secret.split(":::")
   if (parts.length !== 2) {
     return err("INVALID_FORMAT", 'Expected format: "agentKey:::agentAccount"')
@@ -244,138 +433,161 @@ export function setConfig(
   if (!isAddress(agentAccount)) {
     return err("INVALID_ADDRESS", "Invalid Ethereum address format for agent account")
   }
-
-  const existing = readConfig()
-  // lasoToken intentionally not carried over: changing the active identity
-  // invalidates any cached Laso token (it's stamped with the old agentKey).
-  writeConfig({
-    agentKey: agentKey as `0x${string}`,
-    agentAccount: agentAccount as `0x${string}`,
-    ...(existing?.apiUrl ? { apiUrl: existing.apiUrl } : {}),
-    // Preserve pending approval if any
-    ...(existing?.pendingApproval ? { pendingApproval: existing.pendingApproval } : {}),
-  })
-
-  const agentKeyAddress = privateKeyToAddress(agentKey as `0x${string}`)
-
-  return ok({
-    agentKeyAddress,
-    agentAccount,
-    status: "ready" as ConfigStatus,
-  })
-}
-
-/**
- * Set API URL in config. Pass undefined to clear (revert to production default).
- */
-export function setApiUrl(apiUrl: string | undefined): JsonEnvelope<{ apiUrl: string }> {
-  if (apiUrl != null) {
+  if (opts.apiUrl != null) {
     try {
-      new URL(apiUrl)
+      new URL(opts.apiUrl)
     } catch {
       return err("INVALID_URL", "Invalid URL format.")
     }
   }
 
-  const existing = readConfig()
-  // lasoToken intentionally not carried over: changing the API URL points reads
-  // at a different Laso/facilitator context, so a token minted under the old
-  // URL no longer applies.
-  writeConfig({
-    ...(existing?.agentKey ? { agentKey: existing.agentKey } : {}),
-    ...(existing?.agentAccount ? { agentAccount: existing.agentAccount } : {}),
-    ...(existing?.pendingApproval ? { pendingApproval: existing.pendingApproval } : {}),
-    ...(apiUrl != null ? { apiUrl } : {}),
-  })
+  const agentKeyAddress = privateKeyToAddress(agentKey as `0x${string}`)
+  const config = readConfig() ?? emptyConfig()
+  // Explicit --context names the target (create or overwrite); otherwise mint a
+  // fresh auto-named context.
+  const name = opts.name ?? uniqueContextName(config, opts.apiUrl, agentKeyAddress)
+  const existing = config.contexts[name]
+  // The URL is set only on a new context; an explicit opt on creation wins,
+  // otherwise inherit the URL an overwritten context already had. lasoToken is
+  // intentionally dropped: changing the identity invalidates a token stamped
+  // with the old key. createdAt is preserved when overwriting a named context.
+  const apiUrl = opts.apiUrl ?? existing?.apiUrl
 
-  return ok({ apiUrl: apiUrl ?? DEFAULT_API_URL })
+  config.contexts[name] = {
+    status: "ready",
+    agentKey: agentKey as `0x${string}`,
+    agentAccount: agentAccount as `0x${string}`,
+    createdAt: existing?.createdAt ?? new Date().toISOString(),
+    ...(apiUrl ? { apiUrl } : {}),
+  }
+  config.activeContext = name
+  writeConfig(config)
+
+  return ok({ agentKeyAddress, agentAccount, context: name, status: "ready" as ConfigStatus })
 }
 
 /**
- * Store a pending approval in config.
- * Called by `setup start`.
+ * Switch the active context without re-running setup. Errors if the name is
+ * unknown.
  */
-export function storePendingApproval(pending: PendingApproval): void {
-  const existing = readConfig()
-  writeConfig({
-    ...(existing?.agentKey ? { agentKey: existing.agentKey } : {}),
-    ...(existing?.agentAccount ? { agentAccount: existing.agentAccount } : {}),
-    ...(existing?.apiUrl ? { apiUrl: existing.apiUrl } : {}),
-    // Active identity is unchanged by a pending approval, so a cached Laso
-    // token stays valid — preserve it.
-    ...(existing?.lasoToken ? { lasoToken: existing.lasoToken } : {}),
-    pendingApproval: pending,
-  })
+export function useContext(name: string): JsonEnvelope<{ context: string; status: ConfigStatus }> {
+  const config = readConfig()
+  const context = config?.contexts[name]
+  if (!config || !context) {
+    return err("UNKNOWN_CONTEXT", `No context named "${name}". Run "ampersend config status" to list contexts.`)
+  }
+  config.activeContext = name
+  writeConfig(config)
+  return ok({ context: name, status: context.status === "ready" ? "ready" : "pending_agent" })
 }
 
 /**
- * Clear pending approval from config.
+ * Delete a context. If it was the active one, the active selection is cleared.
+ * Errors if the name is unknown.
  */
-export function clearPendingApproval(): void {
-  const existing = readConfig()
-  if (!existing) return
-  const { pendingApproval: _, version: __, ...rest } = existing
-  writeConfig(rest)
+export function removeContext(name: string): JsonEnvelope<{ context: string; wasActive: boolean }> {
+  const config = readConfig()
+  if (!config || !config.contexts[name]) {
+    return err("UNKNOWN_CONTEXT", `No context named "${name}". Run "ampersend config status" to list contexts.`)
+  }
+  const wasActive = config.activeContext === name
+  config.contexts = omitKey(config.contexts, name)
+  if (wasActive) delete config.activeContext
+  writeConfig(config)
+  return ok({ context: name, wasActive })
 }
 
 /**
- * Promote a pending approval to active config.
- * Called by `setup finish` when the approval is resolved.
+ * Create a `pending` context from a freshly-requested approval.
+ * Called by `setup start`. Makes it active unless `detach` is set.
  */
-export function promotePending(agentAccount: `0x${string}`): JsonEnvelope<{
-  agentKeyAddress: string
-  agentAccount: string
-  status: ConfigStatus
-}> {
-  const existing = readConfig()
-  if (!existing?.pendingApproval) {
-    return err("NO_PENDING", "No pending approval to promote")
+export function startContext(
+  name: string,
+  pending: PendingApproval,
+  opts: { apiUrl?: string | undefined; detach?: boolean | undefined } = {},
+): void {
+  const config = readConfig() ?? emptyConfig()
+  config.contexts[name] = {
+    status: "pending",
+    agentKey: pending.agentKey,
+    token: pending.token,
+    expiresAt: pending.expiresAt,
+    createdAt: config.contexts[name]?.createdAt ?? new Date().toISOString(),
+    ...(opts.apiUrl && !isProductionUrl(opts.apiUrl) ? { apiUrl: opts.apiUrl } : {}),
+  }
+  if (!opts.detach) config.activeContext = name
+  writeConfig(config)
+}
+
+/**
+ * Promote a `pending` context to `ready` (key stays, account filled in).
+ * Called by `setup finish`. Makes the context active.
+ */
+export function finishContext(
+  name: string,
+  agentAccount: `0x${string}`,
+): JsonEnvelope<{ agentKeyAddress: string; agentAccount: string; context: string; status: ConfigStatus }> {
+  const config = readConfig()
+  const context = config?.contexts[name]
+  if (!config || !context) {
+    return err("UNKNOWN_CONTEXT", `No context named "${name}".`)
+  }
+  if (context.status !== "pending") {
+    return err("NOT_PENDING", `Context "${name}" is already ready. Use "ampersend config use ${name}" to select it.`)
   }
 
-  // Drop lasoToken alongside the old key: the active identity changes here, so
-  // a token minted under the previous key no longer matches. readLasoToken
-  // would reject it anyway; dropping it keeps the file honest.
-  const { agentKey: _oldKey, lasoToken: _lasoToken, pendingApproval, version: _version, ...rest } = existing
-  const agentKeyAddress = privateKeyToAddress(pendingApproval.agentKey)
-
-  // Promote: pending key becomes active, pending cleared
-  writeConfig({
-    ...rest,
-    agentKey: pendingApproval.agentKey,
+  const agentKeyAddress = privateKeyToAddress(context.agentKey)
+  config.contexts[name] = {
+    status: "ready",
+    agentKey: context.agentKey,
     agentAccount,
-    // pendingApproval intentionally omitted — cleared on promote
-  })
+    createdAt: context.createdAt,
+    ...(context.apiUrl ? { apiUrl: context.apiUrl } : {}),
+  }
+  config.activeContext = name
+  writeConfig(config)
 
-  return ok({
-    agentKeyAddress,
-    agentAccount,
-    status: "ready" as ConfigStatus,
-  })
+  return ok({ agentKeyAddress, agentAccount, context: name, status: "ready" as ConfigStatus })
 }
 
 /**
- * Cache a Laso Bearer token, preserving the rest of the config file.
- * The token is stamped with the identity/URL it was minted under so
- * `readLasoToken` can reject it after an env-var or config change.
+ * Remove a pending context (e.g. when an approval is rejected). No-op if the
+ * context is missing or no longer pending.
+ */
+export function clearPendingContext(name: string): void {
+  const config = readConfig()
+  const context = config?.contexts[name]
+  if (!config || !context || context.status !== "pending") return
+  config.contexts = omitKey(config.contexts, name)
+  if (config.activeContext === name) delete config.activeContext
+  writeConfig(config)
+}
+
+/**
+ * Cache a Laso Bearer token on the selected context, preserving the rest of the
+ * config. The token is stamped with the identity/URL it was minted under so
+ * `readLasoToken` can reject it after an env-var or context change.
  *
- * No-op when credentials come purely from env vars (no file to write): the
- * config file is the only cache, and we don't create one just to hold a token.
+ * No-op when the selected context isn't a ready one (e.g. env-only credentials):
+ * the config file is the only cache, and we don't create one just to hold a token.
  */
-export function storeLasoToken(token: LasoToken): void {
-  const existing = readConfig()
-  if (!existing) return
-  const { version: _version, ...rest } = existing
-  writeConfig({ ...rest, lasoToken: token })
+export function storeLasoToken(token: LasoToken, opts: ContextSelector = {}): void {
+  const config = readConfig()
+  const selected = getSelectedContext(opts)
+  if (!config || selected?.context.status !== "ready") return
+  config.contexts[selected.name] = { ...selected.context, lasoToken: token }
+  writeConfig(config)
 }
 
 /**
- * Read the cached Laso token, or null if there's no usable one. Treated as
- * absent when: no token cached, expired, or its stamped `agentKey`/`apiUrl`
- * no longer match the active credentials (covers env-var overrides and any
- * write path that forgot to drop it). Self-correcting by construction.
+ * Read the selected context's cached Laso token, or null if there's no usable
+ * one. Treated as absent when: no token cached, expired, or its stamped
+ * `agentKey`/`apiUrl` no longer match the active credentials (covers env-var
+ * overrides). Self-correcting by construction.
  */
-export function readLasoToken(active: ResolvedCredentials): LasoToken | null {
-  const stored = readConfig()?.lasoToken
+export function readLasoToken(active: ResolvedCredentials, opts: ContextSelector = {}): LasoToken | null {
+  const ctx = getSelectedContext(opts)?.context
+  const stored = ctx?.status === "ready" ? ctx.lasoToken : undefined
   if (!stored) return null
   if (new Date(stored.expiresAt).getTime() <= Date.now()) return null
   if (stored.agentKey !== active.agentKey) return null
@@ -390,6 +602,18 @@ export function readLasoToken(active: ResolvedCredentials): LasoToken | null {
 /** Configuration source */
 export type CredentialSource = "env" | "file" | "none"
 
+/** Summary of a single context for `config status`. */
+export interface ContextSummary {
+  name: string
+  status: ConfigStatus
+  active: boolean
+  createdAt: string
+  agentKeyAddress?: string
+  agentAccount?: string
+  apiUrl?: string
+  pendingExpired?: boolean
+}
+
 /** Data returned by getStatus */
 export interface StatusData {
   status: ConfigStatus
@@ -398,10 +622,28 @@ export interface StatusData {
   agentKeyAddress?: string
   agentAccount?: string
   apiUrl?: string
-  pendingApproval?: {
-    agentKeyAddress: string
-    expired: boolean
+  activeContext?: string
+  contexts?: Array<ContextSummary>
+}
+
+/** Build a status summary for one context. */
+function summarizeContext(name: string, context: Context, activeName: string | undefined): ContextSummary {
+  const summary: ContextSummary = {
+    name,
+    status: context.status === "ready" ? "ready" : "pending_agent",
+    active: name === activeName,
+    createdAt: context.createdAt,
+    agentKeyAddress: privateKeyToAddress(context.agentKey),
   }
+  if (context.status === "ready") {
+    summary.agentAccount = context.agentAccount
+  } else {
+    summary.pendingExpired = isPendingExpired(context)
+  }
+  if (context.apiUrl && context.apiUrl !== DEFAULT_API_URL) {
+    summary.apiUrl = context.apiUrl
+  }
+  return summary
 }
 
 /**
@@ -437,39 +679,34 @@ export function getStatus(): JsonEnvelope<StatusData> {
   }
 
   // Check config file
-  const config = getRuntimeConfig()
-  if (!config) {
+  const config = readConfig()
+  if (!config || Object.keys(config.contexts).length === 0) {
     return ok({ status: "not_initialized", credentialSource: "none" })
   }
 
-  // Determine effective API URL (env var takes precedence over file)
-  const envApiUrl = process.env.AMPERSEND_API_URL
-  const effectiveApiUrl = envApiUrl ?? config.apiUrl
+  // Oldest-first so `config status` lists contexts in a stable creation order.
+  const contexts = Object.entries(config.contexts)
+    .map(([name, ctx]) => summarizeContext(name, ctx, config.activeContext))
+    .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
 
+  // Hoist the active context's fields to the top level, reusing its summary
+  // (built above) rather than re-deriving the key address and account.
+  const activeSummary = contexts.find((c) => c.active)
   const result: StatusData = {
-    status: config.status,
+    status: activeSummary?.status ?? "not_initialized",
     credentialSource: "file",
     configPath: CONFIG_FILE,
+    ...(config.activeContext ? { activeContext: config.activeContext } : {}),
+    contexts,
   }
 
-  if (config.agentKey) {
-    result.agentKeyAddress = privateKeyToAddress(config.agentKey)
-  }
-
-  if (config.agentAccount) {
-    result.agentAccount = config.agentAccount
-  }
-
-  if (effectiveApiUrl && effectiveApiUrl !== DEFAULT_API_URL) {
-    result.apiUrl = effectiveApiUrl
-  }
-
-  // Always show pending approval info if present
-  if (config.pendingApproval) {
-    const pendingKeyAddress = privateKeyToAddress(config.pendingApproval.agentKey)
-    result.pendingApproval = {
-      agentKeyAddress: pendingKeyAddress,
-      expired: isPendingExpired(config.pendingApproval),
+  if (activeSummary) {
+    if (activeSummary.agentKeyAddress) result.agentKeyAddress = activeSummary.agentKeyAddress
+    if (activeSummary.agentAccount) result.agentAccount = activeSummary.agentAccount
+    // Effective API URL for the active context (env var takes precedence).
+    const effectiveApiUrl = process.env.AMPERSEND_API_URL ?? activeSummary.apiUrl
+    if (effectiveApiUrl && effectiveApiUrl !== DEFAULT_API_URL) {
+      result.apiUrl = effectiveApiUrl
     }
   }
 

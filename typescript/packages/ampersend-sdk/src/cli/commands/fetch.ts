@@ -85,6 +85,7 @@ interface FetchOptions {
   raw: boolean
   headers: boolean
   siwx: boolean
+  context?: string
 }
 
 interface ResponseData {
@@ -385,7 +386,7 @@ async function runFetch(url: string, options: FetchOptions): Promise<void> {
   }
 
   // --pay: authorize payment if the server requires it.
-  const configResult = loadCredentials()
+  const configResult = loadCredentials({ context: options.context })
   if (!configResult.ok) {
     console.log(JSON.stringify(configResult.error, null, 2))
     process.exit(1)
@@ -446,6 +447,7 @@ export function registerFetchCommand(program: Command): void {
     .option("--raw", "Output raw response body instead of JSON", false)
     .option("--headers", "Include response headers in JSON output", false)
     .option("--no-siwx", "Disable Sign-In-With-X — skip signature auth and go straight to payment")
+    .option("--context <name>", "Run against a specific context instead of the active one")
     .addHelpText(
       "after",
       `
@@ -455,7 +457,7 @@ Modes:
   ampersend fetch --inspect <url>  Report payment requirements without fetching the resource.
 
 Configuration (--pay only):
-  Run 'ampersend config init' to set up, or use environment variables:
+  Run 'ampersend setup start' to set up, or use environment variables:
   AMPERSEND_AGENT_SECRET           Combined format: agent_key:::agent_account
   AMPERSEND_API_URL                Ampersend API URL (optional)
 

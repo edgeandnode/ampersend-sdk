@@ -4,13 +4,16 @@ import { generatePrivateKey, privateKeyToAddress } from "viem/accounts"
 
 import { ApprovalClient } from "../../ampersend/approval.ts"
 import {
-  clearPendingApproval,
+  clearPendingContext,
   computeApprovalExpiry,
   DEFAULT_API_URL,
+  finishContext,
+  getActiveApiUrl,
   isPendingExpired,
-  promotePending,
   readConfig,
-  storePendingApproval,
+  resolveContextName,
+  startContext,
+  uniqueContextName,
 } from "../config.ts"
 import { err, ok, type JsonEnvelope } from "../envelope.ts"
 
@@ -19,6 +22,9 @@ import { err, ok, type JsonEnvelope } from "../envelope.ts"
 export type SetupMode = "create" | "connect"
 
 export interface SetupStartOptions {
+  context?: string
+  apiUrl?: string
+  detach?: boolean
   name?: string
   mode: SetupMode
   agent?: string
@@ -37,44 +43,61 @@ function resolveSetupMode(options: SetupStartOptions): "create" | "connect" | "c
   return "create"
 }
 
+function fail(envelope: JsonEnvelope<never>): never {
+  console.log(JSON.stringify(envelope, null, 2))
+  process.exit(1)
+}
+
 export async function executeSetupStart(options: SetupStartOptions): Promise<void> {
-  const existing = readConfig()
+  const config = readConfig()
 
-  // Check for non-expired pending approval
-  if (existing?.pendingApproval && !options.force) {
-    if (!isPendingExpired(existing.pendingApproval)) {
-      console.log(
-        JSON.stringify(
-          err("PENDING_EXISTS", "A pending approval already exists. Use --force to create a new one."),
-          null,
-          2,
-        ),
-      )
-      process.exit(1)
-    }
-    // Expired locally — clear it and proceed
-  }
-
-  // Generate a new key for this approval (lives in pending slot, not active)
+  // Generate a new key for this approval (lives in a pending context, not ready)
   const agentKey = generatePrivateKey()
   const agentKeyAddress = privateKeyToAddress(agentKey)
 
-  // Resolve API URL: env > config > default
-  const apiUrl = process.env.AMPERSEND_API_URL ?? existing?.apiUrl ?? DEFAULT_API_URL
+  // Resolve the API URL this approval runs against: flag > env > active > default.
+  const apiUrl = options.apiUrl ?? getActiveApiUrl()
+  if (options.apiUrl != null) {
+    try {
+      new URL(options.apiUrl)
+    } catch {
+      fail(err("INVALID_URL", `Invalid --api-url: ${options.apiUrl}`))
+    }
+  }
+
+  // Resolve the target context name. An explicit --context is used verbatim;
+  // omitting it auto-derives a unique name from the key (host-prefixed for
+  // non-prod environments), disambiguated against existing contexts.
+  const contextName =
+    options.context ?? uniqueContextName(config ?? { version: 2, contexts: {} }, apiUrl, agentKeyAddress)
+
+  // Guard against clobbering an existing context without --force.
+  const existing = config?.contexts[contextName]
+  if (existing && !options.force) {
+    if (existing.status === "ready") {
+      fail(err("CONTEXT_EXISTS", `Context "${contextName}" already exists. Use --force to replace it.`))
+    }
+    // Existing pending context: refuse only if it's still live (matches the old
+    // single-slot behaviour); an expired one is safe to overwrite.
+    if (!isPendingExpired(existing)) {
+      fail(
+        err(
+          "PENDING_EXISTS",
+          `A pending approval already exists for context "${contextName}". Use --force to create a new one.`,
+        ),
+      )
+    }
+  }
 
   // Validate --agent flag if provided
   if (options.agent != null && !isAddress(options.agent, { strict: false })) {
-    console.log(JSON.stringify(err("INVALID_ADDRESS", `Invalid agent address: ${options.agent}`), null, 2))
-    process.exit(1)
+    fail(err("INVALID_ADDRESS", `Invalid agent address: ${options.agent}`))
   }
 
   // Cross-flag validation
   if (options.mode === "connect") {
     if (options.name != null) {
-      console.log(
-        JSON.stringify(err("INVALID_FLAGS", "--name is not valid in connect mode (agent already exists)"), null, 2),
-      )
-      process.exit(1)
+      fail(err("INVALID_FLAGS", "--name is not valid in connect mode (agent already exists)"))
     }
     const hasSpendFlags =
       options.dailyLimit != null ||
@@ -82,25 +105,11 @@ export async function executeSetupStart(options: SetupStartOptions): Promise<voi
       options.perTransactionLimit != null ||
       options.autoTopup
     if (hasSpendFlags) {
-      console.log(
-        JSON.stringify(
-          err("INVALID_FLAGS", "Spend config flags are not valid in connect mode (agent already exists)"),
-          null,
-          2,
-        ),
-      )
-      process.exit(1)
+      fail(err("INVALID_FLAGS", "Spend config flags are not valid in connect mode (agent already exists)"))
     }
   } else {
     if (options.agent != null) {
-      console.log(
-        JSON.stringify(
-          err("INVALID_FLAGS", "--agent is only valid in connect mode. Use --mode connect --agent <address>"),
-          null,
-          2,
-        ),
-      )
-      process.exit(1)
+      fail(err("INVALID_FLAGS", "--agent is only valid in connect mode. Use --mode connect --agent <address>"))
     }
   }
 
@@ -133,6 +142,7 @@ export async function executeSetupStart(options: SetupStartOptions): Promise<voi
     user_approve_url: string
     agentKeyAddress: string
     verificationCode: string
+    context: string
   }>
 
   try {
@@ -146,18 +156,23 @@ export async function executeSetupStart(options: SetupStartOptions): Promise<voi
       spend_config: spendConfig,
     })
 
-    // Store pending approval in config
-    storePendingApproval({
-      token: response.token,
-      agentKey,
-      expiresAt: computeApprovalExpiry(),
-    })
+    // Store as a pending context (active unless --detach)
+    startContext(
+      contextName,
+      {
+        token: response.token,
+        agentKey,
+        expiresAt: computeApprovalExpiry(),
+      },
+      { apiUrl, detach: options.detach },
+    )
 
     result = ok({
       token: response.token,
       user_approve_url: response.user_approve_url,
       agentKeyAddress,
       verificationCode,
+      context: contextName,
     })
   } catch (error) {
     result = err("API_ERROR", error instanceof Error ? error.message : String(error))
@@ -170,7 +185,7 @@ export async function executeSetupStart(options: SetupStartOptions): Promise<voi
 // ─── setup finish ──────────────────────────────────────────────────────────────
 
 export interface SetupFinishOptions {
-  force: boolean
+  context?: string
   pollInterval: number
   timeout: number
 }
@@ -185,25 +200,34 @@ async function pollForApproval(options: SetupFinishOptions): Promise<
   JsonEnvelope<{
     agentKeyAddress: string
     agentAccount: string
+    context: string
     status: string
   }>
 > {
-  const existing = readConfig()
+  const config = readConfig()
 
-  if (!existing?.pendingApproval) {
-    return err("NO_PENDING", 'No pending approval found. Run "ampersend setup start" first.')
+  // Resolve the target context: --context <name> > AMPERSEND_CONTEXT > active.
+  const targetName = resolveContextName({ context: options.context })
+  if (!targetName) {
+    return err("NO_PENDING", 'No pending context found. Run "ampersend setup start" first.')
   }
 
-  // Check if already configured and not --force
-  if (existing.agentKey && existing.agentAccount && !options.force) {
-    return err("ALREADY_CONFIGURED", "Agent is already configured. Use --force to overwrite with the pending approval.")
+  const context = config?.contexts[targetName]
+  if (!context) {
+    return err("UNKNOWN_CONTEXT", `No context named "${targetName}". Run "ampersend config status" to list contexts.`)
+  }
+  if (context.status !== "pending") {
+    return err(
+      "NOT_PENDING",
+      `Context "${targetName}" is already ready. Use "ampersend config use ${targetName}" to select it.`,
+    )
   }
 
-  const pending = existing.pendingApproval
+  const pending = context
   const pendingKeyAddress = privateKeyToAddress(pending.agentKey)
 
-  // Resolve API URL: env > config > default
-  const apiUrl = process.env.AMPERSEND_API_URL ?? existing.apiUrl ?? DEFAULT_API_URL
+  // Resolve API URL: env > the context's url > default
+  const apiUrl = process.env.AMPERSEND_API_URL ?? pending.apiUrl ?? DEFAULT_API_URL
   const client = new ApprovalClient({ apiUrl })
 
   const pollIntervalMs = options.pollInterval * 1000
@@ -226,7 +250,7 @@ async function pollForApproval(options: SetupFinishOptions): Promise<
     }
 
     if (status.status === "rejected" || status.status === "blocked") {
-      clearPendingApproval()
+      clearPendingContext(targetName)
       return err("APPROVAL_REJECTED", `Approval was ${status.status} by the user.`)
     }
 
@@ -240,7 +264,7 @@ async function pollForApproval(options: SetupFinishOptions): Promise<
         if (status.agent.agent_key_address != null) {
           // Normalize to lowercase — API may return a different checksum than privateKeyToAddress
           if (status.agent.agent_key_address.toLowerCase() !== pendingKeyAddress.toLowerCase()) {
-            clearPendingApproval()
+            clearPendingContext(targetName)
             return err(
               "KEY_MISMATCH",
               `Approval resolved for a different agent key. Expected ${pendingKeyAddress}, got ${status.agent.agent_key_address}`,
@@ -248,8 +272,8 @@ async function pollForApproval(options: SetupFinishOptions): Promise<
           }
         }
 
-        // Promote pending → active
-        return promotePending(agentAddress)
+        // Promote pending → ready (and active)
+        return finishContext(targetName, agentAddress)
       }
 
       // Resolved but no agent info — keep pending so user can retry
@@ -263,7 +287,7 @@ async function pollForApproval(options: SetupFinishOptions): Promise<
   // Timeout
   return err(
     "TIMEOUT",
-    `Timed out after ${options.timeout}s. The pending approval is still stored — run "setup finish" again to resume polling.`,
+    `Timed out after ${options.timeout}s. The pending context is still stored — run "setup finish" again to resume polling.`,
   )
 }
 
@@ -279,11 +303,14 @@ export function registerSetupCommand(program: Command): void {
   setup
     .command("start")
     .description("Step 1: Generate a key and request agent creation/connection approval")
+    .option("--context <name>", "Name for the context (defaults to 'default', host-prefixed for non-prod URLs)")
+    .option("--api-url <url>", "API URL this context targets (for non-production environments)")
+    .option("--detach", "Create the context without making it active", false)
     .option("--mode <mode>", "Setup mode: 'create' (new agent, default) or 'connect' (key to existing agent)", "create")
     .option("--name <name>", "Name for the agent (create mode only)")
     .option("--agent <address>", "Address of existing agent to connect to (connect mode; omit to choose in dashboard)")
     .option("--key-name <name>", "Name for the agent key")
-    .option("--force", "Overwrite an existing pending approval", false)
+    .option("--force", "Overwrite an existing context with the same name", false)
     .option("--daily-limit <amount>", "Daily spending limit in atomic units, e.g. 1000000 = 1 USDC (create mode only)")
     .option("--monthly-limit <amount>", "Monthly spending limit in atomic units (create mode only)")
     .option("--per-transaction-limit <amount>", "Per-transaction spending limit in atomic units (create mode only)")
@@ -294,8 +321,8 @@ export function registerSetupCommand(program: Command): void {
 
   setup
     .command("finish")
-    .description("Step 2: Poll for approval and activate the agent config")
-    .option("--force", "Overwrite existing active config", false)
+    .description("Step 2: Poll for approval and activate the context")
+    .option("--context <name>", "Resolve and activate a specific context instead of the active one")
     .option("--poll-interval <seconds>", "Seconds between status checks", parseFloat, 5)
     .option("--timeout <seconds>", "Maximum seconds to wait", parseFloat, 600)
     .action(async (options: SetupFinishOptions) => {

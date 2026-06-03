@@ -4,7 +4,7 @@ Latest verdict for each rule in [`SPEC.md`](SPEC.md). Regenerate when
 [`skills/ampersend/SKILL.md`](../../../skills/ampersend/SKILL.md) or `SPEC.md` changes.
 
 - **Generated against:** `skills/ampersend/SKILL.md` at HEAD
-- **Date:** 2026-06-02
+- **Date:** 2026-06-03
 - **By:** Claude
 
 1. PASS — `name: ampersend` (9 chars, kebab-case); description ~430 chars (under 1024); `version: 0.0.25` is the only
@@ -15,13 +15,15 @@ Latest verdict for each rule in [`SPEC.md`](SPEC.md). Regenerate when
    concrete recognition cues ("names a capability they want without a specific URL in mind", "is asking what the agent
    can pay for") rather than passive dispositions.
 4. PASS — Frontmatter `name: ampersend` matches the parent directory `skills/ampersend/`.
-5. PASS — Body is 269 lines, under the 500-line ceiling.
+5. PASS — Body is 267 lines, under the 500-line ceiling.
 6. PASS — Order is orientation → scope → CLI prerequisite → suggesting things to try → user explainer → security → setup
    → payment → reading agent state → discovery → output → config; setup, payment, reading-state, and discovery workflows
-   are numbered steps or command blocks.
+   are numbered steps or command blocks. The Common config tweaks block lists the context verbs
+   (`config use`/`config rm`) after `config status`; in-place API-URL editing was removed (a context's URL is fixed at
+   creation), so the block no longer shows `config set --api-url`/`--clear-api-url`.
 7. PASS — `references/` contains three files (`commands.md`, `example-services.md`, `marketplace.md`); no
    subdirectories.
-8. PASS — `references/commands.md` is 247 lines and starts with "Contents" (lists `card` between `fetch` and `agent`).
+8. PASS — `references/commands.md` is 283 lines and starts with "Contents" (lists `card` between `fetch` and `agent`).
    `references/example-services.md` is 336 lines and starts with a Contents section listing all 14 capability headings
    plus the Response patterns section. `references/marketplace.md` is 80 lines — under the 100-line TOC threshold — so a
    table of contents is not required.
@@ -32,7 +34,8 @@ Latest verdict for each rule in [`SPEC.md`](SPEC.md). Regenerate when
    split between read and write).
 10. PASS — "co-sign" is hyphenated consistently in prose; `CoSignerValidator` is a code identifier and does not count.
     The new section uses "service", "capability", and "endpoint" consistently. Aggregator-routed services (Apollo,
-    Hunter, RentCast) are consistently described as "via StableEnrich".
+    Hunter, RentCast) are consistently described as "via StableEnrich". The config concept is named "context" everywhere
+    it appears (SKILL.md and `references/commands.md`); no competing term ("profile", "environment") is used.
 11. PASS — Floor stated as prose ("below `0.0.25`"); `npm install` uses `@latest`; skill upgrade uses
     `npx skills update ampersend`, which respects the moving `#skills/latest` ref the install command pinned. No
     `@x.y.z` or `#v0.0.x` strings in `SKILL.md`. Examples file does not pin third-party versions.
@@ -40,7 +43,9 @@ Latest verdict for each rule in [`SPEC.md`](SPEC.md). Regenerate when
     mention in `SKILL.md`. Capability categories are glossed inline in user-voice. The ERC-8004 registry is glossed
     inline ("a public, open registry of agents") on first mention in the Discovery workflow. In
     `references/example-services.md`, StableEnrich is glossed ("aggregator gateway that fronts several upstream APIs
-    behind one paid surface") on first mention before being referenced in four entries.
+    behind one paid surface") on first mention before being referenced in four entries. "context" is glossed under the
+    Common config tweaks heading ("each a self-contained identity (agent key + account + its own API URL)") before the
+    command block uses it.
 13. PASS — Tier 1 and tier 2 user explainers use only "spending allowance", "limits", "key", "account you own"; the
     flagged words appear only in tier 3. The "Suggesting things to try" section now matches that voice — no "wallet",
     "stablecoin", "blockchain", "smart account", or "crypto" appears in the body's capability glosses.
