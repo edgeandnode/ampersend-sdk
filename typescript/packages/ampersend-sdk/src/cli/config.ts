@@ -80,7 +80,7 @@ export type { ConfigStatus }
 /** Default API URL (production) */
 export const DEFAULT_API_URL = "https://api.ampersend.ai"
 
-const HexString = Schema.TemplateLiteral(Schema.Literal("0x"), Schema.String)
+const HexString = Schema.TemplateLiteral([Schema.Literal("0x"), Schema.String])
 
 /**
  * Cached Laso Bearer token for `card details`/`list`, so a warm read costs

@@ -298,7 +298,7 @@ export class ApiClient {
   /**
    * Internal fetch wrapper with error handling and schema decoding
    */
-  private async fetch<A, I>(path: string, init: RequestInit, schema: Schema.Codec<A, I>): Promise<A> {
+  async fetch<A, I>(path: string, init: RequestInit, schema: Schema.Codec<A, I>): Promise<A> {
     const url = `${this.baseUrl}${path}`
 
     try {
