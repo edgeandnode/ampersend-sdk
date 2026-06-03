@@ -53,7 +53,6 @@ jobs:
       name: npm
       url: https://www.npmjs.com/package/@ampersend_ai/ampersend-sdk
     permissions:
-      contents: write # Required to move the `skills/latest` branch on stable releases
       id-token: write # Required for npm provenance
 
     steps:
@@ -101,10 +100,31 @@ jobs:
         run: npm publish --access public --provenance --tag ${{ steps.publish-tag.outputs.tag }}
         working-directory: typescript/packages/ampersend-sdk
 
-      # Skill installs use `npx skills add edgeandnode/ampersend-sdk#skills/latest`. Moving this branch on every stable
-      # release is what makes `#skills/latest` step-function forward instead of tracking `main`. Alpha/beta releases
-      # skip this so `#skills/latest` only ever points at a stable build.
+  # Skill installs use `npx skills add edgeandnode/ampersend-sdk#skills/latest`. Moving this branch on every stable
+  # release is what makes `#skills/latest` step-function forward instead of tracking `main`. Alpha/beta releases skip
+  # this (the `if` below) so `#skills/latest` only ever points at a stable build.
+  #
+  # This runs as its own job rather than a step in `publish` on purpose: the `skills/latest` branch is protected by a
+  # ruleset requiring an active `npm` environment deployment on the pushed commit. That deployment only flips from
+  # `in_progress` to `success` once the `publish` job *finishes*, so a push from inside `publish` always raced its own
+  # deployment and was rejected ("Missing successful active npm deployment"). Gating on `needs: publish` guarantees the
+  # deployment is active before we push. This job deliberately omits an `environment:` block so it does not open a
+  # second, in-progress `npm` deployment and re-introduce the same race.
+  move-skills-latest:
+    name: "ts: move skills/latest"
+    runs-on: ubuntu-latest
+    needs: publish
+    # Stable releases only. A stable tag is `ts-vX.Y.Z`; every pre-release tag
+    # (-alpha., -beta., a future -rc., ...) carries a `-` suffix, so this skips
+    # them all without enumerating channels.
+    if: ${{ startsWith(github.ref, 'refs/tags/ts-v') && !contains(github.ref, '-') }}
+    permissions:
+      contents: write # Required to move the `skills/latest` branch
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
       - name: Move `skills/latest` branch to release commit
-        if: steps.publish-tag.outputs.tag == 'latest'
         run: |
           git push origin "$GITHUB_SHA:refs/heads/skills/latest"
