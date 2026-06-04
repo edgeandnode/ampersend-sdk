@@ -69,7 +69,7 @@ export class ApprovalClient {
     return this.fetch("GET", `/api/v1/approve-action/${token}/status`, undefined, ApprovalStatus)
   }
 
-  private async fetch<A, I>(method: string, path: string, body: unknown, schema: Schema.Schema<A, I>): Promise<A> {
+  private async fetch<A, I>(method: string, path: string, body: unknown, schema: Schema.Codec<A, I>): Promise<A> {
     const url = `${this.baseUrl}${path}`
     const headers: Record<string, string> = {}
     if (body != null) {

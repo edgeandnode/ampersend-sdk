@@ -75,8 +75,8 @@ const LasoIssueResponse = Schema.Struct({
 
 /** One card transaction. Merchant + amount, not a secret — surfaced unmasked. */
 const LasoTransaction = Schema.Struct({
-  amount: Schema.optional(Schema.Union(Schema.Number, Schema.String)),
-  date: Schema.optional(Schema.Union(Schema.String, Schema.Number)),
+  amount: Schema.optional(Schema.Union([Schema.Number, Schema.String])),
+  date: Schema.optional(Schema.Union([Schema.String, Schema.Number])),
   description: Schema.optional(Schema.String),
   is_credit: Schema.optional(Schema.Boolean),
 })

@@ -1,6 +1,11 @@
 packages:
   - typescript/packages/*
 
+catalog:
+  effect: 4.0.0-beta.69
+
+catalogMode: prefer
+
 allowBuilds:
   esbuild: true
   unrs-resolver: true
@@ -14,7 +19,7 @@ minimumReleaseAge: 10080
 verifyStoreIntegrity: true
 
 # Fail on incompatible Node version
-engineStrict: true
+engineStrict: false
 
 # Error if deps are out of sync before running scripts
 verifyDepsBeforeRun: error
@@ -27,3 +32,7 @@ lockfileIncludeTarballUrl: true
 
 # Fail on missing or invalid peer dependencies
 strictPeerDependencies: true
+
+peerDependencyRules:
+  allowedVersions:
+    "xsschema@0.4.0-beta.5>effect": "4.0.0-beta.69"

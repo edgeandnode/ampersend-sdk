@@ -2,29 +2,31 @@ import { Schema } from "effect"
 import type { Address, Hex } from "viem"
 import { privateKeyToAccount } from "viem/accounts"
 
-import { Address as AddressSchema, ApiError } from "./types.js"
+import { Address as AddressSchema, ApiError, NonEmptyTrimmedString } from "./types.js"
 
 const DEFAULT_API_URL = "https://api.ampersend.ai"
 
 // ============ Response Schemas ============
 
-export class AgentInitData extends Schema.Class<AgentInitData>("AgentInitData")({
+export const AgentInitData = Schema.Struct({
   address: Schema.optional(Schema.String),
   factory: Schema.optional(Schema.String),
   factoryData: Schema.optional(Schema.String),
   intentExecutorInstalled: Schema.optional(Schema.Boolean),
-}) {}
+}).annotate({ identifier: "AgentInitData" })
+export type AgentInitData = typeof AgentInitData.Type
 
-export class AgentResponse extends Schema.Class<AgentResponse>("AgentResponse")({
+export const AgentResponse = Schema.Struct({
   address: AddressSchema,
-  name: Schema.NonEmptyTrimmedString,
+  name: NonEmptyTrimmedString,
   userId: Schema.String,
   balance: Schema.String,
   initData: AgentInitData,
   nonce: Schema.String,
   createdAt: Schema.Number,
   updatedAt: Schema.Number,
-}) {}
+}).annotate({ identifier: "AgentResponse" })
+export type AgentResponse = typeof AgentResponse.Type
 
 // ============ Request Types ============
 
@@ -113,7 +115,7 @@ export class AmpersendManagementClient {
     return items.map((agent) => Schema.decodeUnknownSync(AgentResponse)(agent))
   }
 
-  private async fetch<A, I>(method: string, path: string, body: unknown, schema: Schema.Schema<A, I>): Promise<A> {
+  private async fetch<A, I>(method: string, path: string, body: unknown, schema: Schema.Codec<A, I>): Promise<A> {
     const data = await this.fetchRaw(method, path, body)
     return Schema.decodeUnknownSync(schema)(data)
   }

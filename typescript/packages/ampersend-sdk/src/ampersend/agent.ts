@@ -1,6 +1,15 @@
 import { Schema } from "effect"
 
-import { Address, Caip2ID, ConvertedTimestamp, ID, Scheme, TxHash } from "./types.ts"
+import {
+  Address,
+  Caip2ID,
+  ConvertedTimestamp,
+  ID,
+  NonEmptyTrimmedString,
+  NonNegativeInt,
+  Scheme,
+  TxHash,
+} from "./types.ts"
 
 // Response DTOs for `/v1/agents/self/*`. These are the canonical wire shapes
 // for the agent-led read surface: the closed-source server imports them from
@@ -8,7 +17,7 @@ import { Address, Caip2ID, ConvertedTimestamp, ID, Scheme, TxHash } from "./type
 // its own copies. Keep field sets stable — adding/removing a field here is a
 // breaking change for both SDK consumers and server callers.
 
-const DeploymentStatus = Schema.Literal("deploying", "deployed", "failed")
+const DeploymentStatus = Schema.Literals(["deploying", "deployed", "failed"])
 
 /**
  * Full agent snapshot with live USDC balance.
@@ -21,22 +30,22 @@ const DeploymentStatus = Schema.Literal("deploying", "deployed", "failed")
  */
 export const AgentSelfDTO = Schema.Struct({
   address: Address,
-  name: Schema.NonEmptyTrimmedString,
-  slug: Schema.NullOr(Schema.NonEmptyTrimmedString),
+  name: NonEmptyTrimmedString,
+  slug: Schema.NullOr(NonEmptyTrimmedString),
   status: DeploymentStatus,
   published: Schema.Boolean,
-  registry_id: Schema.NullOr(Schema.NonEmptyTrimmedString),
-  registry_uri: Schema.NullOr(Schema.NonEmptyTrimmedString),
-  balance_usdc_micro: Schema.BigInt,
+  registry_id: Schema.NullOr(NonEmptyTrimmedString),
+  registry_uri: Schema.NullOr(NonEmptyTrimmedString),
+  balance_usdc_micro: Schema.BigIntFromString,
 })
 export type AgentSelfDTO = typeof AgentSelfDTO.Type
 
 /** Spend policy (per-tx / daily / monthly limits, auto-topup). */
 export const AgentSpendConfigDTO = Schema.Struct({
   agent_address: Address,
-  daily_limit: Schema.NullOr(Schema.BigInt),
-  monthly_limit: Schema.NullOr(Schema.BigInt),
-  per_transaction_limit: Schema.NullOr(Schema.BigInt),
+  daily_limit: Schema.NullOr(Schema.BigIntFromString),
+  monthly_limit: Schema.NullOr(Schema.BigIntFromString),
+  per_transaction_limit: Schema.NullOr(Schema.BigIntFromString),
   auto_topup_allowed: Schema.Boolean,
   created_at: ConvertedTimestamp,
   updated_at: ConvertedTimestamp,
@@ -48,11 +57,10 @@ export type AgentSpendConfigDTO = typeof AgentSpendConfigDTO.Type
  * `daily_remaining` / `monthly_remaining` are `null` when the corresponding
  * `*_limit` isn't set (i.e. unlimited).
  */
-export const AgentSelfSpendConfigDTO = Schema.extend(
-  AgentSpendConfigDTO,
-  Schema.Struct({
-    daily_remaining_usdc_micro: Schema.NullOr(Schema.BigInt),
-    monthly_remaining_usdc_micro: Schema.NullOr(Schema.BigInt),
+export const AgentSelfSpendConfigDTO = AgentSpendConfigDTO.pipe(
+  Schema.fieldsAssign({
+    daily_remaining_usdc_micro: Schema.NullOr(Schema.BigIntFromString),
+    monthly_remaining_usdc_micro: Schema.NullOr(Schema.BigIntFromString),
   }),
 )
 export type AgentSelfSpendConfigDTO = typeof AgentSelfSpendConfigDTO.Type
@@ -62,8 +70,8 @@ export const AgentAutoCollectConfigDTO = Schema.Struct({
   agent_address: Address,
   enabled: Schema.Boolean,
   target_address: Schema.NullOr(Address),
-  threshold: Schema.BigInt,
-  minimum_remaining: Schema.NullOr(Schema.BigInt),
+  threshold: Schema.BigIntFromString,
+  minimum_remaining: Schema.NullOr(Schema.BigIntFromString),
   created_at: ConvertedTimestamp,
   updated_at: ConvertedTimestamp,
 })
@@ -72,9 +80,9 @@ export type AgentAutoCollectConfigDTO = typeof AgentAutoCollectConfigDTO.Type
 /** Outgoing payment as exposed to the calling agent (excludes signature, EIP-3009 nonce, internal row id, signing-key details). */
 export const AgentSelfPaymentDTO = Schema.Struct({
   seller_address: Address,
-  amount_usdc_micro: Schema.BigInt,
+  amount_usdc_micro: Schema.BigIntFromString,
   scheme: Schema.NullOr(Scheme),
-  status: Schema.Literal(
+  status: Schema.Literals([
     "requested",
     "authorized",
     "denied",
@@ -84,7 +92,7 @@ export const AgentSelfPaymentDTO = Schema.Struct({
     "success",
     "failure",
     "pending",
-  ),
+  ]),
   tx_hash: Schema.NullOr(TxHash),
   chain_caip2id: Schema.NullOr(Caip2ID),
   created_at: ConvertedTimestamp,
@@ -94,13 +102,13 @@ export type AgentSelfPaymentDTO = typeof AgentSelfPaymentDTO.Type
 
 /** Single row in the unified spend + earn activity feed. */
 export const UnifiedAgentActivityDTO = Schema.Struct({
-  type: Schema.Literal("earn", "spend"),
+  type: Schema.Literals(["earn", "spend"]),
   id: Schema.String,
   agent_address: Address,
   receiver: Address,
-  amount: Schema.Union(Schema.Number, Schema.NumberFromString),
-  status: Schema.Literal("received", "settled", "authorized", "failed", "denied"),
-  timestamp: Schema.BigInt,
+  amount: Schema.Union([Schema.Number, Schema.NumberFromString]),
+  status: Schema.Literals(["received", "settled", "authorized", "failed", "denied"]),
+  timestamp: Schema.BigIntFromString,
   tx_hash: Schema.NullOr(Schema.String),
   chain_caip2id: Schema.NullOr(Schema.String),
 })
@@ -110,7 +118,7 @@ export type UnifiedAgentActivityDTO = typeof UnifiedAgentActivityDTO.Type
 export const AgentActivityResponse = Schema.Struct({
   activity: Schema.Array(UnifiedAgentActivityDTO),
   hasNextPage: Schema.Boolean,
-  totalCount: Schema.NonNegativeInt,
+  totalCount: NonNegativeInt,
 })
 export type AgentActivityResponse = typeof AgentActivityResponse.Type
 

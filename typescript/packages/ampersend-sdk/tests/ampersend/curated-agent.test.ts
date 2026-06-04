@@ -49,18 +49,18 @@ describe("CuratedAgentDTO", () => {
   }
 
   it("decodes a representative API response", () => {
-    const result = Schema.decodeUnknownEither(CuratedAgentDTO)(validAgent)
-    expect(result._tag).toBe("Right")
+    const result = Schema.decodeUnknownResult(CuratedAgentDTO)(validAgent)
+    expect(result._tag).toBe("Success")
   })
 
   it("rejects an unknown source value", () => {
-    const result = Schema.decodeUnknownEither(CuratedAgentDTO)({ ...validAgent, source: "unknown" })
-    expect(result._tag).toBe("Left")
+    const result = Schema.decodeUnknownResult(CuratedAgentDTO)({ ...validAgent, source: "unknown" })
+    expect(result._tag).toBe("Failure")
   })
 
   it("rejects an invalid id (not a UUID)", () => {
-    const result = Schema.decodeUnknownEither(CuratedAgentDTO)({ ...validAgent, id: "not-a-uuid" })
-    expect(result._tag).toBe("Left")
+    const result = Schema.decodeUnknownResult(CuratedAgentDTO)({ ...validAgent, id: "not-a-uuid" })
+    expect(result._tag).toBe("Failure")
   })
 
   it("rejects an invalid asset address in pricing_config", () => {
@@ -73,14 +73,14 @@ describe("CuratedAgentDTO", () => {
         },
       ],
     }
-    const result = Schema.decodeUnknownEither(CuratedAgentDTO)(bad)
-    expect(result._tag).toBe("Left")
+    const result = Schema.decodeUnknownResult(CuratedAgentDTO)(bad)
+    expect(result._tag).toBe("Failure")
   })
 })
 
 describe("CuratedAgentEndpointX402PricingConfig", () => {
   it("decodes amount/amountAtomicUnit from string", () => {
-    const result = Schema.decodeUnknownEither(CuratedAgentEndpointX402PricingConfig)({
+    const result = Schema.decodeUnknownResult(CuratedAgentEndpointX402PricingConfig)({
       amount: "1000",
       amountAtomicUnit: "100000",
       currency: "USDC",
@@ -89,27 +89,27 @@ describe("CuratedAgentEndpointX402PricingConfig", () => {
       payTo: "0x154b1006435e5cfe2206e7777c1003f9438119b1",
       x402Schema: "exact",
     })
-    expect(result._tag).toBe("Right")
-    if (result._tag === "Right") {
-      expect(result.right.amount).toBe(1000n)
-      expect(result.right.amountAtomicUnit).toBe(100000n)
+    expect(result._tag).toBe("Success")
+    if (result._tag === "Success") {
+      expect(result.success.amount).toBe(1000n)
+      expect(result.success.amountAtomicUnit).toBe(100000n)
     }
   })
 })
 
 describe("AgentMarketplaceListQueryParams", () => {
   it("accepts all fields optional", () => {
-    const result = Schema.decodeUnknownEither(AgentMarketplaceListQueryParams)({})
-    expect(result._tag).toBe("Right")
+    const result = Schema.decodeUnknownResult(AgentMarketplaceListQueryParams)({})
+    expect(result._tag).toBe("Success")
   })
 
   it("accepts a known source", () => {
-    const result = Schema.decodeUnknownEither(AgentMarketplaceListQueryParams)({ source: "catalog" })
-    expect(result._tag).toBe("Right")
+    const result = Schema.decodeUnknownResult(AgentMarketplaceListQueryParams)({ source: "catalog" })
+    expect(result._tag).toBe("Success")
   })
 
   it("rejects an unknown source", () => {
-    const result = Schema.decodeUnknownEither(AgentMarketplaceListQueryParams)({ source: "nope" })
-    expect(result._tag).toBe("Left")
+    const result = Schema.decodeUnknownResult(AgentMarketplaceListQueryParams)({ source: "nope" })
+    expect(result._tag).toBe("Failure")
   })
 })
