@@ -10,6 +10,7 @@ for example, when the user wants connect-mode setup, manual config, sandbox swit
 - [setup finish](#setup-finish)
 - [Setup mode: connect to an existing agent](#setup-mode-connect-to-an-existing-agent)
 - [Setup mode: manual key + account](#setup-mode-manual-key--account)
+- [fund](#fund)
 - [fetch](#fetch)
 - [card](#card)
 - [agent](#agent)
@@ -99,6 +100,30 @@ Skips the approval flow entirely.
 ampersend config set "0xagentKey:::0xagentAccount"
 # {"ok": true, "data": {"agentKeyAddress": "0x...", "agentAccount": "0x...", "context": "ctx-...", "status": "ready"}}
 ```
+
+## fund
+
+Print a dashboard URL the user can open to add funds. **Side-effect-free** — it moves no money and writes nothing; it
+asks the server for a link and prints it. The actual top-up happens when the user opens the link and pays in the
+dashboard, in their own browser (see Security in `SKILL.md`).
+
+```bash
+ampersend fund                                  # Link preselecting the active agent
+ampersend fund --amount 25                      # Suggest a $25 top-up
+ampersend fund --amount 1.5 --destination main  # Fund the owner's main account instead
+```
+
+| Option                  | Description                                                                  |
+| ----------------------- | ---------------------------------------------------------------------------- |
+| `--amount <usdc>`       | Suggested amount in USDC, e.g. `25` or `1.5`. A decimal, not atomic units    |
+| `--destination <where>` | Which account to preselect: `agent` (default) or `main` (the owner's wallet) |
+| `--raw`                 | Print only the inner data, no JSON envelope                                  |
+
+Returns `{ ok: true, data: { url } }`, where `url` is a `https://app.ampersend.ai/fund?...` link with the address and
+suggested amount baked in. The address is resolved server-side from the authenticated agent — `destination=agent` uses
+the agent's own address, `destination=main` resolves the owner's main account — so the link always points at the
+caller's own accounts and never at an arbitrary agent. An unknown `--destination` is a caller error: `ok: false`,
+`code: INVALID_FLAG`, exit 1.
 
 ## fetch
 
