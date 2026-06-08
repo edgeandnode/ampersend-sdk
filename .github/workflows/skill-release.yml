@@ -1,7 +1,7 @@
 name: Skill Release
 
-# Releases the ampersend skill on its own cadence, independent of the npm package. Pushing a
-# `skill-v*` tag moves the `skills/latest` branch to that commit, which is what
+# Releases the ampersend skill. Pushing a `skill-v*` tag moves the
+# `skills/latest` branch to that commit, which is what
 # `npx skills add edgeandnode/ampersend-sdk#skills/latest` installs.
 
 on:
@@ -34,8 +34,7 @@ jobs:
           fi
           echo "✓ Versions match: $TAG_VERSION"
 
-  # Points `skills/latest` at this release. The `skill` environment requires a manual approval
-  # before this runs. The branch is ruleset-protected: signed commits, no force-pushes.
+  # Points `skills/latest` at this release, gated on a manual approval (the `skill` environment).
   move-skills-latest:
     name: "skill: move latest"
     runs-on: ubuntu-latest
@@ -48,8 +47,5 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # Fetch the branch first so git can fast-forward it; checkout only has the release tag.
       - name: Move `skills/latest` to release commit
-        run: |
-          git fetch origin skills/latest
-          git push origin "$GITHUB_SHA:refs/heads/skills/latest"
+        run: git push --force origin "$GITHUB_SHA:refs/heads/skills/latest"
