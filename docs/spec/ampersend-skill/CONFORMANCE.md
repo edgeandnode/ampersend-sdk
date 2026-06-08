@@ -4,10 +4,10 @@ Latest verdict for each rule in [`SPEC.md`](SPEC.md). Regenerate when
 [`skills/ampersend/SKILL.md`](../../../skills/ampersend/SKILL.md) or `SPEC.md` changes.
 
 - **Generated against:** `skills/ampersend/SKILL.md` at HEAD
-- **Date:** 2026-06-04
+- **Date:** 2026-06-08
 - **By:** Claude
 
-1. PASS — `name: ampersend` (9 chars, kebab-case); description ~430 chars (under 1024); `version: 0.0.25` is the only
+1. PASS — `name: ampersend` (9 chars, kebab-case); description ~430 chars (under 1024); `version: 0.0.26` is the only
    additional frontmatter field, allowed under the agentskills.io spec's open additional-properties stance.
 2. PASS — Two sentences; first says what, second says when (five trigger clauses covering URL-in-hand,
    capability-without-URL, and explore mode); plain user words; no first-person pronouns.
@@ -38,7 +38,7 @@ Latest verdict for each rule in [`SPEC.md`](SPEC.md). Regenerate when
     The new section uses "service", "capability", and "endpoint" consistently. Aggregator-routed services (Apollo,
     Hunter, RentCast) are consistently described as "via StableEnrich". The config concept is named "context" everywhere
     it appears (SKILL.md and `references/commands.md`); no competing term ("profile", "environment") is used.
-11. PASS — Floor stated as prose ("below `0.0.25`"); `npm install` uses `@latest`; skill upgrade uses
+11. PASS — Floor stated as prose ("below `0.0.26`"); `npm install` uses `@latest`; skill upgrade uses
     `npx skills update ampersend`, which respects the moving `#skills/latest` ref the install command pinned. No
     `@x.y.z` or `#v0.0.x` strings in `SKILL.md`. Examples file does not pin third-party versions.
 12. PASS — "ampersend service", "ampersend CLI", co-sign, smart account, x402, USDC, and Base are each glossed on first
@@ -80,9 +80,9 @@ Latest verdict for each rule in [`SPEC.md`](SPEC.md). Regenerate when
     smaller catalog than production — feature absence in the sandbox does not imply feature absence in production."
     Common config tweaks says "The sandbox covers the payment flow end-to-end, but only a subset of services and
     capabilities are wired up there — feature absence in the sandbox doesn't mean feature absence in production."
-19. PASS — Frontmatter carries `version: 0.0.25`. The "CLI prerequisite" section instructs the agent to run
+19. PASS — Frontmatter carries `version: 0.0.26`. The "CLI prerequisite" section instructs the agent to run
     `ampersend version`, compare the skill's frontmatter `version` against `minSkillVersion` from that JSON envelope,
     and run `npx skills update ampersend` if the skill is behind. CLI install paths match `docs/getting-started.md`: "If
     `ampersend version` is missing" → fresh install via `npm install -g @ampersend_ai/ampersend-sdk@latest`; "If
-    `cliVersion` is below `0.0.25`" → "upgrade — use the standard npm path" as a single short line, no second command
+    `cliVersion` is below `0.0.26`" → "upgrade — use the standard npm path" as a single short line, no second command
     block. `--force` absent from the body (verified by grep).
