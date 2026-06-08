@@ -1,0 +1,52 @@
+name: Skill Release
+
+# Releases the ampersend skill on its own cadence, independent of the npm package. Pushing a
+# `skill-v*` tag moves the `skills/latest` branch to that commit, which is what
+# `npx skills add edgeandnode/ampersend-sdk#skills/latest` installs.
+
+on:
+  push:
+    tags:
+      - "skill-v*"
+
+permissions:
+  contents: read
+
+jobs:
+  # The tag version must match the version in the skill it ships.
+  verify-version:
+    name: "skill: verify version"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Compare tag and SKILL.md version
+        run: |
+          TAG_VERSION="${GITHUB_REF#refs/tags/skill-v}"
+          # `version:` field in SKILL.md's frontmatter.
+          SKILL_VERSION=$(grep -m1 '^version:' skills/ampersend/SKILL.md | sed 's/^version:[[:space:]]*//')
+          echo "Tag version:      $TAG_VERSION"
+          echo "SKILL.md version: $SKILL_VERSION"
+          if [ "$TAG_VERSION" != "$SKILL_VERSION" ]; then
+            echo "ERROR: Tag version ($TAG_VERSION) does not match SKILL.md version ($SKILL_VERSION)"
+            exit 1
+          fi
+          echo "✓ Versions match: $TAG_VERSION"
+
+  # Points `skills/latest` at this release. The `npm` environment requires a manual approval before
+  # this runs. The branch is ruleset-protected: signed commits, no force-pushes.
+  move-skills-latest:
+    name: "skill: move latest"
+    runs-on: ubuntu-latest
+    needs: verify-version
+    environment:
+      name: npm
+    permissions:
+      contents: write # Required to move the `skills/latest` branch
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Move `skills/latest` to release commit
+        run: git push origin "$GITHUB_SHA:refs/heads/skills/latest"
