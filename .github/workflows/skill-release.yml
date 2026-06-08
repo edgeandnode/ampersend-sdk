@@ -48,5 +48,8 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      # Fetch the branch first so git can fast-forward it; checkout only has the release tag.
       - name: Move `skills/latest` to release commit
-        run: git push origin "$GITHUB_SHA:refs/heads/skills/latest"
+        run: |
+          git fetch origin skills/latest
+          git push origin "$GITHUB_SHA:refs/heads/skills/latest"
