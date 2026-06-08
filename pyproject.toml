@@ -1,6 +1,6 @@
 [project]
 name = "ampersend-sdk-python"
-version = "0.0.26"
+version = "0.0.27"
 requires-python = ">=3.13"
 dependencies = [
     "ampersend-sdk",

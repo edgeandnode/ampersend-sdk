@@ -1,10 +1,10 @@
 packages:
   - typescript/packages/*
 
-catalog:
-  effect: 4.0.0-beta.69
-
-catalogMode: prefer
+# Do NOT add a `catalog:` here, and do not use `catalog:` / `workspace:` specifiers in any
+# published package's package.json. We release with plain `npm publish`, and npm cannot resolve
+# those pnpm-only protocols — they ship verbatim into the tarball and break every install with
+# `EUNSUPPORTEDPROTOCOL`. Pin shared dependency versions directly in each package.json instead.
 
 allowBuilds:
   esbuild: true
