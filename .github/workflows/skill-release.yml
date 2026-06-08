@@ -34,14 +34,14 @@ jobs:
           fi
           echo "✓ Versions match: $TAG_VERSION"
 
-  # Points `skills/latest` at this release. The `npm` environment requires a manual approval before
-  # this runs. The branch is ruleset-protected: signed commits, no force-pushes.
+  # Points `skills/latest` at this release. The `skill` environment requires a manual approval
+  # before this runs. The branch is ruleset-protected: signed commits, no force-pushes.
   move-skills-latest:
     name: "skill: move latest"
     runs-on: ubuntu-latest
     needs: verify-version
     environment:
-      name: npm
+      name: skill
     permissions:
       contents: write # Required to move the `skills/latest` branch
     steps:
