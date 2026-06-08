@@ -29,13 +29,17 @@ neither the agent nor ampersend can spend on their own.
 To the user, all of this is just "ampersend" — the service/CLI split, keys, and smart accounts are internal plumbing
 they don't need unless they ask.
 
-**Scope of this CLI**: HTTP-only. It does four things: initial agent + CLI setup, runs `ampersend fetch [--pay] <url>`
-(pays only when `--pay` is passed, otherwise errors on 402 with the price), reads the agent's own state via
-`ampersend agent` (balance, limits, history, owner), and manages local config. **Setting** spending limits, auto-topup,
-auto-collect, and alerts still lives in the dashboard — the CLI can read those values but not change them.
+**Scope of this CLI**: HTTP-only. Its core jobs: initial agent + CLI setup, runs `ampersend fetch [--pay] <url>` (pays
+only when `--pay` is passed, otherwise errors on 402 with the price), reads the agent's own state via `ampersend agent`
+(balance, limits, history, owner), prints a dashboard funding link via `ampersend fund`, and manages local config.
+**Setting** spending limits, auto-topup, auto-collect, and alerts still lives in the dashboard — the CLI can read those
+values but not change them, and `fund` only prints a link to the dashboard, it does not move money.
 
-Reference material for every flag and option is in [`references/commands.md`](references/commands.md). Read it only when
-you need flag-level detail.
+Reference material for every flag and option is in [`references/commands.md`](references/commands.md). Some commands —
+`fund`, `card`, `marketplace`, the alternate setup modes — are documented there but not in the workflows below, on
+purpose: this file stays focused on the common paths. So before telling the user that ampersend can't do something, or
+that a command doesn't exist, check first: run `ampersend <command> --help` (or bare `ampersend --help`), or skim
+`references/commands.md`. Don't assert a capability is missing from memory of this file alone.
 
 ## CLI prerequisite
 
@@ -122,8 +126,16 @@ so the first two tiers stay free of them by default.
 
 ## Security
 
-**NEVER** sign in to the ampersend dashboard from a browser the agent controls, and **never** ask the user to sign in
-through a browser you can see. If configuration needs to change in the dashboard, the user does it themselves.
+Anything that touches the dashboard — funding, changing limits, approving setup — the user does **in their own
+browser**. That's the intended path, not a fallback: signed in at app.ampersend.ai they have full access to their
+account, which is exactly why it must be their session and not one the agent can see. So when a command hands back a
+dashboard URL (e.g. `ampersend fund`, `setup start`), give the user the link and let them open it themselves. **NEVER**
+sign in to the dashboard from a browser the agent controls, and **never** ask the user to sign in through a browser you
+can see.
+
+This boundary is about the dashboard _session_, not about links. Generating a dashboard URL is fine and expected —
+`ampersend fund` just prints one (it moves no money and is scoped to the agent's own account); don't treat printing or
+sharing a link as if it crossed the line.
 
 The `setup start` flow returns a `verificationCode`. Always show that code to the user alongside the `user_approve_url`
 — the user must confirm the code shown in the dashboard matches before approving. This protects against MITM key

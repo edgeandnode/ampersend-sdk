@@ -4,7 +4,7 @@ Latest verdict for each rule in [`SPEC.md`](SPEC.md). Regenerate when
 [`skills/ampersend/SKILL.md`](../../../skills/ampersend/SKILL.md) or `SPEC.md` changes.
 
 - **Generated against:** `skills/ampersend/SKILL.md` at HEAD
-- **Date:** 2026-06-03
+- **Date:** 2026-06-04
 - **By:** Claude
 
 1. PASS — `name: ampersend` (9 chars, kebab-case); description ~430 chars (under 1024); `version: 0.0.25` is the only
@@ -15,7 +15,7 @@ Latest verdict for each rule in [`SPEC.md`](SPEC.md). Regenerate when
    concrete recognition cues ("names a capability they want without a specific URL in mind", "is asking what the agent
    can pay for") rather than passive dispositions.
 4. PASS — Frontmatter `name: ampersend` matches the parent directory `skills/ampersend/`.
-5. PASS — Body is 267 lines, under the 500-line ceiling.
+5. PASS — Body is 288 lines, under the 500-line ceiling.
 6. PASS — Order is orientation → scope → CLI prerequisite → suggesting things to try → user explainer → security → setup
    → payment → reading agent state → discovery → output → config; setup, payment, reading-state, and discovery workflows
    are numbered steps or command blocks. The Common config tweaks block lists the context verbs
@@ -23,7 +23,9 @@ Latest verdict for each rule in [`SPEC.md`](SPEC.md). Regenerate when
    creation), so the block no longer shows `config set --api-url`/`--clear-api-url`.
 7. PASS — `references/` contains three files (`commands.md`, `example-services.md`, `marketplace.md`); no
    subdirectories.
-8. PASS — `references/commands.md` is 283 lines and starts with "Contents" (lists `card` between `fetch` and `agent`).
+8. PASS — `references/commands.md` is 308 lines and starts with "Contents" (now lists `fund` between the manual-key
+   setup mode and `fetch`, and `card` between `fetch` and `agent`). The new `fund` section is a flag table plus
+   output/error detail — exactly the kind of flag-level material rule 7 keeps in `references/` rather than `SKILL.md`.
    `references/example-services.md` is 336 lines and starts with a Contents section listing all 14 capability headings
    plus the Response patterns section. `references/marketplace.md` is 80 lines — under the 100-line TOC threshold — so a
    table of contents is not required.
@@ -49,11 +51,15 @@ Latest verdict for each rule in [`SPEC.md`](SPEC.md). Regenerate when
 13. PASS — Tier 1 and tier 2 user explainers use only "spending allowance", "limits", "key", "account you own"; the
     flagged words appear only in tier 3. The "Suggesting things to try" section now matches that voice — no "wallet",
     "stablecoin", "blockchain", "smart account", or "crypto" appears in the body's capability glosses.
-14. PASS — Security section forbids dashboard login from a controlled browser; setup workflow requires showing
-    `verificationCode` alongside `user_approve_url` and having the user confirm it matches.
-15. PASS — Hard imperatives appear only where they guard real safety boundaries: Security section (MITM/key
-    substitution); "don't recommend from training" (agent inventing services); "Real-world purchases" (irreversible
-    spend). Style and product-explanation guidance remains framed as preference.
+14. PASS — Security section still forbids dashboard login from a browser the agent controls and forbids asking the user
+    to sign in through a browser the agent can see (now framed positively: dashboard work happens "in their own
+    browser"); setup workflow requires showing `verificationCode` alongside `user_approve_url` and having the user
+    confirm it matches.
+15. PASS — Hard imperatives appear only where they guard real safety boundaries: Security section (controlled-browser
+    login, MITM/key substitution); "don't recommend from training" (agent inventing services); "Real-world purchases"
+    (irreversible spend). The new "check before asserting a capability is missing" guidance (scope section) and the
+    "don't treat printing a link as crossing the line" note (Security section) are framed as judgment guidance, not hard
+    imperatives. Style and product-explanation guidance remains framed as preference.
 16. PASS — 14 capabilities in the body, 14 entries under those capabilities in `references/example-services.md`, plus
     one entry in the Response patterns section. Mapping: Web search → Firecrawl; Email → AgentMail; Email lookup and
     verification → Apollo people-enrich + Hunter email-verifier (via StableEnrich); Voice calls → StablePhone; Property
