@@ -7,7 +7,7 @@ resolution-markers = [
 ]
 
 [options]
-exclude-newer = "2026-05-29T13:28:57.245816Z"
+exclude-newer = "2026-05-29T13:51:53.391345Z"
 exclude-newer-span = "P10D"
 
 [manifest]
@@ -140,7 +140,7 @@ wheels = [
 
 [[package]]
 name = "ampersend-sdk"
-version = "0.0.26"
+version = "0.0.27"
 source = { editable = "python/ampersend-sdk" }
 dependencies = [
     { name = "a2a-sdk" },
@@ -192,7 +192,7 @@ test = [
 
 [[package]]
 name = "ampersend-sdk-python"
-version = "0.0.26"
+version = "0.0.27"
 source = { virtual = "." }
 dependencies = [
     { name = "ampersend-sdk" },
@@ -1480,7 +1480,7 @@ wheels = [
 
 [[package]]
 name = "langchain-ampersend"
-version = "0.0.26"
+version = "0.0.27"
 source = { editable = "python/langchain-ampersend" }
 dependencies = [
     { name = "ampersend-sdk" },
