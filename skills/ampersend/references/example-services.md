@@ -186,6 +186,23 @@ provisioning storage.
 - Then `ampersend fetch --pay` the URL returned in the response with the file body.
 - Docs: <https://stableupload.dev/>
 
+### img402
+
+Hosting an image and getting back a public CDN URL. Suggest when the user wants a screenshot, diagram, or generated
+image embedded somewhere that needs a URL — a GitHub PR or issue, a chat message, a document.
+
+- `POST https://img402.dev/api/upload/token` mints a single-use upload token (paid, $0.01 USDC, 1-year retention).
+  `POST https://img402.dev/api/upload/token/permanent` is the same flow with permanent retention ($1.00).
+- Example (mint the token):
+  ```bash
+  ampersend fetch --pay -X POST https://img402.dev/api/upload/token
+  ```
+- Then send the file bytes to `POST https://img402.dev/api/upload` with the returned token in the `X-Upload-Token`
+  header (multipart field `image`, or JSON `{"file": "<base64>"}`). Payments are idempotent — retrying the same
+  payment returns the same token rather than charging twice.
+- Images under 1MB that only need 7-day retention can skip payment: `POST https://img402.dev/api/free`.
+- Docs: <https://img402.dev/docs>
+
 ## Image and video generation
 
 ### StableStudio
