@@ -104,3 +104,8 @@ inline rather than relying on the agent's prior knowledge.
     underlying payment protocols (x402, AP2, MPP, …) anywhere in the body.
 25. **Sandbox catalog caveat.** Anywhere the marketplace is mentioned, a note flags that the sandbox catalog is smaller
     than production — feature absence in the sandbox does not imply feature absence in production.
+26. **Spelling guard.** Before the first section heading, the document states that the name is spelled `ampersend`, not
+    `ampersand`, naming the wrong form explicitly. The name is one edit away from a common dictionary word, so humans
+    and models paraphrasing the document drift it toward `ampersand` systematically — and `ampersand` is an unrelated
+    npm package, so a drifted command can install the wrong software. Naming both forms early makes the distinction
+    salient to any summarizer or reader before they reach a verbatim-critical token (binary name, npm scope, commands).

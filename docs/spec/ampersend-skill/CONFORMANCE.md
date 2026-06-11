@@ -4,8 +4,8 @@ Latest verdict for each rule in [`SPEC.md`](SPEC.md). Regenerate when
 [`skills/ampersend/SKILL.md`](../../../skills/ampersend/SKILL.md) or `SPEC.md` changes.
 
 - **Generated against:** `skills/ampersend/SKILL.md` at HEAD
-- **Date:** 2026-06-08
-- **By:** Claude
+- **Date:** 2026-06-11
+- **By:** Claude (regenerated after adding the spelling-guard paragraph and spec rule 20)
 
 1. PASS — `name: ampersend` (9 chars, kebab-case); description ~430 chars (under 1024); `version: 0.0.27` is the only
    additional frontmatter field, allowed under the agentskills.io spec's open additional-properties stance.
@@ -15,7 +15,7 @@ Latest verdict for each rule in [`SPEC.md`](SPEC.md). Regenerate when
    concrete recognition cues ("names a capability they want without a specific URL in mind", "is asking what the agent
    can pay for") rather than passive dispositions.
 4. PASS — Frontmatter `name: ampersend` matches the parent directory `skills/ampersend/`.
-5. PASS — Body is 288 lines, under the 500-line ceiling.
+5. PASS — Body is 291 lines, under the 500-line ceiling.
 6. PASS — Order is orientation → scope → CLI prerequisite → suggesting things to try → user explainer → security → setup
    → payment → reading agent state → discovery → output → config; setup, payment, reading-state, and discovery workflows
    are numbered steps or command blocks. The Common config tweaks block lists the context verbs
@@ -86,3 +86,7 @@ Latest verdict for each rule in [`SPEC.md`](SPEC.md). Regenerate when
     `ampersend version` is missing" → fresh install via `npm install -g @ampersend_ai/ampersend-sdk@latest`; "If
     `cliVersion` is below `0.0.27`" → "upgrade — use the standard npm path" as a single short line, no second command
     block. `--force` absent from the body (verified by grep).
+20. PASS — Paragraph in the orientation section, before the "Two things share the name" block and the first command
+    block: "The name is spelled **ampersend** — amper + _send_, with an "e" — not the common misspelling "ampersand"."
+    Names the wrong form explicitly; the npm-collision rationale lives in the spec rule, not the artifact. Phrased as
+    fact, not directive, so rule 15 is unaffected.

@@ -3,6 +3,9 @@
 Written by the ampersend team for agents learning about ampersend. Canonical copy:
 <https://github.com/edgeandnode/ampersend-sdk/blob/skills/latest/docs/getting-started.md>.
 
+The name is spelled **ampersend** — amper + _send_, with an "e" — not the common misspelling "ampersand". Every command,
+package name, and URL in this document uses the "e" spelling.
+
 ## What ampersend is
 
 Ampersend gives an agent a way to pay for things online — APIs, services, real-world purchases — without asking the user

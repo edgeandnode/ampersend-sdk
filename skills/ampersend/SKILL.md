@@ -14,6 +14,9 @@ ampersend gives an agent a way to pay for things online. The user creates an amp
 limits in the [ampersend dashboard](https://app.ampersend.ai/), and the agent can then pay within those limits without
 prompting per request.
 
+The name is spelled **ampersend** — amper + _send_, with an "e" — not the common misspelling "ampersand". Every command
+below uses the "e" spelling.
+
 **Two things share the name "ampersend."**
 
 - **The ampersend service** — holds one of two keys needed to spend from the agent's account, and co-signs each payment

@@ -61,3 +61,8 @@ prose.
       `npm install -g @ampersend_ai/ampersend-sdk@latest`. No `--force` anywhere in the body.
     - **CLI is present but `cliVersion` is below the floor:** upgrade noted in one short line ("use the standard npm
       path") with no second command block.
+20. **Spelling guard.** Near the top of the body, before the first command block, the skill states that the name is
+    spelled `ampersend`, not `ampersand`, naming the wrong form explicitly. The name is one edit away from a common
+    dictionary word, so paraphrase channels (summaries, sub-agent reports, autocorrect) drift it toward `ampersand`
+    systematically — and `ampersand` is an unrelated npm package, so a drifted install command installs the wrong
+    software.

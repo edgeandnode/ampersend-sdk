@@ -4,8 +4,8 @@ Latest verdict for each rule in [`SPEC.md`](SPEC.md). Regenerate when
 [`docs/getting-started.md`](../../getting-started.md) or `SPEC.md` changes.
 
 - **Generated against:** `getting-started.md` at HEAD
-- **Date:** 2026-05-20
-- **By:** Claude (regenerated after safety-section rename and provenance-paragraph split)
+- **Date:** 2026-06-11
+- **By:** Claude (regenerated after adding the spelling-guard paragraph and spec rule 26)
 
 1. PASS — Opener: "Written by the ampersend team for agents learning about ampersend" (plural, audience framing). Body
    uses "the agent" (singular) for mechanics: "the agent uses it to make paid HTTP requests", "the agent can't fund the
@@ -69,7 +69,7 @@ Latest verdict for each rule in [`SPEC.md`](SPEC.md). Regenerate when
     on PATH. There's no project-scoped CLI path today." Framing is declarative, not apologetic.
 19. PASS — No "confirm with the user", "ask the user", or equivalent in the body. Provenance line names the canonical
     URL without prescribing what the agent does on mismatch.
-20. PASS — Body is 113 lines, under the 175-line ceiling.
+20. PASS — Body is 116 lines, under the 175-line ceiling.
 21. PASS — Opening paragraph names
     `https://github.com/edgeandnode/ampersend-sdk/blob/skills/latest/docs/getting-started.md` as "Canonical copy". The
     branch is `skills/latest` (matching the skill install command's git ref). No prescriptive language about what an
@@ -87,3 +87,7 @@ Latest verdict for each rule in [`SPEC.md`](SPEC.md). Regenerate when
     — no `x402`, `AP2`, or `MPP`).
 25. PASS — Marketplace teaser closes with "against the sandbox API the catalog is smaller, and feature absence in the
     sandbox doesn't mean feature absence in production." Only marketplace mention in the body.
+26. PASS — Paragraph between the opener and "What ampersend is" (before the first section heading and the first code
+    block): "The name is spelled **ampersend** — amper + _send_, with an "e" — not the common misspelling "ampersand"."
+    Names the wrong form explicitly; the npm-collision and paraphrase-drift rationale lives in the spec rule, not the
+    artifact. Wording stays declarative (rules 1–2) and rule-9 clean.
