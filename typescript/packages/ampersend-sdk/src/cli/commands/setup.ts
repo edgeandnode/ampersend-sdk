@@ -303,7 +303,10 @@ export function registerSetupCommand(program: Command): void {
   setup
     .command("start")
     .description("Step 1: Generate a key and request agent creation/connection approval")
-    .option("--context <name>", "Name for the context (defaults to 'default', host-prefixed for non-prod URLs)")
+    .option(
+      "--context <name>",
+      "Name for the context (auto-derived from the key as ctx-<hex>, host-prefixed for non-prod URLs, when omitted)",
+    )
     .option("--api-url <url>", "API URL this context targets (for non-production environments)")
     .option("--detach", "Create the context without making it active", false)
     .option("--mode <mode>", "Setup mode: 'create' (new agent, default) or 'connect' (key to existing agent)", "create")

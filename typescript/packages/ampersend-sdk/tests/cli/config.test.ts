@@ -490,8 +490,8 @@ describe("CLI Config", () => {
       if (result.ok) {
         expect(result.data.status).toBe("pending_agent")
         expect(result.data.credentialSource).toBe("file")
-        expect(result.data.activeContext).toBe("sandbox")
-        expect(result.data.agentKeyAddress).toMatch(/^0x[a-fA-F0-9]{40}$/)
+        expect(result.data.activeContext?.name).toBe("sandbox")
+        expect(result.data.activeContext?.agentKeyAddress).toMatch(/^0x[a-fA-F0-9]{40}$/)
       }
     })
 
@@ -506,9 +506,9 @@ describe("CLI Config", () => {
       if (result.ok) {
         expect(result.data.status).toBe("ready")
         expect(result.data.credentialSource).toBe("file")
-        expect(result.data.activeContext).toBe(set.data.context)
-        expect(result.data.agentKeyAddress).toMatch(/^0x[a-fA-F0-9]{40}$/)
-        expect(result.data.agentAccount).toBe("0x1234567890123456789012345678901234567890")
+        expect(result.data.activeContext?.name).toBe(set.data.context)
+        expect(result.data.activeContext?.agentKeyAddress).toMatch(/^0x[a-fA-F0-9]{40}$/)
+        expect(result.data.activeContext?.agentAccount).toBe("0x1234567890123456789012345678901234567890")
         expect(result.data.contexts).toHaveLength(1)
         expect(result.data.contexts?.[0]).toMatchObject({ name: set.data.context, status: "ready", active: true })
         expect(result.data.contexts?.[0]?.createdAt).toMatch(/^\d{4}-\d{2}-\d{2}T/)
@@ -548,8 +548,9 @@ describe("CLI Config", () => {
       if (result.ok) {
         expect(result.data.status).toBe("ready")
         expect(result.data.credentialSource).toBe("env")
-        expect(result.data.agentKeyAddress).toMatch(/^0x[a-fA-F0-9]{40}$/)
-        expect(result.data.agentAccount).toBe("0x2222222222222222222222222222222222222222")
+        expect(result.data.activeContext?.name).toBeUndefined()
+        expect(result.data.activeContext?.agentKeyAddress).toMatch(/^0x[a-fA-F0-9]{40}$/)
+        expect(result.data.activeContext?.agentAccount).toBe("0x2222222222222222222222222222222222222222")
       }
     })
   })

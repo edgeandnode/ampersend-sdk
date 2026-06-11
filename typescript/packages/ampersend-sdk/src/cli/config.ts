@@ -57,10 +57,23 @@ export function loadCredentials(
   }
 
   const status = getConfigStatus(opts).status
-  const code = status === "not_initialized" ? "NOT_CONFIGURED" : "SETUP_INCOMPLETE"
+  // A pending context already has an in-flight approval, so the next step is
+  // `setup finish` (not `setup start`, which the PENDING_EXISTS guard rejects).
+  // An uninitialized config needs a fresh `setup start` or manual `config set`.
+  const { code, message } =
+    status === "not_initialized"
+      ? {
+          code: "NOT_CONFIGURED",
+          message: 'Run "ampersend setup start" or "ampersend config set" to configure',
+        }
+      : {
+          code: "SETUP_INCOMPLETE",
+          message:
+            'Setup is pending approval. Run "ampersend setup finish" to complete it, or "ampersend config set" to configure manually.',
+        }
   return {
     ok: false,
-    error: err(code, 'Run "ampersend setup start" or "ampersend config set" to configure', { status }),
+    error: err(code, message, { status }),
   }
 }
 
@@ -608,10 +621,23 @@ export interface ContextSummary {
   status: ConfigStatus
   active: boolean
   createdAt: string
-  agentKeyAddress?: string
+  // Every context carries a key, so its address is always derivable.
+  agentKeyAddress: string
   agentAccount?: string
   apiUrl?: string
   pendingExpired?: boolean
+}
+
+/**
+ * The active identity, flattened for convenience so consumers don't have to
+ * find `active: true` in `contexts`. `name` is absent for env-var credentials,
+ * which have no named context. `apiUrl` is omitted for the production default.
+ */
+export interface ActiveContextSummary {
+  name?: string
+  agentKeyAddress: string
+  agentAccount?: string
+  apiUrl?: string
 }
 
 /** Data returned by getStatus */
@@ -619,10 +645,7 @@ export interface StatusData {
   status: ConfigStatus
   credentialSource: CredentialSource
   configPath?: string
-  agentKeyAddress?: string
-  agentAccount?: string
-  apiUrl?: string
-  activeContext?: string
+  activeContext?: ActiveContextSummary
   contexts?: Array<ContextSummary>
 }
 
@@ -658,19 +681,20 @@ export function getStatus(): JsonEnvelope<StatusData> {
     const agentKeyAddress = privateKeyToAddress(envConfig.AGENT_KEY as `0x${string}`)
     const agentAccount = envConfig.AGENT_ACCOUNT
 
+    // Env credentials have no named context, so `name` is omitted.
+    const active: ActiveContextSummary = { agentKeyAddress, agentAccount }
+    if (apiUrl && apiUrl !== DEFAULT_API_URL) {
+      active.apiUrl = apiUrl
+    }
+
     const result: StatusData = {
       status: "ready",
       credentialSource: "env",
-      agentKeyAddress,
-      agentAccount,
+      activeContext: active,
     }
 
     if (existsSync(CONFIG_FILE)) {
       result.configPath = CONFIG_FILE
-    }
-
-    if (apiUrl && apiUrl !== DEFAULT_API_URL) {
-      result.apiUrl = apiUrl
     }
 
     return ok(result)
@@ -689,25 +713,28 @@ export function getStatus(): JsonEnvelope<StatusData> {
     .map(([name, ctx]) => summarizeContext(name, ctx, config.activeContext))
     .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
 
-  // Hoist the active context's fields to the top level, reusing its summary
-  // (built above) rather than re-deriving the key address and account.
+  // Summarize the active context into a single nested object, reusing its
+  // summary (built above) rather than re-deriving the key address and account.
   const activeSummary = contexts.find((c) => c.active)
   const result: StatusData = {
     status: activeSummary?.status ?? "not_initialized",
     credentialSource: "file",
     configPath: CONFIG_FILE,
-    ...(config.activeContext ? { activeContext: config.activeContext } : {}),
     contexts,
   }
 
   if (activeSummary) {
-    if (activeSummary.agentKeyAddress) result.agentKeyAddress = activeSummary.agentKeyAddress
-    if (activeSummary.agentAccount) result.agentAccount = activeSummary.agentAccount
+    const active: ActiveContextSummary = {
+      name: activeSummary.name,
+      agentKeyAddress: activeSummary.agentKeyAddress,
+    }
+    if (activeSummary.agentAccount) active.agentAccount = activeSummary.agentAccount
     // Effective API URL for the active context (env var takes precedence).
     const effectiveApiUrl = process.env.AMPERSEND_API_URL ?? activeSummary.apiUrl
     if (effectiveApiUrl && effectiveApiUrl !== DEFAULT_API_URL) {
-      result.apiUrl = effectiveApiUrl
+      active.apiUrl = effectiveApiUrl
     }
+    result.activeContext = active
   }
 
   return ok(result)
