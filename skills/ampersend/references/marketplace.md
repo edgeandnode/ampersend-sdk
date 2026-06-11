@@ -21,20 +21,21 @@ place they can come from — `ampersend fetch` works against any x402 endpoint, 
 List curated agents, optionally filtered. Filters combine on the server side. Requires an authenticated agent (run
 `ampersend setup` first).
 
-By default `list` searches across all sources: ampersend's own curated agents, the Bazaar agents, and the ERC-8004
-registry agents. Use `--source` to narrow to one of them.
+By default `list` searches across all sources: ampersend's own first-party agents (`ampersend`), the broader curated
+catalog (`catalog`), the Bazaar agents (`bazaar`), and the ERC-8004 registry agents (`registry`). Use `--source` to
+narrow to one of them.
 
 ```bash
 ampersend marketplace list [--source <source>] [--category <category>] [--search <query>] [--network <network>] [--raw]
 ```
 
-| Option                  | Description                                                                                                                                                      |
-| ----------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `--source <source>`     | Narrow to one source: `ampersend` (ampersend-curated agents), `bazaar` (Bazaar agents), `registry` (ERC-8004 registry agents), or `catalog`. Omit to search all. |
-| `--category <category>` | Filter by category (e.g. `Crypto`, `AI/LLM`, `Data/Search`, `Agent Infra`)                                                                                       |
-| `--search <query>`      | Fuzzy match across name, description, tags, and category                                                                                                         |
-| `--network <network>`   | Override the default network. Most agents do not need this.                                                                                                      |
-| `--raw`                 | Output raw JSON array instead of the standard envelope                                                                                                           |
+| Option                  | Description                                                                                                                                                                                          |
+| ----------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `--source <source>`     | Narrow to one source: `ampersend` (ampersend's first-party agents), `catalog` (the broader curated catalog), `bazaar` (Bazaar agents), or `registry` (ERC-8004 registry agents). Omit to search all. |
+| `--category <category>` | Filter by category (e.g. `Crypto`, `AI/LLM`, `Data/Search`, `Agent Infra`)                                                                                                                           |
+| `--search <query>`      | Fuzzy match across name, description, tags, and category                                                                                                                                             |
+| `--network <network>`   | Override the default network. Most agents do not need this.                                                                                                                                          |
+| `--raw`                 | Output raw JSON array instead of the standard envelope                                                                                                                                               |
 
 Returns an array of providers. Each provider includes `id`, `name`, `description`, `category`, `tags`, `endpoints[]`,
 and `skills[]`.

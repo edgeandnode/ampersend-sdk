@@ -240,8 +240,8 @@ spent so far = `amount - balance`. `transactions` gives the itemized history (`i
 ### Status values
 
 `status` is passed through from Laso verbatim: `pending` (provisioning), `ready` (US card usable), `refund-requested`,
-`refunded`, `archived`. (International cards, a fast-follow, add `queued` and `complete`.) Poll on `status` reaching
-`ready`; don't assume `ready` is the only terminal state.
+`refunded`, `archived`. Poll on `status` reaching `ready`; don't assume `ready` is the only terminal state, and don't
+assume this list is exhaustive — Laso can return values not listed here, so branch on the value you get.
 
 ### Card data and masking
 
