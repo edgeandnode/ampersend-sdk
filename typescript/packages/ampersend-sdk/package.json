@@ -27,6 +27,14 @@
       "types": "./dist/x402/index.d.ts",
       "default": "./dist/x402/index.js"
     },
+    "./x402/server": {
+      "types": "./dist/x402/server/index.d.ts",
+      "default": "./dist/x402/server/index.js"
+    },
+    "./x402/server/express": {
+      "types": "./dist/x402/server/express.d.ts",
+      "default": "./dist/x402/server/express.js"
+    },
     "./mcp/client": {
       "types": "./dist/mcp/client/index.d.ts",
       "default": "./dist/mcp/client/index.js"
