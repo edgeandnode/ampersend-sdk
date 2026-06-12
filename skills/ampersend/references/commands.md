@@ -14,6 +14,7 @@ for example, when the user wants connect-mode setup, manual config, sandbox swit
 - [fetch](#fetch)
 - [card](#card)
 - [agent](#agent)
+- [tour](#tour)
 - [config](#config)
 
 ## Selecting a context
@@ -279,6 +280,78 @@ ampersend agent owner                          # Owner: { user_id, wallet_addres
 
 These are **reads only** — to change limits or sellers, the user goes to the dashboard. The server scopes every response
 to the session's own agent, so sibling agents and cross-agent aggregates are unreachable.
+
+## tour
+
+Onboarding progress across the two environments, and the next step in each. Two parallel tracks — `sandbox` and
+`production` — over the same linear progression: `setup → finish_setup → fund → first_payment → complete`.
+
+```bash
+ampersend tour          # Both tracks, hydrated from the server
+ampersend tour skip     # Persist mode "skipped" — agents stop proactive tour nudging
+ampersend tour resume   # Persist mode "active" (the default)
+```
+
+The command owns the guidance, not just the position: each track carries a `hint` — a sentence of plain user-facing
+prose the agent relays (and may reword) saying what to do next, or that the track is done.
+
+```json
+{
+  "ok": true,
+  "data": {
+    "mode": "active",
+    "sandbox": {
+      "complete": false,
+      "next": { "step": "fund", "context": "api.sandbox.ampersend.ai-ctx-1a2b", "contextIsActive": true },
+      "hint": "The agent is set up but has no funds yet — add some play money for trying things out so it can pay for things."
+    },
+    "production": {
+      "complete": false,
+      "next": { "step": "setup", "context": null, "contextIsActive": false },
+      "hint": "No agent yet for the production environment — run the setup flow to create one when you're ready to use real money."
+    }
+  }
+}
+```
+
+| Field                  | Meaning                                                                                      |
+| ---------------------- | -------------------------------------------------------------------------------------------- |
+| `mode`                 | `active` (default) or `skipped` — the only persisted tour state; `skip`/`resume` flip it     |
+| `complete`             | The track's context has made at least one payment; `next` is `null` when complete            |
+| `degraded`             | `true` (only when present) — the track's server state couldn't be read; `next` is `null`     |
+| `hint`                 | Plain prose for this track's state — what to do next, or that it's done; the agent relays it |
+| `next.step`            | `setup`, `finish_setup`, `fund`, or `first_payment` — linear, so it encodes the track state  |
+| `next.context`         | The context the step applies to (`null` for `setup`)                                         |
+| `next.contextIsActive` | `false`: switch with `config use <name>` or pass `--context <name>` per command              |
+
+Mechanics:
+
+- A context belongs to the production track when its API URL is the production default, and to the sandbox track when it
+  is `https://api.sandbox.ampersend.ai`; contexts with any other URL are outside the tour. The sandbox carries a subset
+  of services and capabilities — feature absence in the sandbox does not imply feature absence in production.
+- Each track reports exactly one context: the active context when it belongs to that environment, otherwise the newest
+  one there (ties broken alphabetically). Expired pending contexts are ignored — `setup` is the correct next step for
+  those.
+- `hint` is derived from the track's own state (and, for the sandbox bridge, the production track's state) — pure prose,
+  nothing extra is fetched or persisted to build it. When `next.contextIsActive` is `false`, the hint leads with a
+  "switch context first" cue naming the context, so the agent runs `config use <name>` before the step.
+- Setup state is read locally; `fund` / `first_payment` / `complete` are hydrated from the server on every call. The
+  question is only "has this agent ever paid?", so the payments window widens cheapest-first (`1d` → `30d` → `all`),
+  stopping at the first non-empty window; the balance is read only when no payment exists at all. A recently-active
+  context resolves in one small read and never pulls the full ledger. Worst case is four authenticated reads per track
+  (three empty payment windows, then balance), plus a one-time sign-in handshake. Payments are per-agent, so progress
+  made from another machine or key is picked up automatically.
+- A track whose server read fails (e.g. the network is down) is reported as `degraded: true` with `next: null` and a
+  hint saying the progress is unknown — it does **not** fault the command. The other track, and the local (`setup` /
+  `finish_setup`) part of the same track, still report normally. While a track is degraded the sandbox→production bridge
+  is suppressed (its state is unknown, so the tour won't offer a step that may already be done).
+- With env-supplied **credentials** (`AMPERSEND_AGENT_SECRET`, or `AMPERSEND_AGENT_KEY` + `AMPERSEND_AGENT_ACCOUNT`) the
+  tour reports `{ "mode": "inert" }` with no tracks — CI and deploy runs are not toured. A bare `AMPERSEND_API_URL`
+  override is not inert: the identity still comes from a file context, so the tour reasons about your saved contexts and
+  ignores the per-process URL.
+
+Errors: `TOUR_READ_ERROR` (exit 1) is reserved for an unexpected, whole-command failure. A routine server-read failure
+on one track degrades that track (see above) rather than erroring — the tour stays usable for orientation.
 
 ## config
 

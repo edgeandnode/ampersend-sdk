@@ -144,6 +144,35 @@ The `setup start` flow returns a `verificationCode`. Always show that code to th
 — the user must confirm the code shown in the dashboard matches before approving. This protects against MITM key
 substitution.
 
+## Onboarding tour
+
+`ampersend tour` is how you find out where the user is in getting ampersend working and what to help with next. Run it
+whenever the user needs a sense of what to do next — they ask "where am I / what's next", you've just finished a setup
+or payment step and want the next one, or a fresh conversation starts and you're not sure how far along they are.
+
+The command does the thinking. It returns two tracks — `sandbox` and `production` — and each carries a `hint`: a plain
+sentence describing what to do next (or that the track is done). **Read the `hint` and relay it in your own words**,
+matching how you'd explain anything else to this user. The hint will name a command or workflow when there's an action
+to take — fulfill it through the matching section of this skill ([Setup workflow](#setup-workflow),
+[Payment workflow](#payment-workflow), or `ampersend fund`). If `next.contextIsActive` is `false`, the hint says to
+switch context first; do that with `config use <name>` before the step. You act on the hint; the command tracks the
+steps and their order.
+
+Etiquette the product team asks for:
+
+- With no agent set up at all, ask the user which to start with: play money first (the sandbox — most people start
+  there), or straight to real money.
+- At most one proactive tour suggestion per conversation. If the user lets the same suggestion pass twice, offer
+  `ampersend tour skip` — it persists, so future sessions stay quiet too.
+- Treat `mode: "skipped"` as a standing request not to bring the tour up unprompted — `ampersend tour resume` undoes it,
+  and helping with errors is always fine. A `complete` track is the same: don't nudge it further (the hint won't ask you
+  to), though the user may still want to explore the other track.
+- A track marked `degraded: true` just means the server couldn't be reached to check its progress — relay its hint as-is
+  (the agent is set up; what's left is unknown until the connection is back) and let the user retry; don't treat it as a
+  setup failure. The other track is unaffected.
+
+Full output shape and mechanics: [`references/commands.md`](references/commands.md).
+
 ## Setup workflow
 
 Run when the user wants their agent to be able to pay for things, or when commands return a "not configured" error.

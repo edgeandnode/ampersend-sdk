@@ -154,10 +154,24 @@ export type ReadyContext = typeof ReadyContextSchema.Type
 export type PendingContext = typeof PendingContextSchema.Type
 export type Context = typeof ContextSchema.Type
 
+/**
+ * Tour preference. The only stored tour state: "skipped" tells the skill to
+ * stop proactive onboarding nudges across sessions (conversation memory
+ * resets; this bit doesn't). Absent = active, the always-on default. The
+ * `tour` command itself answers regardless of mode.
+ */
+const TourPreferenceSchema = Schema.Struct({
+  mode: Schema.Literals(["active", "skipped"]),
+})
+
+export type TourPreference = typeof TourPreferenceSchema.Type
+export type TourMode = TourPreference["mode"]
+
 /** Stored configuration V2 — the multi-context model. */
 export interface StoredConfigV2 {
   version: 2
   activeContext?: string
+  tour?: TourPreference
   contexts: Record<string, Context>
 }
 
@@ -167,6 +181,7 @@ export type StoredConfig = StoredConfigV2
 const StoredConfigV2Schema = Schema.Struct({
   version: Schema.Literal(2),
   activeContext: Schema.optional(Schema.String),
+  tour: Schema.optional(TourPreferenceSchema),
   contexts: Schema.Record(Schema.String, ContextSchema),
 })
 
@@ -300,7 +315,12 @@ function prunePendingExpired(config: StoredConfigV2): StoredConfigV2 {
     contexts[name] = ctx
   }
   const activeContext = config.activeContext && contexts[config.activeContext] ? config.activeContext : undefined
-  return { version: 2, ...(activeContext ? { activeContext } : {}), contexts }
+  return {
+    version: 2,
+    ...(activeContext ? { activeContext } : {}),
+    ...(config.tour ? { tour: config.tour } : {}),
+    contexts,
+  }
 }
 
 /**
@@ -610,6 +630,13 @@ export function readLasoToken(active: ResolvedCredentials, opts: ContextSelector
   const activeUrl = active.apiUrl ?? DEFAULT_API_URL
   if (storedUrl !== activeUrl) return null
   return stored
+}
+
+/** Persist the tour mode, creating the config file if needed. */
+export function setTourMode(mode: TourMode): void {
+  const config = readConfig() ?? emptyConfig()
+  config.tour = { mode }
+  writeConfig(config)
 }
 
 /** Configuration source */
