@@ -72,4 +72,9 @@ describe("chainIdOf", () => {
     expect(chainIdOf(v2Instruction("eip155:*"))).toBeNull()
     expect(chainIdOf(v2Instruction("eip155:"))).toBeNull()
   })
+
+  it("returns null for invalid v2 chain ids", () => {
+    expect(chainIdOf(v2Instruction("eip155:0"))).toBeNull()
+    expect(chainIdOf(v2Instruction("eip155:9007199254740993"))).toBeNull()
+  })
 })
