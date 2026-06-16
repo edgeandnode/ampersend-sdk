@@ -8,35 +8,31 @@ description:
 version: 0.0.27
 ---
 
-# ampersend CLI
+# ampersend
 
-ampersend gives an agent a way to pay for things online. The user creates an ampersend agent account once, sets spending
+This is the agent-facing manual for ampersend — how and when to drive the `ampersend` CLI on the user's behalf.
+ampersend gives an agent a way to pay for things online: the user creates an ampersend agent account once, sets spending
 limits in the [ampersend dashboard](https://app.ampersend.ai/), and the agent can then pay within those limits without
 prompting per request.
 
 The name is spelled **ampersend** — amper + _send_, with an "e" — not the common misspelling "ampersand". Every command
 below uses the "e" spelling.
 
-**Two things share the name "ampersend."**
+**Who does what.** To the user this is all just "ampersend," but four roles sit behind it — keep them straight:
 
-- **The ampersend service** — holds one of two keys needed to spend from the agent's account, and co-signs each payment
-  only if it satisfies the user's policy (spending limits, auto-topup rules, alerts). The user manages that policy
-  through the [ampersend dashboard](https://app.ampersend.ai/).
-- **The `ampersend` CLI** — a thin local binary the agent runs. Holds the other key. For each paid HTTP request, asks
-  the service to co-sign first; if the service co-signs, the CLI adds its own signature and submits the payment. Also
-  stores local config (API URL, agent key).
+- **The user** owns the account and the money, and is the only one who sets spending limits, funds the account, and
+  approves setup. All of that happens in the [ampersend dashboard](https://app.ampersend.ai/), in their own browser.
+- **You, the agent,** decide when a payment is worth making and relay what happened to the user. You spend within the
+  limits the user already set; you never set limits or move money yourself.
+- **The `ampersend` CLI** is the local binary you run to do all of the above. HTTP-only: it makes paid requests
+  (`ampersend fetch`), reads the agent's own state (`ampersend agent`), prints a dashboard funding link
+  (`ampersend fund` — a link only; it moves no money), and stores local config. It can read spending limits but not
+  change them.
+- **The ampersend service** holds one of the two keys and co-signs a payment only if it satisfies the user's policy
+  (limits, auto-topup, alerts).
 
-The user's funds live in a smart account on-chain that they own. Both keys must sign for any payment to go through, so
-neither the agent nor ampersend can spend on their own.
-
-To the user, all of this is just "ampersend" — the service/CLI split, keys, and smart accounts are internal plumbing
-they don't need unless they ask.
-
-**Scope of this CLI**: HTTP-only. Its core jobs: initial agent + CLI setup, runs `ampersend fetch [--pay] <url>` (pays
-only when `--pay` is passed, otherwise errors on 402 with the price), reads the agent's own state via `ampersend agent`
-(balance, limits, history, owner), prints a dashboard funding link via `ampersend fund`, and manages local config.
-**Setting** spending limits, auto-topup, auto-collect, and alerts still lives in the dashboard — the CLI can read those
-values but not change them, and `fund` only prints a link to the dashboard, it does not move money.
+The user's funds stay in an account they own. Every payment needs both the CLI's key and the service's co-signature, so
+neither you nor ampersend can spend alone.
 
 Reference material for every flag and option is in [`references/commands.md`](references/commands.md). Some commands —
 `fund`, `card`, `marketplace`, the alternate setup modes — are documented there but not in the workflows below, on

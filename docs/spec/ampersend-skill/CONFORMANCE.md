@@ -5,11 +5,14 @@ Latest verdict for each rule in [`SPEC.md`](SPEC.md). Regenerate when
 
 - **Generated against:** `skills/ampersend/SKILL.md` at HEAD
 - **Date:** 2026-06-16
-- **By:** Claude (regenerated after trimming the Onboarding tour section: dropped the `mode: "inert"` etiquette bullet
+- **By:** Claude (regenerated after two passes. (1) Onboarding tour: dropped the `mode: "inert"` etiquette bullet
   (CI/deploy-only, not a state an ordinary sandbox/production user reaches — it now lives in `references/commands.md`
-  alone) and folded the redundant "you don't need to know the steps" paragraph into the routing paragraph above it; also
+  alone), folded the redundant "you don't need to know the steps" paragraph into the routing paragraph above it, and
   trimmed the `references/commands.md` `tour` intro paragraph of two sentences the field table and mechanics bullets
-  already cover)
+  already cover. (2) Orientation: retitled the body from "# ampersend CLI" to "# ampersend" with a one-line manual
+  framing, and replaced the "Two things share the name" / "Scope of this CLI" blocks with a single "Who does what" list
+  naming the four roles (user, agent, CLI, service) and each one's can/can't — dropping "smart account on-chain" from
+  the body in favor of "an account they own")
 
 1. PASS — `name: ampersend` (9 chars, kebab-case); description ~430 chars (under 1024); `version: 0.0.27` is the only
    additional frontmatter field, allowed under the agentskills.io spec's open additional-properties stance.
@@ -19,10 +22,12 @@ Latest verdict for each rule in [`SPEC.md`](SPEC.md). Regenerate when
    concrete recognition cues ("names a capability they want without a specific URL in mind", "is asking what the agent
    can pay for") rather than passive dispositions.
 4. PASS — Frontmatter `name: ampersend` matches the parent directory `skills/ampersend/`.
-5. PASS — Body is 320 lines, under the 500-line ceiling.
-6. PASS — Order is orientation → scope → CLI prerequisite → suggesting things to try → user explainer → security →
-   onboarding tour → setup → payment → reading agent state → discovery → output → config; setup, payment, reading-state,
-   and discovery workflows are numbered steps or command blocks. The Onboarding tour section is now prose plus an
+5. PASS — Body is 316 lines, under the 500-line ceiling.
+6. PASS — Order is orientation → who-does-what (roles) → CLI prerequisite → suggesting things to try → user explainer →
+   security → onboarding tour → setup → payment → reading agent state → discovery → output → config; setup, payment,
+   reading-state, and discovery workflows are numbered steps or command blocks. The orientation block is a single "Who
+   does what" list naming the four roles (user, agent, CLI, service) and what each can and can't do — it replaces the
+   former "Two things share the name" / "Scope of this CLI" split. The Onboarding tour section is now prose plus an
    etiquette bullet list (no numbered step machine — it routes to existing workflows by anchor link and lets the `tour`
    command carry the progression). The Common config tweaks block lists the context verbs (`config use`/`config rm`)
    after `config status`; in-place API-URL editing was removed (a context's URL is fixed at creation), so the block no
@@ -44,23 +49,25 @@ Latest verdict for each rule in [`SPEC.md`](SPEC.md). Regenerate when
 10. PASS — "co-sign" is hyphenated consistently in prose; `CoSignerValidator` is a code identifier and does not count.
     The tour section uses "service", "capability", and "endpoint" consistently. Aggregator-routed services (Apollo,
     Hunter, RentCast) are consistently described as "via StableEnrich". The config concept is named "context" everywhere
-    it appears (SKILL.md and `references/commands.md`); no competing term ("profile") is used. "environment" appears in
-    the SKILL.md body only inside "environment variables" (the inert line), never as a synonym for a context; the
+    it appears (SKILL.md and `references/commands.md`); no competing term ("profile") is used. "environment" no longer
+    appears in the SKILL.md body at all (the inert line that carried "environment variables" was removed); the
     sandbox/production split is named with "track" there, and `references/commands.md` uses "environment" for that split
     consistently. "track" and "tour" are used consistently across both files.
 11. PASS — Floor stated as prose ("below `0.0.27`"); `npm install` uses `@latest`; skill upgrade uses
     `npx skills update ampersend`, which respects the moving `#skills/latest` ref the install command pinned. No
     `@x.y.z` or `#v0.0.x` strings in `SKILL.md`. Examples file does not pin third-party versions.
-12. PASS — "ampersend service", "ampersend CLI", co-sign, smart account, x402, USDC, and Base are each glossed on first
-    mention in `SKILL.md`. Capability categories are glossed inline in user-voice. The ERC-8004 registry is glossed
-    inline ("a public, open registry of agents") on first mention in the Discovery workflow. In
-    `references/example-services.md`, StableEnrich is glossed ("aggregator gateway that fronts several upstream APIs
-    behind one paid surface") on first mention before being referenced in four entries. "context" is glossed under the
-    Common config tweaks heading ("each a self-contained identity (agent key + account + its own API URL)") before the
-    command block uses it. In the Onboarding tour section, "track" is introduced by its two named instances ("two tracks
-    — `sandbox` and `production`") and the etiquette bullet meanings them in user-voice ("play money first (the
-    sandbox)... or straight to real money") — enough to be self-explanatory without a formal parenthetical, and the full
-    play-money/real-money framing lives one click away in `references/commands.md`.
+12. PASS — "ampersend service", "ampersend CLI", co-sign, x402, USDC, and Base are each glossed on first mention in
+    `SKILL.md`. "smart account" is no longer a substantive term in the body (the orientation block now says "an account
+    they own"; the only occurrence is the tier-3 list of words to avoid), so there is nothing to gloss. Capability
+    categories are glossed inline in user-voice. The ERC-8004 registry is glossed inline ("a public, open registry of
+    agents") on first mention in the Discovery workflow. In `references/example-services.md`, StableEnrich is glossed
+    ("aggregator gateway that fronts several upstream APIs behind one paid surface") on first mention before being
+    referenced in four entries. "context" is glossed under the Common config tweaks heading ("each a self-contained
+    identity (agent key + account + its own API URL)") before the command block uses it. In the Onboarding tour section,
+    "track" is introduced by its two named instances ("two tracks — `sandbox` and `production`") and the etiquette
+    bullet meanings them in user-voice ("play money first (the sandbox)... or straight to real money") — enough to be
+    self-explanatory without a formal parenthetical, and the full play-money/real-money framing lives one click away in
+    `references/commands.md`.
 13. PASS — Tier 1 and tier 2 user explainers use only "spending allowance", "limits", "key", "account you own"; the
     flagged words appear only in tier 3. The "Suggesting things to try" section now matches that voice — no "wallet",
     "stablecoin", "blockchain", "smart account", or "crypto" appears in the body's capability glosses.
@@ -88,10 +95,10 @@ Latest verdict for each rule in [`SPEC.md`](SPEC.md). Regenerate when
     services below. Services don't need to know ampersend exists — they accept payments from any agent capable of paying
     as part of making an HTTP request, and ampersend handles the agent's side: enforcing the user's spending limits,
     co-approving each payment, and paying on the user's behalf." Framing precedes the categories list. Body contains
-    "x402" only in the tier-3 user explainer (line 116), which rule 13 explicitly carves out; the generic descriptors at
-    lines 33 ("pays only when `--pay` is passed") and 235 ("any compatible paid endpoint") stay protocol-neutral.
-    "ERC-8004" appears once (line 222) but names a source of marketplace agents, not a payment protocol that services
-    "accept", so it falls outside this rule.
+    "x402" only in the tier-3 user explainer (line 119), which rule 13 explicitly carves out; the orientation block's
+    description of the CLI ("makes paid requests") and the Discovery line "any compatible paid endpoint" (line 275) stay
+    protocol-neutral. "ERC-8004" appears once (line 262) but names a source of marketplace agents, not a payment
+    protocol that services "accept", so it falls outside this rule.
 18. PASS — Sandbox API URL mentions are flagged everywhere they occur: Discovery workflow says "`marketplace list`
     against the sandbox returns a smaller catalog than production — feature absence in the sandbox does not imply
     feature absence in production." Common config tweaks says "The sandbox covers the payment flow end-to-end, but only
