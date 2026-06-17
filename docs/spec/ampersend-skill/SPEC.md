@@ -21,19 +21,22 @@ prose.
 7. `references/` is exactly one level deep, and flag tables, exhaustive option lists, and edge-case detail live there
    rather than in `SKILL.md`.
 8. Reference files longer than 100 lines start with a table of contents.
-9. Every claim in the body is system-specific — security boundaries, calling conventions, gotchas, judgment calls, or
-   how to talk about the product to users — and not something the model already knows from training. Exception: a
-   curated showcase of third-party services known to accept ampersend payments may live in `references/`, since the
-   value is curation (we vouched for these), not training-derivable facts. Response patterns — services the agent must
-   know how to handle when the user provides a matching URL but doesn't suggest proactively — are also allowed there.
-   The body of `SKILL.md` itself stays system-specific and may name capability categories but not specific services.
+9. Every claim in the body is system-specific — security boundaries, calling conventions, gotchas, judgment calls — and
+   not something the model already knows from training. Exception: a curated showcase of third-party services known to
+   accept ampersend payments may live in `references/`, since the value is curation (we vouched for these), not
+   training-derivable facts. Response patterns — services the agent must know how to handle when the user provides a
+   matching URL but doesn't suggest proactively — are also allowed there. The body of `SKILL.md` itself stays
+   system-specific and may name capability categories but not specific services. User-voice product explanation (how to
+   describe ampersend to a human) is **not** in the body; it lives in `references/explaining-to-users.md` per rule 23.
 10. Terminology is consistent throughout — the same concept uses the same word every time.
 11. There are no hard version pins; install commands use `@latest` and version floors are prose, not `@x.y.z`.
     Skill-installer commands (`npx skills add …`) use the moving `#skills/latest` git-ref fragment to track the most
     recent released skill, not `main` or an immutable `#v0.0.x` tag.
 12. Every product-specific term is glossed in one line the first time it appears.
-13. Tier-1 and tier-2 user-facing explainers do not use the words "crypto", "wallet", "blockchain", "smart account", or
-    "stablecoin"; tier-3 may, only when the user asks about underlying tech.
+13. The tiered user-facing explainers live in `references/explaining-to-users.md` (rule 23), not the body. There, tier-1
+    and tier-2 do not use the words "crypto", "wallet", "blockchain", "smart account", or "stablecoin"; tier-3 may, only
+    when the user asks about underlying tech. The body of `SKILL.md`, being agent-voice, does not carry these explainers
+    at all.
 14. The skill instructs the agent never to log into the ampersend dashboard from a browser it controls, and to always
     show the verification code alongside the approval URL.
 15. Directive language ("don't", "never", "must") is reserved for safety boundaries where the agent has no judgment call
@@ -45,11 +48,11 @@ prose.
     proactively but must know how to handle when the user provides a matching URL. A capability with no example is a
     dead end for the agent, so prune it from the body until an example lands.
 17. Ampersend is distinguished from (a) the third-party services that accept payment, and (b) the underlying agentic
-    payments protocols that carry the payments. The body frames ampersend as the agent-side payment layer enforcing the
-    user's policy; services as accepting payments from any compliant agent (not specifically ampersend); and specific
-    protocol names (x402, AP2, MPP, …) do not appear in the body of `SKILL.md` as a generic descriptor of what services
-    "accept." Protocol names may still appear in `references/` and in code blocks where the literal command or URL
-    contains them.
+    payments protocols that carry the payments. The body frames ampersend as the agent-side payment layer that requests
+    authorization for each payment (with a human behind that decision — never the policy mechanism, per rule 22);
+    services as accepting payments from any compliant agent (not specifically ampersend); and specific protocol names
+    (x402, AP2, MPP, …) do not appear in the body of `SKILL.md` as a generic descriptor of what services "accept."
+    Protocol names may still appear in `references/` and in code blocks where the literal command or URL contains them.
 18. Anywhere the sandbox API URL is mentioned, the document states explicitly that the sandbox carries a subset of
     services and capabilities — feature absence in the sandbox does not imply feature absence in production.
 19. Frontmatter carries a `version` field matching the released CLI version the skill was published against. The body
@@ -82,3 +85,16 @@ prose.
     keeps one track's server failure from faulting the whole command, and the CLI-owned sandbox→production bridge) lives
     in `references/commands.md`, not the body. Etiquette is framed as product-team guidance per rule 15, not hard
     imperatives.
+22. **Agent voice.** The body of `SKILL.md` and the agent-facing references are written in the agent voice defined in
+    [`../voice.md`](../voice.md). In particular: authorization is stated only as the invariant "a payment goes through
+    only when the ampersend service authorizes it, and a human is behind that decision" — never the mechanism (limits,
+    policy, co-signing keys, on-chain modules, how the human is behind it); a declined payment is framed as the
+    reassuring invariant "nothing is spent and nothing changes"; capabilities are described, not prescribed (no "do X
+    first", no trailing "it's your call"); and the prose does not assume a human is present (no "relay to the user",
+    "the user asks") except at the genuine handoffs (setup approval, funding). Conditionals that hedge edge cases are
+    avoided in favor of the invariant.
+23. **User-voice explainer file.** `references/explaining-to-users.md` holds the user-voice product explanation — the
+    tiered "what ampersend is" explainers (rule 13), what stays in the human's control, and how to surface ampersend to
+    someone who doesn't have it. It is written in the user voice defined in [`../voice.md`](../voice.md), opens by
+    naming itself as the user-voice file, and is the only place the skill carries human-facing product prose. The body
+    points to it in one line and does not duplicate its content.

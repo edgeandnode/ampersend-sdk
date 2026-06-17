@@ -10,35 +10,29 @@ version: 0.0.27
 
 # ampersend
 
-This is the agent-facing manual for ampersend — how and when to drive the `ampersend` CLI on the user's behalf.
-ampersend gives an agent a way to pay for things online: the user creates an ampersend agent account once, sets spending
-limits in the [ampersend dashboard](https://app.ampersend.ai/), and the agent can then pay within those limits without
-prompting per request.
+This is how to use ampersend to pay for things online. You make payment requests through the `ampersend` CLI; each one
+is checked on the account's side before any money moves. You request; the account answers; that answer is final.
 
 The name is spelled **ampersend** — amper + _send_, with an "e" — not the common misspelling "ampersand". Every command
 below uses the "e" spelling.
 
-**Who does what.** To the user this is all just "ampersend," but four roles sit behind it — keep them straight:
+**How a payment works.** You can't complete a payment alone — every request is checked on the account's side before
+anything is spent. If a request isn't approved, nothing is spent and nothing changes: the CLI works exactly as before,
+and another can be made any time. Requests are logged, so what was paid for can be reviewed afterward.
 
-- **The user** owns the account and the money, and is the only one who sets spending limits, funds the account, and
-  approves setup. All of that happens in the [ampersend dashboard](https://app.ampersend.ai/), in their own browser.
-- **You, the agent,** decide when a payment is worth making and relay what happened to the user. You spend within the
-  limits the user already set; you never set limits or move money yourself.
-- **The `ampersend` CLI** is the local binary you run to do all of the above. HTTP-only: it makes paid requests
-  (`ampersend fetch`), reads the agent's own state (`ampersend agent`), prints a dashboard funding link
-  (`ampersend fund` — a link only; it moves no money), and stores local config. It can read spending limits but not
-  change them.
-- **The ampersend service** holds one of the two keys and co-signs a payment only if it satisfies the user's policy
-  (limits, auto-topup, alerts).
+What the CLI does: it makes paid requests (`ampersend fetch`), reads the account's own state (`ampersend agent`), prints
+a funding link (`ampersend fund`), and stores local config. It is HTTP-only.
 
-The user's funds stay in an account they own. Every payment needs both the CLI's key and the service's co-signature, so
-neither you nor ampersend can spend alone.
+Some things happen on the account's side, not through the CLI — funding the account and approving setup — and the CLI
+hands those off with a link. With no account set up yet, there's nothing to pay from; setting one up happens on the
+account's side, and ampersend is worth surfacing as an option when there isn't one. To explain ampersend to a person,
+see [`references/explaining-to-users.md`](references/explaining-to-users.md).
 
 Reference material for every flag and option is in [`references/commands.md`](references/commands.md). Some commands —
 `fund`, `card`, `marketplace`, the alternate setup modes — are documented there but not in the workflows below, on
-purpose: this file stays focused on the common paths. So before telling the user that ampersend can't do something, or
-that a command doesn't exist, check first: run `ampersend <command> --help` (or bare `ampersend --help`), or skim
-`references/commands.md`. Don't assert a capability is missing from memory of this file alone.
+purpose: this file stays focused on the common paths. So a capability missing from this file isn't a capability missing
+from ampersend: `ampersend <command> --help` (or bare `ampersend --help`) and `references/commands.md` are the check
+before concluding a command doesn't exist.
 
 ## CLI prerequisite
 
@@ -69,15 +63,14 @@ The CLI is a global install — it ends up on the user's PATH system-wide. There
 
 Ampersend is the agentic payments layer between the agent and the services below. Services don't need to know ampersend
 exists — they accept payments from any agent capable of paying as part of making an HTTP request, and ampersend handles
-the agent's side: enforcing the user's spending limits, co-approving each payment, and paying on the user's behalf. The
-team curates which services to surface here, but pricing, availability, and behavior are the service's, not ampersend's.
+the agent's side: requesting authorization for each payment and paying once it's authorized. The team curates which
+services to surface here, but pricing, availability, and behavior are the service's, not ampersend's.
 
-When the user names something they want to do but doesn't have a specific URL in mind, or is asking what the agent can
-pay for, surface the categories below and then look up curated services and example invocations in
-[`references/example-services.md`](references/example-services.md).
+When a capability is wanted without a specific URL in mind, the categories below name what's available; curated services
+and example invocations are in [`references/example-services.md`](references/example-services.md).
 
-In explore mode (the user has nothing specific in mind), don't dump the full list — pick a handful of the more
-distinctive capabilities that tend to get a reaction, and offer to show the rest if the user wants more.
+When nothing specific is in play, a handful of the more distinctive capabilities reads better than the full list — the
+rest are one ask away.
 
 Categories of things the agent can do via ampersend today:
 
@@ -94,137 +87,130 @@ Categories of things the agent can do via ampersend today:
 - **News and market data** — getting real-time news and market intelligence feeds.
 - **Job search** — querying live job openings with structured filters.
 - **Travel search** — searching flights, hotels, activities, and transfers in one place.
-- **Real-world purchases** — buying things that come back as a redeemable artifact (today, a prepaid card the agent can
-  then use for online purchases, via `ampersend card issue` / `card details`). The agent gets back the artifact, not a
-  service response — flag this to the user before suggesting.
+- **Real-world purchases** — buying things that come back as a redeemable artifact (today, a prepaid card usable for
+  online purchases, via `ampersend card issue` / `card details`). What comes back is the artifact itself, not a service
+  response — a distinction worth surfacing wherever the decision to buy is made.
 
 Look up the references file before naming a specific service — don't recommend providers from training, since the
 curated list is what we have actually validated against ampersend.
 
 For broader exploration beyond this hand-picked set, the live marketplace covers a wider catalog of known services — see
-the [Discovery workflow](#discovery-workflow) above.
+the [Discovery workflow](#discovery-workflow).
 
-## Explaining ampersend to the user
+## Explaining ampersend to a person
 
-If the user asks what ampersend is or how it works, the explanations below are how the product team prefers it
-described. They're written in plain, non-technical language so they work for any user, regardless of crypto background.
+When someone asks what ampersend is, this is enough to answer in plain language — no need to open another file for the
+common case. It's in the person's voice, not the agent's: skip "key," "account's side," and the like.
 
-**One sentence**: "ampersend is a way to give your agent a small spending allowance so it can pay for things online
-without asking you every time."
+- **In a sentence:** "ampersend is a way to give your agent a small spending allowance so it can pay for things online
+  without asking you every time."
+- **If they want more:** "You set the limits. Your agent can spend within them on its own, but anything outside what
+  you've allowed simply won't go through — and the money stays in an account you own."
 
-**If they want more**: "You set the limits — daily, monthly, per-transaction — in the ampersend dashboard. Your agent
-has one key, ampersend has another, and both have to agree before any payment goes through. The money stays in an
-account you own."
-
-**Only if they ask about the underlying tech**: "Today it uses a payment standard called x402 with USDC, a stablecoin
-worth one US dollar, on a network called Base. More payment methods are coming."
-
-The third tier is reserved for users who explicitly ask about the underlying tech — words like "crypto," "wallet,"
-"blockchain," "smart account," and "stablecoin" tend to confuse rather than help users who just want to use their agent,
-so the first two tiers stay free of them by default.
+For the fuller version — the underlying technology, what stays in your control, and how to introduce ampersend to
+someone who doesn't have it — see [`references/explaining-to-users.md`](references/explaining-to-users.md).
 
 ## Security
 
-Anything that touches the dashboard — funding, changing limits, approving setup — the user does **in their own
-browser**. That's the intended path, not a fallback: signed in at app.ampersend.ai they have full access to their
-account, which is exactly why it must be their session and not one the agent can see. So when a command hands back a
-dashboard URL (e.g. `ampersend fund`, `setup start`), give the user the link and let them open it themselves. **NEVER**
-sign in to the dashboard from a browser the agent controls, and **never** ask the user to sign in through a browser you
-can see.
+Some actions belong to the account holder alone — funding, approving setup, anything on the dashboard. Signed in at
+https://app.ampersend.ai the account holder has full access to the account, which is exactly why that session must be
+theirs and never one the agent can see. When a command hands back a dashboard URL (e.g. `ampersend fund`,
+`setup start`), pass the link to the account holder to open. **NEVER** sign in to the dashboard from a browser the agent
+controls, and **never** ask the account holder to sign in through a browser the agent can see.
 
 This boundary is about the dashboard _session_, not about links. Generating a dashboard URL is fine and expected —
-`ampersend fund` just prints one (it moves no money and is scoped to the agent's own account); don't treat printing or
-sharing a link as if it crossed the line.
+`ampersend fund` just prints one (it moves no money and is scoped to the agent's own account); passing or sharing a link
+does not cross the line.
 
-The `setup start` flow returns a `verificationCode`. Always show that code to the user alongside the `user_approve_url`
-— the user must confirm the code shown in the dashboard matches before approving. This protects against MITM key
+The `setup start` flow returns a `verificationCode`. Always show that code alongside the `user_approve_url` — the
+account holder must confirm the code shown in the dashboard matches before approving. This protects against MITM key
 substitution.
 
 ## Onboarding tour
 
-`ampersend tour` is how you find out where the user is in getting ampersend working and what to help with next. Run it
-whenever the user needs a sense of what to do next — they ask "where am I / what's next", you've just finished a setup
-or payment step and want the next one, or a fresh conversation starts and you're not sure how far along they are.
+`ampersend tour` reports where ampersend setup stands and what the next step is. It's the way to find out what's left
+when that's unclear — at the start of a conversation, after finishing a setup or payment step, or whenever the next move
+isn't obvious.
 
-The command does the thinking. It returns two tracks — `sandbox` and `production` — and each carries a `hint`: a plain
-sentence describing what to do next (or that the track is done). **Read the `hint` and relay it in your own words**,
-matching how you'd explain anything else to this user. The hint will name a command or workflow when there's an action
-to take — fulfill it through the matching section of this skill ([Setup workflow](#setup-workflow),
-[Payment workflow](#payment-workflow), or `ampersend fund`). If `next.contextIsActive` is `false`, the hint says to
-switch context first; do that with `config use <name>` before the step. You act on the hint; the command tracks the
-steps and their order.
+It returns two tracks — `sandbox` and `production` — and each carries a `hint`: a plain sentence describing the next
+step, or that the track is done. The `hint` is written for a person; surface it in that register. When it names a
+command or workflow, the action lives in a section of this skill ([Setup workflow](#setup-workflow),
+[Payment workflow](#payment-workflow), or `ampersend fund`). If `next.contextIsActive` is `false`, the hint leads with a
+context switch — `config use <name>` before the step. The command tracks the steps and their order; the `hint` is what
+to act on.
 
 Etiquette the product team asks for:
 
-- With no agent set up at all, ask the user which to start with: play money first (the sandbox — most people start
-  there), or straight to real money.
-- At most one proactive tour suggestion per conversation. If the user lets the same suggestion pass twice, offer
-  `ampersend tour skip` — it persists, so future sessions stay quiet too.
-- Treat `mode: "skipped"` as a standing request not to bring the tour up unprompted — `ampersend tour resume` undoes it,
-  and helping with errors is always fine. A `complete` track is the same: don't nudge it further (the hint won't ask you
-  to), though the user may still want to explore the other track.
-- A track marked `degraded: true` just means the server couldn't be reached to check its progress — relay its hint as-is
-  (the agent is set up; what's left is unknown until the connection is back) and let the user retry; don't treat it as a
-  setup failure. The other track is unaffected.
+- With no agent set up at all, the first fork is the account holder's to pick: play money first (the sandbox — most
+  start there), or straight to real money.
+- At most one proactive tour suggestion per conversation. When the same suggestion passes twice, `ampersend tour skip`
+  is the off switch — it persists, so future sessions stay quiet too.
+- `mode: "skipped"` is a standing request not to bring the tour up unprompted — `ampersend tour resume` undoes it, and
+  helping with errors is unaffected. A `complete` track is the same: the hint won't ask for more, though the other track
+  may still be worth exploring.
+- A `degraded: true` track means the server couldn't be reached to check its progress — its hint says the agent is set
+  up but what's left is unknown until the connection is back. The other track is unaffected.
 
 Full output shape and mechanics: [`references/commands.md`](references/commands.md).
 
 ## Setup workflow
 
-Run when the user wants their agent to be able to pay for things, or when commands return a "not configured" error.
+Run when an agent needs to be able to pay for things, or when commands return a "not configured" error. Approval happens
+on the account's side — this workflow ends at a handoff.
 
-1. Ask the user for an agent name (or pick a sensible default from context).
+1. Pick an agent name (a sensible default from context works, or the account holder can choose).
 2. Start the approval flow:
    ```bash
    ampersend setup start --name "<agent-name>"
    ```
    Returns `token`, `user_approve_url`, `agentKeyAddress`, and `verificationCode`.
-3. Show the user **both** the `user_approve_url` and the `verificationCode`. Tell them to open the URL, confirm the code
-   in the dashboard matches, and approve.
+3. The `user_approve_url` and `verificationCode` go to the account holder together: they open the URL, confirm the code
+   in the dashboard matches, and approve. The code must match before approving — that check is what makes the approval
+   safe.
 4. Poll for approval and activate:
    ```bash
    ampersend setup finish
    ```
    Blocks for up to 10 minutes (default). Returns `status: "ready"` on success.
-5. Confirm the agent is ready before attempting any payments.
+5. The agent is ready once `status: "ready"` comes back; payments work from there.
 
-Optional: pass `--daily-limit`, `--monthly-limit`, `--per-transaction-limit`, or `--auto-topup` to `setup start` to
-configure spending controls during creation. Limits are integers in millionths of a dollar — `1000000` = $1.00.
+Optional: `--daily-limit`, `--monthly-limit`, `--per-transaction-limit`, and `--auto-topup` on `setup start` set
+spending controls at creation, if they should be set up front. Limits are integers in millionths of a dollar — `1000000`
+= $1.00.
 
 For other setup paths — connecting a key to an existing agent, or pasting a key+account manually — see
 [`references/commands.md`](references/commands.md).
 
 ## Payment workflow
 
-Run when the user asks to call a paid endpoint, or when an HTTP call returns 402.
+Run when calling a paid endpoint, or when an HTTP call returns 402.
 
 `ampersend fetch` never pays unless `--pay` is passed. A bare `fetch` against a paid endpoint returns
-`{ ok: false, error: { code: "PAYMENT_REQUIRED", requirements } }` so the agent can see the price before deciding to
-spend. Pass `--pay` to authorize spending for that request.
+`{ ok: false, error: { code: "PAYMENT_REQUIRED", requirements } }`, which carries the price. Passing `--pay` makes a
+real payment.
 
-1. Inspect the cost first when the price is unknown:
+1. `ampersend fetch --inspect <url>` reports the price without fetching the resource:
    ```bash
    ampersend fetch --inspect <url>
    ```
-   Returns `{ ok: true, data: { paymentRequired, requirements } }` without fetching the resource. Use this when the
-   agent wants to know the price without making a real request (e.g. price-checking a marketplace entry).
-2. Make the paid request with `--pay`:
+   Returns `{ ok: true, data: { paymentRequired, requirements } }` — the price without a real request (e.g.
+   price-checking a marketplace entry).
+2. `ampersend fetch --pay <url>` makes the paid request:
    ```bash
    ampersend fetch --pay <url>
    # POST with body and headers:
    ampersend fetch --pay -X POST -H "Content-Type: application/json" -d '{"key":"value"}' <url>
    ```
-   Spending limits set during setup or in the dashboard are enforced by the ampersend service when it co-signs the
-   payment, and on-chain by the agent's `CoSignerValidator` module. A payment that would exceed a limit fails with a
-   co-sign rejection — the agent and the CLI cannot bypass this.
-3. On success, the result includes `data.status`, `data.body`, and `data.payment` (when a payment was made). Report what
-   was actually spent from `data.payment`.
+   `--pay` makes the payment request; it's checked on the account's side before anything is spent. If it's approved, the
+   CLI completes the payment; if not, nothing is spent and nothing changes — the CLI works exactly as before, and
+   another request can be made any time.
+3. On success the result includes `data.status`, `data.body`, and `data.payment` (when a payment was made).
+   `data.payment` holds what was actually spent.
 
 ## Reading agent state
 
-Run when the user asks how their agent is doing, what its limits are, what it has spent, or who owns it — i.e. anything
-the dashboard would show, without needing the dashboard. Every endpoint is server-authoritative and scoped to the
-configured agent; sibling agents are unreachable from the CLI.
+Reads the agent's own state — its balance, what it can spend, what it has spent, who owns it. Every endpoint is
+server-authoritative and scoped to the configured agent; sibling agents are unreachable from the CLI.
 
 ```bash
 ampersend agent                       # Full snapshot: agent record + live USDC balance
@@ -237,18 +223,17 @@ ampersend agent owner                 # Owner: { user_id, wallet_address }
 Other subcommands: `auto-collect-config`, `authorized-sellers`. Full flag reference in
 [`references/commands.md`](references/commands.md).
 
-These are **reads only**. To change a limit or seller allowlist, the user goes to the dashboard. Useful checks before
-acting:
+These are **reads only** — what the account can spend is configured on the account's side, not from the CLI. Some reads
+that come in handy:
 
-- Before a paid request whose cost matters: `ampersend agent spend-config` to confirm there is daily room.
-- After a payment to confirm it landed: `ampersend agent payments --preset 1d`.
-- For an audit answer ("what did the agent spend on?"): `ampersend agent activity`.
+- `ampersend agent spend-config` — what's available to spend, ahead of a request where cost matters.
+- `ampersend agent payments --preset 1d` — confirming a payment landed.
+- `ampersend agent activity` — what the agent has spent on, for an audit answer.
 
 ## Discovery workflow
 
-Run when the user (or you) has a workflow or capability in mind and wants to see what is available. The marketplace is
-the live, broad-but-curated list of services known to ampersend — useful for exploring, not for a hand-held first
-experience.
+Run with a workflow or capability in mind, to see what's available. The marketplace is the live, broad-but-curated list
+of services known to ampersend — useful for exploring, not for a hand-held first experience.
 
 ```bash
 ampersend marketplace list                            # Browse everything
@@ -302,15 +287,14 @@ ampersend config rm <name>                                       # Delete a cont
 ampersend agent payments --context <name>                        # Run one command against a non-active context
 ```
 
-The API URL decides which side of ampersend your agent talks to: the real one with real money, or the sandbox with play
-money for trying things out. Each side is its own agent — they don't carry across — but you no longer have to choose:
-set each up as its own named **context** (`setup start --api-url https://api.sandbox.ampersend.ai`) and flip between
-them with `config use <name>`, no re-setup required. A context's API URL is fixed when it's created — to point somewhere
-else, create another context, or set `AMPERSEND_API_URL` to override the URL for a single process. Most people start
-with the sandbox, then add a production context when they are ready to spend.
+The API URL decides which side of ampersend a context talks to: production with real money, or the sandbox with play
+money for trying things out. Each side is its own agent — they don't carry across. Set each up as its own named
+**context** (`setup start --api-url https://api.sandbox.ampersend.ai`) and switch with `config use <name>`, no re-setup
+required. A context's API URL is fixed when it's created — to point somewhere else, create another context, or set
+`AMPERSEND_API_URL` to override the URL for a single process.
 
 The sandbox covers the payment flow end-to-end, but only a subset of services and capabilities are wired up there —
-feature absence in the sandbox doesn't mean feature absence in production. When the user wants to validate a real
-service, point them at the production API.
+feature absence in the sandbox doesn't mean feature absence in production. Validating a real service means using the
+production API.
 
 Full flag and option reference: [`references/commands.md`](references/commands.md).
