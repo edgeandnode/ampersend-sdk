@@ -9,6 +9,7 @@ import { registerFetchCommand } from "./commands/fetch.ts"
 import { registerFundCommand } from "./commands/fund.ts"
 import { registerMarketplaceCommand } from "./commands/marketplace.ts"
 import { registerSetupCommand } from "./commands/setup.ts"
+import { registerTourCommand } from "./commands/tour.ts"
 import { registerVersionCommand } from "./commands/version.ts"
 import { err } from "./envelope.ts"
 
@@ -51,6 +52,7 @@ async function main(): Promise<void> {
   registerCardCommand(program)
   registerFundCommand(program)
   registerMarketplaceCommand(program)
+  registerTourCommand(program)
   registerVersionCommand(program)
 
   await program.parseAsync()

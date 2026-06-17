@@ -4,8 +4,10 @@ Latest verdict for each rule in [`SPEC.md`](SPEC.md). Regenerate when
 [`docs/getting-started.md`](../../getting-started.md) or `SPEC.md` changes.
 
 - **Generated against:** `getting-started.md` at HEAD
-- **Date:** 2026-06-11
-- **By:** Claude (regenerated after adding the spelling-guard paragraph and spec rule 26)
+- **Date:** 2026-06-16
+- **By:** Claude (regenerated after trimming the onboarding-tour bullet to one command-free, jargon-free line that
+  describes the user-visible outcome — "shows the user where they are and suggests the next step" — dropping the
+  sandbox/production environment vocabulary and the enumerated setup/funding/first-payment step list)
 
 1. PASS — Opener: "Written by the ampersend team for agents learning about ampersend" (plural, audience framing). Body
    uses "the agent" (singular) for mechanics: "the agent uses it to make paid HTTP requests", "the agent can't fund the
@@ -28,6 +30,9 @@ Latest verdict for each rule in [`SPEC.md`](SPEC.md). Regenerate when
    "`ampersend fetch` works with any compatible paid endpoint on the open web, listed or not."
 8. PASS — No `ampersend setup start` / `setup finish` in the body. Setup appears only as a bullet in the hand-off
    section ("creating an ampersend agent account, naming it, and approving it in the ampersend app") with no commands.
+   The onboarding-tour bullet is likewise command-free — it describes the user-visible outcome ("shows the user where
+   they are and suggests the next step"; skippable) without naming `ampersend tour` or enumerating setup/funding/payment
+   steps.
 9. PASS — Verified by grep. No "sign", "wallet", "blockchain", "smart account", "stablecoin", "crypto", "key", "USDC",
    or "dashboard" in the body. "Approve", "spending limits", "account", "money", and "the ampersend app" are used
    instead. The word "credential" replaces "key" in the safety section.
@@ -69,7 +74,7 @@ Latest verdict for each rule in [`SPEC.md`](SPEC.md). Regenerate when
     on PATH. There's no project-scoped CLI path today." Framing is declarative, not apologetic.
 19. PASS — No "confirm with the user", "ask the user", or equivalent in the body. Provenance line names the canonical
     URL without prescribing what the agent does on mismatch.
-20. PASS — Body is 116 lines, under the 175-line ceiling.
+20. PASS — Body is 117 lines, under the 175-line ceiling.
 21. PASS — Opening paragraph names
     `https://github.com/edgeandnode/ampersend-sdk/blob/skills/latest/docs/getting-started.md` as "Canonical copy". The
     branch is `skills/latest` (matching the skill install command's git ref). No prescriptive language about what an
