@@ -159,6 +159,66 @@ describe("CLI Setup Commands", () => {
       expect(config?.activeContext).toBe(name)
     })
 
+    it("should target prod with --env prod (bare auto-name, no stored apiUrl)", async () => {
+      mockRequestAgentApproval.mockResolvedValue({ token: "tok", status_url: "x", user_approve_url: "y" })
+
+      await expect(executeSetupStart(startOpts({ name: "test", env: "prod" }))).rejects.toThrow(ExitError)
+
+      const output = getLastOutput() as { ok: boolean; data: { context: string } }
+      expect(output.ok).toBe(true)
+      const name = output.data.context
+      // Prod is the default URL → bare auto-name, and no apiUrl is persisted.
+      expect(name).toMatch(/^ctx-[a-f0-9]{4}$/)
+      expect(readConfig()?.contexts[name]?.apiUrl).toBeUndefined()
+    })
+
+    it("should target sandbox with --env sandbox (host-prefixed name + stored apiUrl)", async () => {
+      mockRequestAgentApproval.mockResolvedValue({ token: "tok", status_url: "x", user_approve_url: "y" })
+
+      await expect(executeSetupStart(startOpts({ name: "test", env: "sandbox" }))).rejects.toThrow(ExitError)
+
+      const output = getLastOutput() as { data: { context: string } }
+      const name = output.data.context
+      expect(name).toMatch(/^api\.sandbox\.ampersend\.ai-ctx-[a-f0-9]{4}$/)
+      expect(readConfig()?.contexts[name]?.apiUrl).toBe("https://api.sandbox.ampersend.ai")
+    })
+
+    it("should let --env win over AMPERSEND_API_URL (flag beats env, 12-factor)", async () => {
+      process.env.AMPERSEND_API_URL = "https://api.sandbox.ampersend.ai"
+      mockRequestAgentApproval.mockResolvedValue({ token: "tok", status_url: "x", user_approve_url: "y" })
+
+      await expect(executeSetupStart(startOpts({ name: "test", env: "prod" }))).rejects.toThrow(ExitError)
+
+      const output = getLastOutput() as { data: { context: string } }
+      const name = output.data.context
+      // --env prod resolves to the prod URL despite the sandbox env override.
+      expect(name).toMatch(/^ctx-[a-f0-9]{4}$/)
+      expect(readConfig()?.contexts[name]?.apiUrl).toBeUndefined()
+    })
+
+    it("should reject --env together with --api-url", async () => {
+      await expect(
+        executeSetupStart(startOpts({ name: "test", env: "prod", apiUrl: "https://api.sandbox.ampersend.ai" })),
+      ).rejects.toThrow(ExitError)
+
+      expect(mockExit).toHaveBeenCalledWith(1)
+      const output = getLastOutput() as { ok: boolean; error: { code: string } }
+      expect(output.ok).toBe(false)
+      expect(output.error.code).toBe("INVALID_FLAGS")
+      // No approval call should have been made.
+      expect(mockRequestAgentApproval).not.toHaveBeenCalled()
+    })
+
+    it("should reject an unknown --env value", async () => {
+      await expect(executeSetupStart(startOpts({ name: "test", env: "staging" }))).rejects.toThrow(ExitError)
+
+      expect(mockExit).toHaveBeenCalledWith(1)
+      const output = getLastOutput() as { ok: boolean; error: { code: string } }
+      expect(output.ok).toBe(false)
+      expect(output.error.code).toBe("INVALID_ENV")
+      expect(mockRequestAgentApproval).not.toHaveBeenCalled()
+    })
+
     it("should not activate a detached context", async () => {
       writeConfig({ activeContext: "default", contexts: { default: readyContext() } })
       mockRequestAgentApproval.mockResolvedValue({ token: "tok", status_url: "x", user_approve_url: "y" })

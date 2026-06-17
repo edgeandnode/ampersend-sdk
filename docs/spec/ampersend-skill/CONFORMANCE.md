@@ -4,12 +4,10 @@ Latest verdict for each rule in [`SPEC.md`](SPEC.md). Regenerate when
 [`skills/ampersend/SKILL.md`](../../../skills/ampersend/SKILL.md) or `SPEC.md` changes.
 
 - **Generated against:** `skills/ampersend/SKILL.md` at HEAD
-- **Date:** 2026-06-16
-- **By:** Claude (regenerated after trimming the Onboarding tour section: dropped the `mode: "inert"` etiquette bullet
-  (CI/deploy-only, not a state an ordinary sandbox/production user reaches — it now lives in `references/commands.md`
-  alone) and folded the redundant "you don't need to know the steps" paragraph into the routing paragraph above it; also
-  trimmed the `references/commands.md` `tour` intro paragraph of two sentences the field table and mechanics bullets
-  already cover)
+- **Date:** 2026-06-17
+- **By:** Claude (regenerated after rebasing the `--env` environment-selection change onto the Onboarding tour change:
+  combined both into the artifact, renumbered environment selection to rule 22 since the tour took rule 21, and
+  recounted line totals against the merged files)
 
 1. PASS — `name: ampersend` (9 chars, kebab-case); description ~430 chars (under 1024); `version: 0.0.27` is the only
    additional frontmatter field, allowed under the agentskills.io spec's open additional-properties stance.
@@ -19,23 +17,26 @@ Latest verdict for each rule in [`SPEC.md`](SPEC.md). Regenerate when
    concrete recognition cues ("names a capability they want without a specific URL in mind", "is asking what the agent
    can pay for") rather than passive dispositions.
 4. PASS — Frontmatter `name: ampersend` matches the parent directory `skills/ampersend/`.
-5. PASS — Body is 320 lines, under the 500-line ceiling.
+5. PASS — Body is 322 lines, under the 500-line ceiling.
 6. PASS — Order is orientation → scope → CLI prerequisite → suggesting things to try → user explainer → security →
    onboarding tour → setup → payment → reading agent state → discovery → output → config; setup, payment, reading-state,
-   and discovery workflows are numbered steps or command blocks. The Onboarding tour section is now prose plus an
-   etiquette bullet list (no numbered step machine — it routes to existing workflows by anchor link and lets the `tour`
-   command carry the progression). The Common config tweaks block lists the context verbs (`config use`/`config rm`)
-   after `config status`; in-place API-URL editing was removed (a context's URL is fixed at creation), so the block no
-   longer shows `config set --api-url`/`--clear-api-url`.
+   and discovery workflows are numbered steps or command blocks. The Onboarding tour section is prose plus an etiquette
+   bullet list (no numbered step machine — it routes to existing workflows by anchor link and lets the `tour` command
+   carry the progression). The Common config tweaks block lists the context verbs (`config use`/`config rm`) after
+   `config status`; in-place API-URL editing was removed (a context's URL is fixed at creation), so the block no longer
+   shows `config set --api-url`/`--clear-api-url`. Environment selection in that block now uses the
+   `--env <prod|sandbox>` shorthand, with `--api-url` noted for non-canonical URLs.
 7. PASS — `references/` contains three files (`commands.md`, `example-services.md`, `marketplace.md`); no
    subdirectories.
-8. PASS — `references/commands.md` is 381 lines and starts with "Contents" (lists `tour` between `agent` and `config`).
-   The `tour` section is an output-field table (now including the `hint` and `degraded` fields) plus mechanics/error
-   detail — exactly the kind of flag-level material rule 7 keeps in `references/` rather than `SKILL.md`; the step
-   machine, step order, the cheapest-window-first hydration, the per-track degradation behavior, and the CLI-owned
-   sandbox→production bridge all live here, not in the body. `references/example-services.md` is 336 lines and starts
-   with a Contents section listing all 14 capability headings plus the Response patterns section.
-   `references/marketplace.md` is 80 lines — under the 100-line TOC threshold — so a table of contents is not required.
+8. PASS — `references/commands.md` is 387 lines and starts with "Contents" (lists `fund` between the manual-key setup
+   mode and `fetch`, `card` between `fetch` and `agent`, and `tour` between `agent` and `config`). The `tour` section is
+   an output-field table (including the `hint` and `degraded` fields) plus mechanics/error detail, and the `fund`
+   section is a flag table plus output/error detail — exactly the kind of flag-level material rule 7 keeps in
+   `references/` rather than `SKILL.md`; the tour step machine, step order, the cheapest-window-first hydration, the
+   per-track degradation behavior, and the CLI-owned sandbox→production bridge all live here, not in the body.
+   `references/example-services.md` is 336 lines and starts with a Contents section listing all 14 capability headings
+   plus the Response patterns section. `references/marketplace.md` is 81 lines — under the 100-line TOC threshold — so a
+   table of contents is not required.
 9. PASS — Body content is system-specific. The body's capability list names categories in user-voice (no "pay-per-...",
    "API-key relationship", or "x402-paid" framing leaking from the agent-economy register); curated third-party services
    and the Pinata response pattern live only in `references/example-services.md`, both covered by the rule's carve-outs.
@@ -44,10 +45,10 @@ Latest verdict for each rule in [`SPEC.md`](SPEC.md). Regenerate when
 10. PASS — "co-sign" is hyphenated consistently in prose; `CoSignerValidator` is a code identifier and does not count.
     The tour section uses "service", "capability", and "endpoint" consistently. Aggregator-routed services (Apollo,
     Hunter, RentCast) are consistently described as "via StableEnrich". The config concept is named "context" everywhere
-    it appears (SKILL.md and `references/commands.md`); no competing term ("profile") is used. "environment" appears in
-    the SKILL.md body only inside "environment variables" (the inert line), never as a synonym for a context; the
-    sandbox/production split is named with "track" there, and `references/commands.md` uses "environment" for that split
-    consistently. "track" and "tour" are used consistently across both files.
+    it appears (SKILL.md and `references/commands.md`); no competing term ("profile") is used for it. "environment"
+    appears only as the distinct concept a context _targets_ (prod vs sandbox), matching the `--env` flag name — never
+    as a synonym for "context". In the Onboarding tour section the sandbox/production split is named with "track"
+    consistently, and "track" and "tour" are used consistently across both files.
 11. PASS — Floor stated as prose ("below `0.0.27`"); `npm install` uses `@latest`; skill upgrade uses
     `npx skills update ampersend`, which respects the moving `#skills/latest` ref the install command pinned. No
     `@x.y.z` or `#v0.0.x` strings in `SKILL.md`. Examples file does not pin third-party versions.
@@ -92,13 +93,13 @@ Latest verdict for each rule in [`SPEC.md`](SPEC.md). Regenerate when
     lines 33 ("pays only when `--pay` is passed") and 235 ("any compatible paid endpoint") stay protocol-neutral.
     "ERC-8004" appears once (line 222) but names a source of marketplace agents, not a payment protocol that services
     "accept", so it falls outside this rule.
-18. PASS — Sandbox API URL mentions are flagged everywhere they occur: Discovery workflow says "`marketplace list`
-    against the sandbox returns a smaller catalog than production — feature absence in the sandbox does not imply
-    feature absence in production." Common config tweaks says "The sandbox covers the payment flow end-to-end, but only
-    a subset of services and capabilities are wired up there — feature absence in the sandbox doesn't mean feature
-    absence in production." The Onboarding tour section names the sandbox track but not the sandbox API URL and makes no
-    catalog/coverage claim; the `tour` section in `references/commands.md` names the URL and carries the subset caveat
-    inline.
+18. PASS — Sandbox mentions are flagged everywhere they occur: Discovery workflow says "`marketplace list` against the
+    sandbox returns a smaller catalog than production — feature absence in the sandbox does not imply feature absence in
+    production." Common config tweaks now selects the sandbox via the `--env sandbox` shorthand (not the literal URL),
+    and the immediately following paragraph still carries the caveat: "The sandbox covers the payment flow end-to-end,
+    but only a subset of services and capabilities are wired up there — feature absence in the sandbox doesn't mean
+    feature absence in production." The Onboarding tour section names the sandbox track but not the sandbox API URL and
+    makes no catalog/coverage claim; the `tour` section in `references/commands.md` carries the subset caveat inline.
 19. PASS — Frontmatter carries `version: 0.0.27`. The "CLI prerequisite" section instructs the agent to run
     `ampersend version`, compare the skill's frontmatter `version` against `minSkillVersion` from that JSON envelope,
     and run `npx skills update ampersend` if the skill is behind. CLI install paths match `docs/getting-started.md`: "If
@@ -125,3 +126,8 @@ Latest verdict for each rule in [`SPEC.md`](SPEC.md). Regenerate when
     mechanics (per-track degradation, suppressed bridge) left to `references/commands.md`. `mode: "inert"` is **not**
     documented in the body (CI/deploy env-credential path, not an ordinary sandbox/production user state); it lives in
     `references/commands.md` only. Etiquette framing satisfies rule 15 (see above).
+22. PASS — Common config tweaks selects environments with `setup start --env sandbox` / `--env prod` and states the real
+    default rule: "When you omit `--env`, a new setup targets whatever context is active (`prod` on a fresh install) —
+    so pass `--env` explicitly whenever you want a different environment than the one you're in; targeting production
+    never needs an env override." No claim that setup always defaults to prod. `--api-url` is noted for non-canonical
+    URLs, and `AMPERSEND_API_URL` is described only as a single-process URL override, never as the route to production.

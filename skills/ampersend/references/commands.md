@@ -29,20 +29,25 @@ against a non-active context for that one invocation, without switching the acti
 
 Two env vars sit above context selection entirely: `AMPERSEND_AGENT_SECRET` (or `AMPERSEND_AGENT_KEY` +
 `AMPERSEND_AGENT_ACCOUNT`) supplies a complete identity with no config file — the CI/deploy path — and
-`AMPERSEND_API_URL` is a hard override of the API URL that always wins when set.
+`AMPERSEND_API_URL` overrides the API URL for the process. An explicit `--env` / `--api-url` flag on `setup start` /
+`config set` beats `AMPERSEND_API_URL` (a flag is more specific than an ambient env var); when no such flag is given,
+`AMPERSEND_API_URL` wins over the selected context's URL. With neither flag nor env var, `setup start` inherits the URL
+of the active context (`prod` on a fresh install) — so pass `--env` when you want a different environment than the
+active one.
 
 ## setup start
 
 Step 1 of the approval flow: generate a key and request agent creation.
 
 ```bash
-ampersend setup start [--context <name>] [--api-url <url>] [--detach] [--mode <create|connect>] [--name <name>] [--agent <address>] [--key-name <name>] [--force] [--daily-limit <amount>] [--monthly-limit <amount>] [--per-transaction-limit <amount>] [--auto-topup]
+ampersend setup start [--context <name>] [--env <prod|sandbox>] [--api-url <url>] [--detach] [--mode <create|connect>] [--name <name>] [--agent <address>] [--key-name <name>] [--force] [--daily-limit <amount>] [--monthly-limit <amount>] [--per-transaction-limit <amount>] [--auto-topup]
 ```
 
 | Option                          | Description                                                                           |
 | ------------------------------- | ------------------------------------------------------------------------------------- |
 | `--context <name>`              | Name for the context. Omit to auto-name one (`ctx-<key>`, host-prefixed for non-prod) |
-| `--api-url <url>`               | API URL this context targets (for non-production environments)                        |
+| `--env <env>`                   | Target environment: `prod` or `sandbox` (shorthand for `--api-url`)                   |
+| `--api-url <url>`               | API URL this context targets (alternative to `--env`, e.g. a local environment)       |
 | `--detach`                      | Create the context without making it the active one                                   |
 | `--mode <mode>`                 | `create` (new agent, default) or `connect` (key to existing agent)                    |
 | `--name <name>`                 | Name for the agent (create mode only)                                                 |
@@ -361,7 +366,7 @@ authenticated command uses the active context.
 
 ```bash
 ampersend config set <key:::account>                                       # Create an auto-named context, make it active
-ampersend config set <key:::account> --context sandbox --api-url <url>     # Create a named context with its own URL
+ampersend config set <key:::account> --context sandbox --env sandbox       # Create a named context targeting an environment
 ampersend config status                                                    # Show all contexts and which is active
 ampersend config use <name>                                                # Switch the active context
 ampersend config rm <name>                                                 # Delete a context
@@ -370,12 +375,13 @@ ampersend config rm <name>                                                 # Del
 | Subcommand            | Description                                                                          |
 | --------------------- | ------------------------------------------------------------------------------------ |
 | `set <key:::account>` | Create a context from an identity and make it active (`--context <name>` to name it) |
-| `set --api-url <url>` | Only with a secret — the URL a newly-created context targets (non-production)        |
+| `set --env <env>`     | Only with a secret — target environment for the new context: `prod` or `sandbox`     |
+| `set --api-url <url>` | Only with a secret — explicit URL the new context targets (alternative to `--env`)   |
 | `status`              | Show every context (oldest first), its status, and which one is active               |
 | `use <name>`          | Make `<name>` the active context without re-running setup                            |
 | `rm <name>`           | Delete `<name>`; clears the active selection if it was active                        |
 
 A context's API URL is fixed at creation. There is no in-place URL edit: re-run `setup start` / `config set` with a new
-`--api-url` to create another context, or set `AMPERSEND_API_URL` to override the URL for a single process. `config set`
-with no `--context` always mints a fresh auto-named context (`ctx-<key>`, host-prefixed for non-prod) and never
-overwrites an existing one; pass `--context <name>` to write a specific one.
+`--env` / `--api-url` to create another context, or set `AMPERSEND_API_URL` to override the URL for a single process.
+`config set` with no `--context` always mints a fresh auto-named context (`ctx-<key>`, host-prefixed for non-prod) and
+never overwrites an existing one; pass `--context <name>` to write a specific one.

@@ -93,6 +93,59 @@ export type { ConfigStatus }
 /** Default API URL (production) */
 export const DEFAULT_API_URL = "https://api.ampersend.ai"
 
+/** Sandbox API URL (play-money environment) */
+export const SANDBOX_API_URL = "https://api.sandbox.ampersend.ai"
+
+/**
+ * Canonical environments selectable via `--env`. Each is just shorthand for the
+ * matching `--api-url`; the resolved URL flows through the normal context model.
+ */
+export const API_URLS_BY_ENV = {
+  prod: DEFAULT_API_URL,
+  sandbox: SANDBOX_API_URL,
+} as const
+
+export type ApiEnv = keyof typeof API_URLS_BY_ENV
+
+const API_ENV_NAMES = Object.keys(API_URLS_BY_ENV) as Array<ApiEnv>
+
+/**
+ * Resolve a context's target API URL from the `--env` / `--api-url` flags.
+ *
+ * The two flags are mutually exclusive (both name the same thing). `--env` maps
+ * a canonical name to its URL; `--api-url` is validated as-is. Returns an `ok`
+ * envelope carrying the resolved URL (or `undefined` when neither flag is set,
+ * leaving the caller to fall through to the env var / active context / default),
+ * or an `err` envelope the caller surfaces in its own style.
+ *
+ * Precedence note: a resolved flag URL takes precedence over `AMPERSEND_API_URL`
+ * (12-factor: an explicit flag beats an ambient env var). The env var still wins
+ * when no flag is given, via `getActiveApiUrl`.
+ */
+export function resolveApiUrlFromFlags(opts: {
+  env?: string | undefined
+  apiUrl?: string | undefined
+}): JsonEnvelope<{ apiUrl: string | undefined }> {
+  if (opts.env != null && opts.apiUrl != null) {
+    return err("INVALID_FLAGS", "--env and --api-url are mutually exclusive; pass only one.")
+  }
+  if (opts.env != null) {
+    if (!(opts.env in API_URLS_BY_ENV)) {
+      return err("INVALID_ENV", `Unknown --env: "${opts.env}". Use one of: ${API_ENV_NAMES.join(", ")}.`)
+    }
+    return ok({ apiUrl: API_URLS_BY_ENV[opts.env as ApiEnv] })
+  }
+  if (opts.apiUrl != null) {
+    try {
+      new URL(opts.apiUrl)
+    } catch {
+      return err("INVALID_URL", `Invalid --api-url: ${opts.apiUrl}`)
+    }
+    return ok({ apiUrl: opts.apiUrl })
+  }
+  return ok({ apiUrl: undefined })
+}
+
 const HexString = Schema.TemplateLiteral([Schema.Literal("0x"), Schema.String])
 
 /**

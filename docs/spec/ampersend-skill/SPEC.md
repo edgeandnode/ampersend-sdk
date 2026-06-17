@@ -82,3 +82,8 @@ prose.
     keeps one track's server failure from faulting the whole command, and the CLI-owned sandbox→production bridge) lives
     in `references/commands.md`, not the body. Etiquette is framed as product-team guidance per rule 15, not hard
     imperatives.
+22. **Environment selection is accurate and needs no env override.** Where the body explains choosing an environment, it
+    states the real default rule: with no `--env` / `--api-url` flag, a new setup inherits the active context's
+    environment (`prod` on a fresh install), and environments are selected with the `--env <prod|sandbox>` flag (or
+    `--api-url` for a non-canonical URL), not by exporting an env var. It does not claim setup always defaults to prod.
+    `AMPERSEND_API_URL` is described only as a per-process override, never as the way to reach production.

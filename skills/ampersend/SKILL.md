@@ -308,10 +308,12 @@ ampersend agent payments --context <name>                        # Run one comma
 
 The API URL decides which side of ampersend your agent talks to: the real one with real money, or the sandbox with play
 money for trying things out. Each side is its own agent — they don't carry across — but you no longer have to choose:
-set each up as its own named **context** (`setup start --api-url https://api.sandbox.ampersend.ai`) and flip between
-them with `config use <name>`, no re-setup required. A context's API URL is fixed when it's created — to point somewhere
-else, create another context, or set `AMPERSEND_API_URL` to override the URL for a single process. Most people start
-with the sandbox, then add a production context when they are ready to spend.
+set each up as its own named **context** (`setup start --env sandbox`, `setup start --env prod`) and flip between them
+with `config use <name>`, no re-setup required. `--env` is shorthand for the canonical URLs; pass `--api-url <url>` for
+a non-canonical one (e.g. a local environment). When you omit `--env`, a new setup targets whatever context is active
+(`prod` on a fresh install) — so pass `--env` explicitly whenever you want a different environment than the one you're
+in; targeting production never needs an env override. A context's API URL is fixed once created — to point elsewhere,
+create another context, or set `AMPERSEND_API_URL` to override the URL for a single process.
 
 The sandbox covers the payment flow end-to-end, but only a subset of services and capabilities are wired up there —
 feature absence in the sandbox doesn't mean feature absence in production. When the user wants to validate a real
