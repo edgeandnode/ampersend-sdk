@@ -9,7 +9,7 @@ Latest verdict for each rule in [`SPEC.md`](SPEC.md). Regenerate when
   combined both into the artifact, renumbered environment selection to rule 22 since the tour took rule 21, and
   recounted line totals against the merged files)
 
-1. PASS — `name: ampersend` (9 chars, kebab-case); description ~430 chars (under 1024); `version: 0.0.27` is the only
+1. PASS — `name: ampersend` (9 chars, kebab-case); description ~430 chars (under 1024); `version: 0.0.28` is the only
    additional frontmatter field, allowed under the agentskills.io spec's open additional-properties stance.
 2. PASS — Two sentences; first says what, second says when (five trigger clauses covering URL-in-hand,
    capability-without-URL, and explore mode); plain user words; no first-person pronouns.
@@ -49,7 +49,7 @@ Latest verdict for each rule in [`SPEC.md`](SPEC.md). Regenerate when
     appears only as the distinct concept a context _targets_ (prod vs sandbox), matching the `--env` flag name — never
     as a synonym for "context". In the Onboarding tour section the sandbox/production split is named with "track"
     consistently, and "track" and "tour" are used consistently across both files.
-11. PASS — Floor stated as prose ("below `0.0.27`"); `npm install` uses `@latest`; skill upgrade uses
+11. PASS — Floor stated as prose ("below `0.0.28`"); `npm install` uses `@latest`; skill upgrade uses
     `npx skills update ampersend`, which respects the moving `#skills/latest` ref the install command pinned. No
     `@x.y.z` or `#v0.0.x` strings in `SKILL.md`. Examples file does not pin third-party versions.
 12. PASS — "ampersend service", "ampersend CLI", co-sign, smart account, x402, USDC, and Base are each glossed on first
@@ -100,11 +100,11 @@ Latest verdict for each rule in [`SPEC.md`](SPEC.md). Regenerate when
     but only a subset of services and capabilities are wired up there — feature absence in the sandbox doesn't mean
     feature absence in production." The Onboarding tour section names the sandbox track but not the sandbox API URL and
     makes no catalog/coverage claim; the `tour` section in `references/commands.md` carries the subset caveat inline.
-19. PASS — Frontmatter carries `version: 0.0.27`. The "CLI prerequisite" section instructs the agent to run
+19. PASS — Frontmatter carries `version: 0.0.28`. The "CLI prerequisite" section instructs the agent to run
     `ampersend version`, compare the skill's frontmatter `version` against `minSkillVersion` from that JSON envelope,
     and run `npx skills update ampersend` if the skill is behind. CLI install paths match `docs/getting-started.md`: "If
     `ampersend version` is missing" → fresh install via `npm install -g @ampersend_ai/ampersend-sdk@latest`; "If
-    `cliVersion` is below `0.0.27`" → "upgrade — use the standard npm path" as a single short line, no second command
+    `cliVersion` is below `0.0.28`" → "upgrade — use the standard npm path" as a single short line, no second command
     block. `--force` absent from the body (verified by grep).
 20. PASS — Paragraph in the orientation section, before the "Two things share the name" block and the first command
     block: "The name is spelled **ampersend** — amper + _send_, with an "e" — not the common misspelling "ampersand"."

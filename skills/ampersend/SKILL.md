@@ -5,7 +5,7 @@ description:
   online, when an HTTP call returns 402 Payment Required, when calling an endpoint that charges per request, when the
   user names a capability they want without a specific URL in mind, or when the user is asking what the agent can pay
   for.
-version: 0.0.27
+version: 0.0.28
 ---
 
 # ampersend CLI
@@ -60,7 +60,7 @@ That command returns the standard JSON envelope with `cliVersion` and `minSkillV
   ```bash
   npm install -g @ampersend_ai/ampersend-sdk@latest
   ```
-- **If `cliVersion` is below `0.0.27`**, upgrade — use the standard npm path.
+- **If `cliVersion` is below `0.0.28`**, upgrade — use the standard npm path.
 - **If this skill's frontmatter `version` is below `minSkillVersion` from the CLI**, the CLI is ahead of the skill —
   upgrade the skill:
   ```bash
