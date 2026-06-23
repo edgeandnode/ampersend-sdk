@@ -9,5 +9,10 @@ export function chainIdOf(instruction: PaymentInstruction): number | null {
     return (EVM_NETWORK_CHAIN_ID_MAP as Readonly<Record<string, number>>)[network] ?? null
   }
   const match = /^eip155:(\d+)$/.exec(network)
-  return match ? Number(match[1]) : null
+  if (!match) {
+    return null
+  }
+
+  const chainId = Number(match[1])
+  return Number.isSafeInteger(chainId) && chainId > 0 ? chainId : null
 }
