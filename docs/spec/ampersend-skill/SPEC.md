@@ -66,3 +66,24 @@ prose.
     dictionary word, so paraphrase channels (summaries, sub-agent reports, autocorrect) drift it toward `ampersand`
     systematically — and `ampersand` is an unrelated npm package, so a drifted install command installs the wrong
     software.
+21. **Onboarding tour.** The body documents the tour as a thin router over `ampersend tour`: run it whenever the user
+    needs a sense of what to do next (framed as intent — "where am I / what's next", just finished a step, fresh
+    conversation — not an enumerated trigger list), and act on the per-track `hint` the command returns (relaying it in
+    the user's register, fulfilling any command/workflow it names, switching context first when `contextIsActive` is
+    false). The body does **not** restate the step machine, the step order, or per-step prose — the command owns the
+    progression and the guidance; the skill carries only the dispatch into existing workflows. The body keeps: the fork
+    question for users with no agent (sandbox first vs. straight to production), and the quiet rules — a skipped tour or
+    a `complete` track means the tour isn't brought up unprompted, while error-driven help is unaffected. It also notes
+    the `degraded` track state (a server read failed; the track's progress is unknown until the connection is back) as a
+    transient condition to relay, not a setup failure to escalate — leaving the field's mechanics to
+    `references/commands.md`. The body does **not** document `mode: "inert"` (the CI/deploy env-credential path): it is
+    not a state an ordinary sandbox/production user reaches, so it lives in `references/commands.md` only. Output-shape
+    and mechanics detail (including the `hint` and `degraded` fields, the `inert` mode, the per-track degradation that
+    keeps one track's server failure from faulting the whole command, and the CLI-owned sandbox→production bridge) lives
+    in `references/commands.md`, not the body. Etiquette is framed as product-team guidance per rule 15, not hard
+    imperatives.
+22. **Environment selection is accurate and needs no env override.** Where the body explains choosing an environment, it
+    states the real default rule: with no `--env` / `--api-url` flag, a new setup inherits the active context's
+    environment (`prod` on a fresh install), and environments are selected with the `--env <prod|sandbox>` flag (or
+    `--api-url` for a non-canonical URL), not by exporting an env var. It does not claim setup always defaults to prod.
+    `AMPERSEND_API_URL` is described only as a per-process override, never as the way to reach production.

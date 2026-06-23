@@ -14,6 +14,7 @@ import {
   readConfig,
   readLasoToken,
   removeContext,
+  resolveApiUrlFromFlags,
   resolveContextName,
   setConfig,
   startContext,
@@ -445,6 +446,50 @@ describe("CLI Config", () => {
       })
       process.env.AMPERSEND_API_URL = "https://api.hardbypass.ampersend.ai"
       expect(getActiveApiUrl({ context: "sandbox" })).toBe("https://api.hardbypass.ampersend.ai")
+    })
+  })
+
+  describe("resolveApiUrlFromFlags", () => {
+    it("maps --env prod to the production URL", () => {
+      const r = resolveApiUrlFromFlags({ env: "prod" })
+      expect(r.ok).toBe(true)
+      if (r.ok) expect(r.data.apiUrl).toBe("https://api.ampersend.ai")
+    })
+
+    it("maps --env sandbox to the sandbox URL", () => {
+      const r = resolveApiUrlFromFlags({ env: "sandbox" })
+      expect(r.ok).toBe(true)
+      if (r.ok) expect(r.data.apiUrl).toBe("https://api.sandbox.ampersend.ai")
+    })
+
+    it("passes through a valid --api-url", () => {
+      const r = resolveApiUrlFromFlags({ apiUrl: "http://localhost:3000" })
+      expect(r.ok).toBe(true)
+      if (r.ok) expect(r.data.apiUrl).toBe("http://localhost:3000")
+    })
+
+    it("returns undefined when neither flag is given", () => {
+      const r = resolveApiUrlFromFlags({})
+      expect(r.ok).toBe(true)
+      if (r.ok) expect(r.data.apiUrl).toBeUndefined()
+    })
+
+    it("rejects --env and --api-url together", () => {
+      const r = resolveApiUrlFromFlags({ env: "prod", apiUrl: "http://localhost:3000" })
+      expect(r.ok).toBe(false)
+      if (!r.ok) expect(r.error.code).toBe("INVALID_FLAGS")
+    })
+
+    it("rejects an unknown --env value", () => {
+      const r = resolveApiUrlFromFlags({ env: "staging" })
+      expect(r.ok).toBe(false)
+      if (!r.ok) expect(r.error.code).toBe("INVALID_ENV")
+    })
+
+    it("rejects a malformed --api-url", () => {
+      const r = resolveApiUrlFromFlags({ apiUrl: "not-a-url" })
+      expect(r.ok).toBe(false)
+      if (!r.ok) expect(r.error.code).toBe("INVALID_URL")
     })
   })
 

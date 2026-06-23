@@ -11,6 +11,7 @@ import {
   getActiveApiUrl,
   isPendingExpired,
   readConfig,
+  resolveApiUrlFromFlags,
   resolveContextName,
   startContext,
   uniqueContextName,
@@ -23,6 +24,7 @@ export type SetupMode = "create" | "connect"
 
 export interface SetupStartOptions {
   context?: string
+  env?: string
   apiUrl?: string
   detach?: boolean
   name?: string
@@ -56,14 +58,11 @@ export async function executeSetupStart(options: SetupStartOptions): Promise<voi
   const agentKeyAddress = privateKeyToAddress(agentKey)
 
   // Resolve the API URL this approval runs against: flag > env > active > default.
-  const apiUrl = options.apiUrl ?? getActiveApiUrl()
-  if (options.apiUrl != null) {
-    try {
-      new URL(options.apiUrl)
-    } catch {
-      fail(err("INVALID_URL", `Invalid --api-url: ${options.apiUrl}`))
-    }
-  }
+  // --env / --api-url (validated, mutually exclusive) win; otherwise fall through
+  // to getActiveApiUrl (AMPERSEND_API_URL > active context > prod default).
+  const resolved = resolveApiUrlFromFlags(options)
+  if (!resolved.ok) fail(resolved)
+  const apiUrl = resolved.data.apiUrl ?? getActiveApiUrl()
 
   // Resolve the target context name. An explicit --context is used verbatim;
   // omitting it auto-derives a unique name from the key (host-prefixed for
@@ -307,7 +306,8 @@ export function registerSetupCommand(program: Command): void {
       "--context <name>",
       "Name for the context (auto-derived from the key as ctx-<hex>, host-prefixed for non-prod URLs, when omitted)",
     )
-    .option("--api-url <url>", "API URL this context targets (for non-production environments)")
+    .option("--env <env>", "Target environment: prod or sandbox (shorthand for --api-url)")
+    .option("--api-url <url>", "API URL this context targets (alternative to --env, e.g. a local environment)")
     .option("--detach", "Create the context without making it active", false)
     .option("--mode <mode>", "Setup mode: 'create' (new agent, default) or 'connect' (key to existing agent)", "create")
     .option("--name <name>", "Name for the agent (create mode only)")

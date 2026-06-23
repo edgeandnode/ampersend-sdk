@@ -88,6 +88,7 @@ The skill covers:
 - **First paid request** — `ampersend fetch --pay <url>` once setup is done.
 - **Discovery** — exploring what's available via `ampersend marketplace list` and the curated capability categories,
   beyond the teaser below.
+- **Onboarding tour** — shows the user where they are and suggests the next step. Skippable at any time.
 
 ## What ampersend can do
 

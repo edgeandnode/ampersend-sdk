@@ -5,7 +5,7 @@ description:
   online, when an HTTP call returns 402 Payment Required, when calling an endpoint that charges per request, when the
   user names a capability they want without a specific URL in mind, or when the user is asking what the agent can pay
   for.
-version: 0.0.27
+version: 0.0.28
 ---
 
 # ampersend CLI
@@ -60,7 +60,7 @@ That command returns the standard JSON envelope with `cliVersion` and `minSkillV
   ```bash
   npm install -g @ampersend_ai/ampersend-sdk@latest
   ```
-- **If `cliVersion` is below `0.0.27`**, upgrade — use the standard npm path.
+- **If `cliVersion` is below `0.0.28`**, upgrade — use the standard npm path.
 - **If this skill's frontmatter `version` is below `minSkillVersion` from the CLI**, the CLI is ahead of the skill —
   upgrade the skill:
   ```bash
@@ -143,6 +143,35 @@ sharing a link as if it crossed the line.
 The `setup start` flow returns a `verificationCode`. Always show that code to the user alongside the `user_approve_url`
 — the user must confirm the code shown in the dashboard matches before approving. This protects against MITM key
 substitution.
+
+## Onboarding tour
+
+`ampersend tour` is how you find out where the user is in getting ampersend working and what to help with next. Run it
+whenever the user needs a sense of what to do next — they ask "where am I / what's next", you've just finished a setup
+or payment step and want the next one, or a fresh conversation starts and you're not sure how far along they are.
+
+The command does the thinking. It returns two tracks — `sandbox` and `production` — and each carries a `hint`: a plain
+sentence describing what to do next (or that the track is done). **Read the `hint` and relay it in your own words**,
+matching how you'd explain anything else to this user. The hint will name a command or workflow when there's an action
+to take — fulfill it through the matching section of this skill ([Setup workflow](#setup-workflow),
+[Payment workflow](#payment-workflow), or `ampersend fund`). If `next.contextIsActive` is `false`, the hint says to
+switch context first; do that with `config use <name>` before the step. You act on the hint; the command tracks the
+steps and their order.
+
+Etiquette the product team asks for:
+
+- With no agent set up at all, ask the user which to start with: play money first (the sandbox — most people start
+  there), or straight to real money.
+- At most one proactive tour suggestion per conversation. If the user lets the same suggestion pass twice, offer
+  `ampersend tour skip` — it persists, so future sessions stay quiet too.
+- Treat `mode: "skipped"` as a standing request not to bring the tour up unprompted — `ampersend tour resume` undoes it,
+  and helping with errors is always fine. A `complete` track is the same: don't nudge it further (the hint won't ask you
+  to), though the user may still want to explore the other track.
+- A track marked `degraded: true` just means the server couldn't be reached to check its progress — relay its hint as-is
+  (the agent is set up; what's left is unknown until the connection is back) and let the user retry; don't treat it as a
+  setup failure. The other track is unaffected.
+
+Full output shape and mechanics: [`references/commands.md`](references/commands.md).
 
 ## Setup workflow
 
@@ -279,10 +308,12 @@ ampersend agent payments --context <name>                        # Run one comma
 
 The API URL decides which side of ampersend your agent talks to: the real one with real money, or the sandbox with play
 money for trying things out. Each side is its own agent — they don't carry across — but you no longer have to choose:
-set each up as its own named **context** (`setup start --api-url https://api.sandbox.ampersend.ai`) and flip between
-them with `config use <name>`, no re-setup required. A context's API URL is fixed when it's created — to point somewhere
-else, create another context, or set `AMPERSEND_API_URL` to override the URL for a single process. Most people start
-with the sandbox, then add a production context when they are ready to spend.
+set each up as its own named **context** (`setup start --env sandbox`, `setup start --env prod`) and flip between them
+with `config use <name>`, no re-setup required. `--env` is shorthand for the canonical URLs; pass `--api-url <url>` for
+a non-canonical one (e.g. a local environment). When you omit `--env`, a new setup targets whatever context is active
+(`prod` on a fresh install) — so pass `--env` explicitly whenever you want a different environment than the one you're
+in; targeting production never needs an env override. A context's API URL is fixed once created — to point elsewhere,
+create another context, or set `AMPERSEND_API_URL` to override the URL for a single process.
 
 The sandbox covers the payment flow end-to-end, but only a subset of services and capabilities are wired up there —
 feature absence in the sandbox doesn't mean feature absence in production. When the user wants to validate a real

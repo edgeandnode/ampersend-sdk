@@ -93,6 +93,59 @@ export type { ConfigStatus }
 /** Default API URL (production) */
 export const DEFAULT_API_URL = "https://api.ampersend.ai"
 
+/** Sandbox API URL (play-money environment) */
+export const SANDBOX_API_URL = "https://api.sandbox.ampersend.ai"
+
+/**
+ * Canonical environments selectable via `--env`. Each is just shorthand for the
+ * matching `--api-url`; the resolved URL flows through the normal context model.
+ */
+export const API_URLS_BY_ENV = {
+  prod: DEFAULT_API_URL,
+  sandbox: SANDBOX_API_URL,
+} as const
+
+export type ApiEnv = keyof typeof API_URLS_BY_ENV
+
+const API_ENV_NAMES = Object.keys(API_URLS_BY_ENV) as Array<ApiEnv>
+
+/**
+ * Resolve a context's target API URL from the `--env` / `--api-url` flags.
+ *
+ * The two flags are mutually exclusive (both name the same thing). `--env` maps
+ * a canonical name to its URL; `--api-url` is validated as-is. Returns an `ok`
+ * envelope carrying the resolved URL (or `undefined` when neither flag is set,
+ * leaving the caller to fall through to the env var / active context / default),
+ * or an `err` envelope the caller surfaces in its own style.
+ *
+ * Precedence note: a resolved flag URL takes precedence over `AMPERSEND_API_URL`
+ * (12-factor: an explicit flag beats an ambient env var). The env var still wins
+ * when no flag is given, via `getActiveApiUrl`.
+ */
+export function resolveApiUrlFromFlags(opts: {
+  env?: string | undefined
+  apiUrl?: string | undefined
+}): JsonEnvelope<{ apiUrl: string | undefined }> {
+  if (opts.env != null && opts.apiUrl != null) {
+    return err("INVALID_FLAGS", "--env and --api-url are mutually exclusive; pass only one.")
+  }
+  if (opts.env != null) {
+    if (!(opts.env in API_URLS_BY_ENV)) {
+      return err("INVALID_ENV", `Unknown --env: "${opts.env}". Use one of: ${API_ENV_NAMES.join(", ")}.`)
+    }
+    return ok({ apiUrl: API_URLS_BY_ENV[opts.env as ApiEnv] })
+  }
+  if (opts.apiUrl != null) {
+    try {
+      new URL(opts.apiUrl)
+    } catch {
+      return err("INVALID_URL", `Invalid --api-url: ${opts.apiUrl}`)
+    }
+    return ok({ apiUrl: opts.apiUrl })
+  }
+  return ok({ apiUrl: undefined })
+}
+
 const HexString = Schema.TemplateLiteral([Schema.Literal("0x"), Schema.String])
 
 /**
@@ -154,10 +207,24 @@ export type ReadyContext = typeof ReadyContextSchema.Type
 export type PendingContext = typeof PendingContextSchema.Type
 export type Context = typeof ContextSchema.Type
 
+/**
+ * Tour preference. The only stored tour state: "skipped" tells the skill to
+ * stop proactive onboarding nudges across sessions (conversation memory
+ * resets; this bit doesn't). Absent = active, the always-on default. The
+ * `tour` command itself answers regardless of mode.
+ */
+const TourPreferenceSchema = Schema.Struct({
+  mode: Schema.Literals(["active", "skipped"]),
+})
+
+export type TourPreference = typeof TourPreferenceSchema.Type
+export type TourMode = TourPreference["mode"]
+
 /** Stored configuration V2 — the multi-context model. */
 export interface StoredConfigV2 {
   version: 2
   activeContext?: string
+  tour?: TourPreference
   contexts: Record<string, Context>
 }
 
@@ -167,6 +234,7 @@ export type StoredConfig = StoredConfigV2
 const StoredConfigV2Schema = Schema.Struct({
   version: Schema.Literal(2),
   activeContext: Schema.optional(Schema.String),
+  tour: Schema.optional(TourPreferenceSchema),
   contexts: Schema.Record(Schema.String, ContextSchema),
 })
 
@@ -300,7 +368,12 @@ function prunePendingExpired(config: StoredConfigV2): StoredConfigV2 {
     contexts[name] = ctx
   }
   const activeContext = config.activeContext && contexts[config.activeContext] ? config.activeContext : undefined
-  return { version: 2, ...(activeContext ? { activeContext } : {}), contexts }
+  return {
+    version: 2,
+    ...(activeContext ? { activeContext } : {}),
+    ...(config.tour ? { tour: config.tour } : {}),
+    contexts,
+  }
 }
 
 /**
@@ -610,6 +683,13 @@ export function readLasoToken(active: ResolvedCredentials, opts: ContextSelector
   const activeUrl = active.apiUrl ?? DEFAULT_API_URL
   if (storedUrl !== activeUrl) return null
   return stored
+}
+
+/** Persist the tour mode, creating the config file if needed. */
+export function setTourMode(mode: TourMode): void {
+  const config = readConfig() ?? emptyConfig()
+  config.tour = { mode }
+  writeConfig(config)
 }
 
 /** Configuration source */

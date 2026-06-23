@@ -14,6 +14,7 @@ for example, when the user wants connect-mode setup, manual config, sandbox swit
 - [fetch](#fetch)
 - [card](#card)
 - [agent](#agent)
+- [tour](#tour)
 - [config](#config)
 
 ## Selecting a context
@@ -28,20 +29,25 @@ against a non-active context for that one invocation, without switching the acti
 
 Two env vars sit above context selection entirely: `AMPERSEND_AGENT_SECRET` (or `AMPERSEND_AGENT_KEY` +
 `AMPERSEND_AGENT_ACCOUNT`) supplies a complete identity with no config file — the CI/deploy path — and
-`AMPERSEND_API_URL` is a hard override of the API URL that always wins when set.
+`AMPERSEND_API_URL` overrides the API URL for the process. An explicit `--env` / `--api-url` flag on `setup start` /
+`config set` beats `AMPERSEND_API_URL` (a flag is more specific than an ambient env var); when no such flag is given,
+`AMPERSEND_API_URL` wins over the selected context's URL. With neither flag nor env var, `setup start` inherits the URL
+of the active context (`prod` on a fresh install) — so pass `--env` when you want a different environment than the
+active one.
 
 ## setup start
 
 Step 1 of the approval flow: generate a key and request agent creation.
 
 ```bash
-ampersend setup start [--context <name>] [--api-url <url>] [--detach] [--mode <create|connect>] [--name <name>] [--agent <address>] [--key-name <name>] [--force] [--daily-limit <amount>] [--monthly-limit <amount>] [--per-transaction-limit <amount>] [--auto-topup]
+ampersend setup start [--context <name>] [--env <prod|sandbox>] [--api-url <url>] [--detach] [--mode <create|connect>] [--name <name>] [--agent <address>] [--key-name <name>] [--force] [--daily-limit <amount>] [--monthly-limit <amount>] [--per-transaction-limit <amount>] [--auto-topup]
 ```
 
 | Option                          | Description                                                                           |
 | ------------------------------- | ------------------------------------------------------------------------------------- |
 | `--context <name>`              | Name for the context. Omit to auto-name one (`ctx-<key>`, host-prefixed for non-prod) |
-| `--api-url <url>`               | API URL this context targets (for non-production environments)                        |
+| `--env <env>`                   | Target environment: `prod` or `sandbox` (shorthand for `--api-url`)                   |
+| `--api-url <url>`               | API URL this context targets (alternative to `--env`, e.g. a local environment)       |
 | `--detach`                      | Create the context without making it the active one                                   |
 | `--mode <mode>`                 | `create` (new agent, default) or `connect` (key to existing agent)                    |
 | `--name <name>`                 | Name for the agent (create mode only)                                                 |
@@ -280,6 +286,78 @@ ampersend agent owner                          # Owner: { user_id, wallet_addres
 These are **reads only** — to change limits or sellers, the user goes to the dashboard. The server scopes every response
 to the session's own agent, so sibling agents and cross-agent aggregates are unreachable.
 
+## tour
+
+Onboarding progress across the two environments, and the next step in each. Two parallel tracks — `sandbox` and
+`production` — over the same linear progression: `setup → finish_setup → fund → first_payment → complete`.
+
+```bash
+ampersend tour          # Both tracks, hydrated from the server
+ampersend tour skip     # Persist mode "skipped" — agents stop proactive tour nudging
+ampersend tour resume   # Persist mode "active" (the default)
+```
+
+The command owns the guidance, not just the position: each track carries a `hint` — a sentence of plain user-facing
+prose the agent relays (and may reword) saying what to do next, or that the track is done.
+
+```json
+{
+  "ok": true,
+  "data": {
+    "mode": "active",
+    "sandbox": {
+      "complete": false,
+      "next": { "step": "fund", "context": "api.sandbox.ampersend.ai-ctx-1a2b", "contextIsActive": true },
+      "hint": "The agent is set up but has no funds yet — add some play money for trying things out so it can pay for things."
+    },
+    "production": {
+      "complete": false,
+      "next": { "step": "setup", "context": null, "contextIsActive": false },
+      "hint": "No agent yet for the production environment — run the setup flow to create one when you're ready to use real money."
+    }
+  }
+}
+```
+
+| Field                  | Meaning                                                                                      |
+| ---------------------- | -------------------------------------------------------------------------------------------- |
+| `mode`                 | `active` (default) or `skipped` — the only persisted tour state; `skip`/`resume` flip it     |
+| `complete`             | The track's context has made at least one payment; `next` is `null` when complete            |
+| `degraded`             | `true` (only when present) — the track's server state couldn't be read; `next` is `null`     |
+| `hint`                 | Plain prose for this track's state — what to do next, or that it's done; the agent relays it |
+| `next.step`            | `setup`, `finish_setup`, `fund`, or `first_payment` — linear, so it encodes the track state  |
+| `next.context`         | The context the step applies to (`null` for `setup`)                                         |
+| `next.contextIsActive` | `false`: switch with `config use <name>` or pass `--context <name>` per command              |
+
+Mechanics:
+
+- A context belongs to the production track when its API URL is the production default, and to the sandbox track when it
+  is `https://api.sandbox.ampersend.ai`; contexts with any other URL are outside the tour. The sandbox carries a subset
+  of services and capabilities — feature absence in the sandbox does not imply feature absence in production.
+- Each track reports exactly one context: the active context when it belongs to that environment, otherwise the newest
+  one there (ties broken alphabetically). Expired pending contexts are ignored — `setup` is the correct next step for
+  those.
+- `hint` is derived from the track's own state (and, for the sandbox bridge, the production track's state) — pure prose,
+  nothing extra is fetched or persisted to build it. When `next.contextIsActive` is `false`, the hint leads with a
+  "switch context first" cue naming the context, so the agent runs `config use <name>` before the step.
+- Setup state is read locally; `fund` / `first_payment` / `complete` are hydrated from the server on every call. The
+  question is only "has this agent ever paid?", so the payments window widens cheapest-first (`1d` → `30d` → `all`),
+  stopping at the first non-empty window; the balance is read only when no payment exists at all. A recently-active
+  context resolves in one small read and never pulls the full ledger. Worst case is four authenticated reads per track
+  (three empty payment windows, then balance), plus a one-time sign-in handshake. Payments are per-agent, so progress
+  made from another machine or key is picked up automatically.
+- A track whose server read fails (e.g. the network is down) is reported as `degraded: true` with `next: null` and a
+  hint saying the progress is unknown — it does **not** fault the command. The other track, and the local (`setup` /
+  `finish_setup`) part of the same track, still report normally. While a track is degraded the sandbox→production bridge
+  is suppressed (its state is unknown, so the tour won't offer a step that may already be done).
+- With env-supplied **credentials** (`AMPERSEND_AGENT_SECRET`, or `AMPERSEND_AGENT_KEY` + `AMPERSEND_AGENT_ACCOUNT`) the
+  tour reports `{ "mode": "inert" }` with no tracks — CI and deploy runs are not toured. A bare `AMPERSEND_API_URL`
+  override is not inert: the identity still comes from a file context, so the tour reasons about your saved contexts and
+  ignores the per-process URL.
+
+Errors: `TOUR_READ_ERROR` (exit 1) is reserved for an unexpected, whole-command failure. A routine server-read failure
+on one track degrades that track (see above) rather than erroring — the tour stays usable for orientation.
+
 ## config
 
 Manage local configuration. Config is organised into named **contexts**, each carrying its own agent key, account, and
@@ -288,7 +366,7 @@ authenticated command uses the active context.
 
 ```bash
 ampersend config set <key:::account>                                       # Create an auto-named context, make it active
-ampersend config set <key:::account> --context sandbox --api-url <url>     # Create a named context with its own URL
+ampersend config set <key:::account> --context sandbox --env sandbox       # Create a named context targeting an environment
 ampersend config status                                                    # Show all contexts and which is active
 ampersend config use <name>                                                # Switch the active context
 ampersend config rm <name>                                                 # Delete a context
@@ -297,12 +375,13 @@ ampersend config rm <name>                                                 # Del
 | Subcommand            | Description                                                                          |
 | --------------------- | ------------------------------------------------------------------------------------ |
 | `set <key:::account>` | Create a context from an identity and make it active (`--context <name>` to name it) |
-| `set --api-url <url>` | Only with a secret — the URL a newly-created context targets (non-production)        |
+| `set --env <env>`     | Only with a secret — target environment for the new context: `prod` or `sandbox`     |
+| `set --api-url <url>` | Only with a secret — explicit URL the new context targets (alternative to `--env`)   |
 | `status`              | Show every context (oldest first), its status, and which one is active               |
 | `use <name>`          | Make `<name>` the active context without re-running setup                            |
 | `rm <name>`           | Delete `<name>`; clears the active selection if it was active                        |
 
 A context's API URL is fixed at creation. There is no in-place URL edit: re-run `setup start` / `config set` with a new
-`--api-url` to create another context, or set `AMPERSEND_API_URL` to override the URL for a single process. `config set`
-with no `--context` always mints a fresh auto-named context (`ctx-<key>`, host-prefixed for non-prod) and never
-overwrites an existing one; pass `--context <name>` to write a specific one.
+`--env` / `--api-url` to create another context, or set `AMPERSEND_API_URL` to override the URL for a single process.
+`config set` with no `--context` always mints a fresh auto-named context (`ctx-<key>`, host-prefixed for non-prod) and
+never overwrites an existing one; pass `--context <name>` to write a specific one.
