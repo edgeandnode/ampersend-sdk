@@ -318,6 +318,30 @@ underlying provider flow (auth token, order, poll) for you.
 - US-only (IP-locked) and non-reloadable today. Confirm with the user before `issue` — that's the real spend, and the
   card is the only thing returned.
 
+### Gift cards (Laso)
+
+Ordering a brand gift card (Amazon, etc.) that comes back as a redeemable code. Same provider as the prepaid card above,
+but a plain x402 endpoint — call it with `ampersend fetch`, there's no dedicated CLI subcommand. Two-call flow: search
+the catalog (free) to get a product id, then order (paid).
+
+- Search the catalog: `GET https://laso.finance/search-gift-cards` with optional `q`, `country` (ISO 3166-1 alpha-2),
+  `currency`, `category`. Free. Each result carries a `laso_server_id` (the brand/product) plus its min/max amount and
+  supported regions.
+  ```bash
+  ampersend fetch "https://laso.finance/search-gift-cards?q=Amazon&country=US"
+  ```
+- Order a card: `GET https://laso.finance/order-gift-card` with required `amount` ($5–$9000) and `laso_server_id` (from
+  search), optional `country` (defaults `US`). This is the spend — x402-paid. Returns the redemption URL, code, and/or
+  PIN.
+  ```bash
+  ampersend fetch --pay \
+    "https://laso.finance/order-gift-card?amount=25&laso_server_id=<id-from-search>"
+  ```
+- Pick the `laso_server_id` from a search result — don't guess it. Region and amount limits vary per card, so read the
+  catalog entry's facets before ordering. Confirm with the user before the order call — the funds leave the agent's
+  account and the code is the only thing returned.
+- Docs: <https://agents.laso.finance/>
+
 ## Response patterns
 
 Services the agent doesn't suggest proactively but should know how to handle when the user provides a specific URL.
