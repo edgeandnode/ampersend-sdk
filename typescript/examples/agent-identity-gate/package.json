@@ -1,0 +1,38 @@
+{
+  "name": "agent-identity-gate-example",
+  "description": "Example: verify agent identity before accepting x402 payments",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "bin": {
+    "agent-identity-gate": "./dist/cli.js"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc -b tsconfig.build.json --force",
+    "clean": "rm -rf dist .tsbuildinfo",
+    "dev": "tsx watch src/cli.ts",
+    "start": "node dist/cli.js"
+  },
+  "dependencies": {
+    "@ampersend_ai/ampersend-sdk": "^0.0.28",
+    "@x402/core": "^2.9.0",
+    "x402": "^0.6.6",
+    "zod": "^3.24.2"
+  },
+  "devDependencies": {
+    "tsx": "^4.21.0",
+    "typescript": "^5.5.0"
+  }
+}
