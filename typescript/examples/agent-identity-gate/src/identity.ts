@@ -1,148 +1,141 @@
 /**
- * Agent identity verification using @bolyra/sdk.
+ * Pluggable agent identity verification.
  *
- * This module is the only Bolyra-specific code in the example. Replace it
- * with any identity/authorization system (SIWE, OAuth, ERC-8004, API keys)
- * by implementing the same interface:
+ * This module defines a generic IdentityVerifier interface and ships a
+ * structural-validation stub. Replace the stub with a real verifier for
+ * production — e.g. @bolyra/sdk for ZKP credentials, Skyfire KYAPay,
+ * SIWE signature checks, OAuth2 token introspection, or API key lookup.
  *
- *   verifyAgentProof(proof, requiredPermissions) => { valid, reason?, ... }
- *
- * The Bolyra implementation verifies a ZKP proving the agent:
- *   1. Is enrolled in an agent registry (Merkle membership)
- *   2. Holds specific permission bits (cumulative encoding)
- *   3. Has a non-expired credential
+ * The key contract: the verifier receives an opaque proof payload (from the
+ * MCP request metadata) and a required-permissions bitmask, and returns
+ * whether the agent is authorized.
  */
 
-// In production, import from @bolyra/sdk:
-//
-//   import {
-//     deserializeEnvelope,
-//     validateEnvelope,
-//     Permission,
-//   } from "@bolyra/sdk"
-//
-// For this example we keep it dependency-light with inline types
-// so the example runs without circuit artifacts.
+// ---------------------------------------------------------------------------
+// Generic interface — implement this for your identity system
+// ---------------------------------------------------------------------------
 
-/** Proof payload the agent includes in the x402 payment extra field. */
-export interface AgentProofPayload {
-  /** Serialized Bolyra ProofEnvelope (application/vnd.bolyra.proof+json) */
-  envelope: {
-    version: string
-    circuit: { name: string; version: string; vkeyHash?: string }
-    proofType: string
-    publicSignals: string[]
-    proof: {
-      pi_a: [string, string]
-      pi_b: [[string, string], [string, string]]
-      pi_c: [string, string]
-    }
-    metadata?: Record<string, unknown>
-  }
-}
-
+/** Result of verifying an agent's identity proof. */
 export interface VerificationResult {
   valid: boolean
   reason?: string
-  /** Agent's nullifier — unique pseudonym per session, no PII leaked */
-  agentNullifier?: string
-  /** Bitmask of permissions the agent proved it holds */
+  /** Opaque agent identifier extracted from the proof (for logging/audit). */
+  agentId?: string
+  /** Bitmask of permissions the agent proved it holds. */
   permissionBitmask?: bigint
 }
 
 /**
- * Verify an agent's ZKP credential proof and check required permissions.
- *
- * In production this calls snarkjs.groth16.verify() under the hood via
- * @bolyra/sdk's verifyHandshake(). For this example we do structural
- * validation only — swap in the real verification for deployment.
+ * An identity verifier checks an agent proof and returns a
+ * {@link VerificationResult}. Implementations are free to define their own
+ * proof payload shape.
  */
-export async function verifyAgentProof(
-  payload: AgentProofPayload,
-  requiredPermissions: bigint,
-): Promise<VerificationResult> {
-  const { envelope } = payload
+export interface IdentityVerifier<TProof = unknown> {
+  /** Verify the proof and check that the agent holds `requiredPermissions`. */
+  verify(
+    proof: TProof,
+    requiredPermissions: bigint,
+  ): Promise<VerificationResult>
+}
 
-  // 1. Structural validation
-  if (!envelope || envelope.version !== "1.0.0") {
-    return { valid: false, reason: "Invalid or unsupported envelope version" }
+// ---------------------------------------------------------------------------
+// Structural-validation stub (NOT production-grade)
+// ---------------------------------------------------------------------------
+
+/**
+ * Minimal proof shape expected by the stub verifier. This mirrors common
+ * ZKP credential formats but does NOT perform cryptographic verification.
+ */
+export interface StructuralProofPayload {
+  envelope: {
+    version: string
+    circuit: { name: string; version: string }
+    proofType: string
+    publicSignals: string[]
+    proof: Record<string, unknown>
+  }
+}
+
+/**
+ * A stub verifier that checks JSON structure only.
+ *
+ * **This is NOT cryptographic verification.** It validates that the proof
+ * payload has the expected shape, checks expiry and permission bits from
+ * the public signals, but never verifies the actual ZKP. Use this for
+ * development and testing. For production, plug in a real verifier.
+ *
+ * Extension points for real verification:
+ * - @bolyra/sdk: `deserializeEnvelope()` + `snarkjs.groth16.verify()`
+ * - SIWE: verify EIP-4361 signature against an allowlist
+ * - OAuth2: introspect the token, check scopes
+ * - API keys: hash and compare against an authorized-agents database
+ */
+export class StructuralVerifier implements IdentityVerifier<StructuralProofPayload> {
+  private readonly expectedCircuit: string
+
+  constructor(expectedCircuit = "AgentPolicy") {
+    this.expectedCircuit = expectedCircuit
   }
 
-  if (envelope.circuit?.name !== "AgentPolicy") {
-    return {
-      valid: false,
-      reason: `Expected AgentPolicy circuit, got ${envelope.circuit?.name}`,
+  async verify(
+    payload: StructuralProofPayload,
+    requiredPermissions: bigint,
+  ): Promise<VerificationResult> {
+    const { envelope } = payload
+
+    // 1. Structural checks
+    if (!envelope || typeof envelope.version !== "string") {
+      return { valid: false, reason: "Missing or malformed envelope" }
     }
-  }
 
-  if (!envelope.publicSignals || envelope.publicSignals.length < 3) {
-    return {
-      valid: false,
-      reason: "Proof missing required public signals",
+    if (envelope.circuit?.name !== this.expectedCircuit) {
+      return {
+        valid: false,
+        reason: `Expected ${this.expectedCircuit} circuit, got ${envelope.circuit?.name}`,
+      }
     }
-  }
 
-  // 2. Extract public signals
-  //    AgentPolicy public signals layout:
-  //    [0] = agentNullifier
-  //    [1] = permissionBitmask
-  //    [2] = expiryTimestamp
-  const agentNullifier = envelope.publicSignals[0]
-  const permissionBitmask = BigInt(envelope.publicSignals[1])
-  const expiryTimestamp = BigInt(envelope.publicSignals[2])
-
-  // 3. Check expiry
-  const now = BigInt(Math.floor(Date.now() / 1000))
-  if (expiryTimestamp <= now) {
-    return {
-      valid: false,
-      reason: `Agent credential expired at ${expiryTimestamp} (now: ${now})`,
-      agentNullifier,
-      permissionBitmask,
+    if (!Array.isArray(envelope.publicSignals) || envelope.publicSignals.length < 3) {
+      return { valid: false, reason: "Proof missing required public signals" }
     }
-  }
 
-  // 4. Check permissions (cumulative bit encoding)
-  //    Required bits must be a subset of the agent's proven bits
-  if ((permissionBitmask & requiredPermissions) !== requiredPermissions) {
-    return {
-      valid: false,
-      reason:
-        `Insufficient permissions: required 0b${requiredPermissions.toString(2)}, ` +
-        `agent has 0b${permissionBitmask.toString(2)}`,
-      agentNullifier,
-      permissionBitmask,
+    // 2. Extract public signals (layout: [agentId, permissionBitmask, expiryTimestamp])
+    const agentId = envelope.publicSignals[0]
+    const permissionBitmask = BigInt(envelope.publicSignals[1])
+    const expiryTimestamp = BigInt(envelope.publicSignals[2])
+
+    // 3. Expiry check
+    const now = BigInt(Math.floor(Date.now() / 1000))
+    if (expiryTimestamp <= now) {
+      return {
+        valid: false,
+        reason: `Credential expired at ${expiryTimestamp} (now: ${now})`,
+        agentId,
+        permissionBitmask,
+      }
     }
-  }
 
-  // 5. Verify the ZKP
-  //
-  // PRODUCTION: uncomment this block and add @bolyra/sdk as a real dependency:
-  //
-  //   import { deserializeEnvelope, validateEnvelope } from "@bolyra/sdk"
-  //   const parsed = deserializeEnvelope(JSON.stringify(envelope))
-  //   const validationResult = validateEnvelope(parsed)
-  //   if (!validationResult.valid) {
-  //     return { valid: false, reason: `Invalid proof envelope: ${validationResult.errors.join(", ")}` }
-  //   }
-  //   // Then verify the Groth16 proof against the AgentPolicy verification key:
-  //   const proofValid = await snarkjs.groth16.verify(agentPolicyVkey, envelope.publicSignals, envelope.proof)
-  //   if (!proofValid) {
-  //     return { valid: false, reason: "ZKP verification failed" }
-  //   }
-  //
-  // For this example, we accept structurally valid proofs to keep the
-  // example runnable without circuit artifacts. DO NOT ship this to production.
+    // 4. Permission check (cumulative bit encoding)
+    if ((permissionBitmask & requiredPermissions) !== requiredPermissions) {
+      return {
+        valid: false,
+        reason:
+          `Insufficient permissions: required 0b${requiredPermissions.toString(2)}, ` +
+          `agent has 0b${permissionBitmask.toString(2)}`,
+        agentId,
+        permissionBitmask,
+      }
+    }
 
-  console.log(
-    `[identity] Verified agent ${agentNullifier.slice(0, 16)}... ` +
-      `permissions=0b${permissionBitmask.toString(2)} ` +
-      `expires=${expiryTimestamp}`,
-  )
+    // 5. STRUCTURAL ONLY — no cryptographic proof verification.
+    //    In production, this is where you would call your ZKP verifier,
+    //    signature checker, or token introspection endpoint.
+    console.log(
+      `[identity] Structural check passed for agent ${agentId.slice(0, 16)}... ` +
+        `permissions=0b${permissionBitmask.toString(2)} ` +
+        `expires=${expiryTimestamp} (NOT cryptographically verified)`,
+    )
 
-  return {
-    valid: true,
-    agentNullifier,
-    permissionBitmask,
+    return { valid: true, agentId, permissionBitmask }
   }
 }

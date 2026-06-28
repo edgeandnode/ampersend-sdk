@@ -6,16 +6,16 @@
  * that the money is there.
  *
  * This example adds a pre-payment identity check:
- *   1. Agent sends a ZKP proof of its credential alongside the x402 payment.
- *   2. The server verifies the proof (agent is enrolled, has the right
- *      permissions, credential isn't expired) *before* settling the payment.
- *   3. If identity verification fails, the payment is never settled and the
- *      tool call is rejected with a clear error.
+ *   1. Agent includes an identity proof in the MCP request metadata
+ *      (`_meta["x-agent-proof"]`).
+ *   2. The server verifies the proof (valid structure, required permissions,
+ *      non-expired credential) *before* settling the x402 payment.
+ *   3. If identity verification fails, the tool call is rejected with a
+ *      clear error.
  *
- * The identity layer uses @bolyra/sdk for ZKP-based agent credentials, but
- * the pattern works with any identity/authorization system — SIWE, API keys,
- * OAuth tokens, ERC-8004 registry lookups, etc. Swap out `verifyAgentProof()`
- * with your own check.
+ * The identity layer is pluggable via the IdentityVerifier interface. This
+ * example ships a structural-validation stub. Swap in @bolyra/sdk, Skyfire
+ * KYAPay, SIWE, OAuth2, or your own verifier for production.
  */
 
 import {
@@ -25,7 +25,11 @@ import {
 } from "@ampersend_ai/ampersend-sdk/mcp/server/fastmcp"
 import type { PaymentRequirements } from "x402/types"
 import { z } from "zod"
-import { verifyAgentProof, type AgentProofPayload } from "./identity.js"
+import {
+  StructuralVerifier,
+  type IdentityVerifier,
+  type StructuralProofPayload,
+} from "./identity.js"
 
 const PORT = Number(process.env.PORT || 8080)
 const PAY_TO_ADDRESS = process.env.PAY_TO_ADDRESS || "0x0"
@@ -33,6 +37,10 @@ const PAY_TO_ADDRESS = process.env.PAY_TO_ADDRESS || "0x0"
 // --- Facilitator config (same pattern as the base FastMCP example) ---
 
 const facilitatorUrl = process.env.FACILITATOR_URL || "https://x402.org/facilitator"
+
+// --- Identity verifier (swap this for production) ---
+
+const verifier: IdentityVerifier<StructuralProofPayload> = new StructuralVerifier()
 
 // --- Server setup ---
 
@@ -64,60 +72,63 @@ function paymentRequirement(opts: {
 }
 
 /**
- * Create an onPayment handler that requires agent identity verification
- * before settling the x402 payment.
+ * Wrap a tool's execute function with an identity gate that runs before
+ * x402 payment settlement.
  *
- * The agent proof is expected in `_meta["x-agent-proof"]` alongside the
- * `x402/payment` field. If the proof is missing or invalid, the payment
- * is rejected before settlement.
+ * The agent proof is read from MCP request metadata (`_meta["x-agent-proof"]`).
+ * The OnPayment callback handles x402 settlement only — identity is checked
+ * separately so we reject unauthorized agents before touching payments.
  *
  * @param requiredPermissions - bitmask of permissions the agent must hold
+ * @param innerExecute - the tool's actual execute function
  */
-function createGatedOnPayment(requiredPermissions: bigint): OnPayment {
-  return async ({ payment, requirements }) => {
-    // In a real deployment, the agent proof would arrive in the MCP request
-    // metadata. For this example we read it from the payment's extra field
-    // or from request context. The key point: verify identity BEFORE settling.
-    //
-    // The proof payload is a Bolyra ProofEnvelope containing:
-    //   - A ZKP proving the agent is enrolled with specific permissions
-    //   - Public signals: permissionBitmask, expiryTimestamp, agentNullifier
-    //
-    // You could replace this with any authorization check:
-    //   - SIWE signature verification
-    //   - ERC-8004 registry lookup
-    //   - API key validation
-    //   - OAuth2 token introspection
-
-    const agentProof = (payment as any)?.extra?.["x-agent-proof"] as
-      | AgentProofPayload
+function withIdentityGate<TArgs>(
+  requiredPermissions: bigint,
+  innerExecute: (args: TArgs) => Promise<string>,
+): (args: TArgs, context: Record<string, unknown>) => Promise<string> {
+  return async (args: TArgs, context: Record<string, unknown>) => {
+    // Read the agent proof from MCP request metadata.
+    // The agent sends it as `_meta: { "x-agent-proof": { envelope: ... } }`.
+    const metadata = context.requestMetadata as
+      | Record<string, unknown>
+      | undefined
+    const agentProof = metadata?.["x-agent-proof"] as
+      | StructuralProofPayload
       | undefined
 
     if (!agentProof) {
       throw new Error(
-        "Agent identity proof required. Include an x-agent-proof in the " +
-          "payment extra field with your agent credential proof."
+        "Agent identity proof required. Include an x-agent-proof object " +
+          "in the MCP request _meta with your agent credential proof."
       )
     }
 
-    // Verify the ZKP and check permissions + expiry
-    const result = await verifyAgentProof(agentProof, requiredPermissions)
+    const result = await verifier.verify(agentProof, requiredPermissions)
 
     if (!result.valid) {
       throw new Error(`Agent authorization failed: ${result.reason}`)
     }
 
-    // Identity verified — now settle the payment via the facilitator.
-    // In production, use useFacilitator(config).settle(payment, requirements).
-    // This example accepts after identity check to keep dependencies minimal.
     console.log(
-      `[identity-gate] Agent ${result.agentNullifier} authorized ` +
+      `[identity-gate] Agent ${result.agentId ?? "unknown"} authorized ` +
         `(permissions: 0b${result.permissionBitmask?.toString(2)})`
     )
+
+    return innerExecute(args)
   }
 }
 
-// --- Permission constants matching Bolyra's cumulative bit encoding ---
+/**
+ * Standard onPayment handler — settles the x402 payment via the facilitator.
+ * Identity has already been verified by the time this runs.
+ */
+const settlePayment: OnPayment = async ({ payment, requirements }) => {
+  // In production, use useFacilitator(config).settle(payment, requirements).
+  // This example accepts after identity check to keep dependencies minimal.
+  console.log("[identity-gate] Payment accepted (stub — use facilitator in production)")
+}
+
+// --- Permission constants (cumulative bit encoding) ---
 
 const PERMISSION_READ = 1n << 0n // bit 0: READ_DATA
 const PERMISSION_FINANCIAL_SMALL = 1n << 2n // bit 2: FINANCIAL_SMALL (< $100)
@@ -140,17 +151,18 @@ server.addTool({
         resource: `http://localhost:${PORT}/api/query`,
       })
     },
-    onPayment: createGatedOnPayment(PERMISSION_READ),
-  })(async (args) => {
-    // Simulate a dataset query
-    return JSON.stringify({
-      query: args.query,
-      results: [
-        { id: 1, title: `Result for "${args.query}"`, score: 0.95 },
-        { id: 2, title: `Another match for "${args.query}"`, score: 0.82 },
-      ].slice(0, args.limit),
-    })
-  }),
+    onPayment: settlePayment,
+  })(
+    withIdentityGate(PERMISSION_READ, async (args) => {
+      return JSON.stringify({
+        query: args.query,
+        results: [
+          { id: 1, title: `Result for "${args.query}"`, score: 0.95 },
+          { id: 2, title: `Another match for "${args.query}"`, score: 0.82 },
+        ].slice(0, args.limit),
+      })
+    }),
+  ),
 })
 
 const transferDescription =
@@ -171,18 +183,21 @@ server.addTool({
         resource: `http://localhost:${PORT}/api/transfer`,
       })
     },
-    // Requires FINANCIAL_SMALL permission — an agent with only READ_DATA
-    // will be rejected even if payment is valid
-    onPayment: createGatedOnPayment(PERMISSION_READ | PERMISSION_FINANCIAL_SMALL),
-  })(async (args) => {
-    return JSON.stringify({
-      status: "executed",
-      recipient: args.recipient,
-      amount: args.amount,
-      memo: args.memo ?? "",
-      txId: `0x${Date.now().toString(16)}`,
-    })
-  }),
+    onPayment: settlePayment,
+  })(
+    withIdentityGate(
+      PERMISSION_READ | PERMISSION_FINANCIAL_SMALL,
+      async (args) => {
+        return JSON.stringify({
+          status: "executed",
+          recipient: args.recipient,
+          amount: args.amount,
+          memo: args.memo ?? "",
+          txId: `0x${Date.now().toString(16)}`,
+        })
+      },
+    ),
+  ),
 })
 
 // A free tool with no payment or identity requirement — for contrast
