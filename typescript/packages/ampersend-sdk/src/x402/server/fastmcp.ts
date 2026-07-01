@@ -31,6 +31,13 @@ export function createExecutorOnPayment(executor: X402ServerExecutor): OnPayment
     }
     // Deny or settle-failure: throw so the middleware emits the 402
     // payment-required/rejected error. Fail closed — no silent allow.
+    //
+    // This deliberately diverges from the Express adapter, which returns 403 on
+    // a compliance deny to short-circuit the buyer's retry loop. The FastMCP
+    // path routes deny through the pre-existing `withX402Payment` middleware,
+    // which only speaks 402 (retry-invited). Still fail-closed and leak-free —
+    // for a compliance rejection `outcome.reason` is the generic deny and each
+    // retry re-screens — just a weaker retry-discouragement than the HTTP surface.
     throw new Error(outcome.reason)
   }
 }
