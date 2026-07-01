@@ -324,7 +324,7 @@ export type AgentAuthorizeResponse = typeof AgentAuthorizeResponse.Type
  * category flagged a wallet lets a sanctioned counterparty wallet-shop
  * or feel out the thresholds.
  */
-export const AgentAuthorizeReceiptResponse = Schema.Union(
+export const AgentAuthorizeReceiptResponse = Schema.Union([
   Schema.Struct({
     authorized: Schema.Literal(true),
     screeningId: Schema.NullOr(Schema.String),
@@ -335,7 +335,7 @@ export const AgentAuthorizeReceiptResponse = Schema.Union(
     reasonCode: Schema.String,
     screeningId: Schema.NullOr(Schema.String),
   }),
-)
+])
 export type AgentAuthorizeReceiptResponse = typeof AgentAuthorizeReceiptResponse.Type
 
 // ============ Payment Event Types ============
