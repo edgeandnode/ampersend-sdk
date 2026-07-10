@@ -8,14 +8,46 @@ const TEST_PRIVATE_KEY = `0x${"ab".repeat(32)}` as const
 const TEST_ACCOUNT = privateKeyToAccount(TEST_PRIVATE_KEY)
 const TEST_ADDRESS = TEST_ACCOUNT.address
 
-// Mock uses camelCase to match actual API response format
+// This fixture is the REAL wire shape the API returns from `/v1/sdk/agents`:
+// snake_case outer keys (`user_id`, `init_data`, `created_at`, `updated_at`),
+// camelCase inner `init_data` keys, plus extra snake_case fields the API sends
+// that the SDK schema ignores (`status`, `team_id`, `slug`, ...).
+//
+// IMPORTANT: a fixture that matches the SDK schema instead of the real wire
+// format is exactly how the userId-vs-user_id decode bug survived undetected
+// through releases 0.0.11-0.0.28. Keep these fixtures pinned to the wire.
 const MOCK_AGENT_RESPONSE = {
   address: "0x1111111111111111111111111111111111111111",
   name: "test-agent",
-  userId: "user-123",
+  user_id: "user-123",
+  team_id: "team-456",
+  slug: "test-agent",
+  status: "deployed",
   balance: "0",
-  initData: {},
+  init_data: {
+    address: "0x1111111111111111111111111111111111111111",
+    factory: "0x2222222222222222222222222222222222222222",
+    factoryData: "0xdeadbeef",
+    intentExecutorInstalled: true,
+  },
   nonce: "12345",
+  published: false,
+  created_at: 1700000000000,
+  updated_at: 1700000000000,
+}
+
+// What the dual-emit API sends during the compatibility window: BOTH the
+// canonical snake_case keys AND the legacy camelCase duplicates. Decoding must
+// still succeed (the camelCase duplicates are simply ignored as excess keys).
+const MOCK_AGENT_RESPONSE_DUAL_EMIT = {
+  ...MOCK_AGENT_RESPONSE,
+  userId: "user-123",
+  initData: {
+    address: "0x1111111111111111111111111111111111111111",
+    factory: "0x2222222222222222222222222222222222222222",
+    factoryData: "0xdeadbeef",
+    intentExecutorInstalled: true,
+  },
   createdAt: 1700000000000,
   updatedAt: 1700000000000,
 }
@@ -60,7 +92,25 @@ describe("AmpersendManagementClient", () => {
 
     expect(result.address).toBe(MOCK_AGENT_RESPONSE.address)
     expect(result.name).toBe("test-agent")
+    // The snake_case wire keys decode into the camelCase public surface.
+    expect(result.userId).toBe("user-123")
+    expect(result.createdAt).toBe(1700000000000)
+    expect(result.updatedAt).toBe(1700000000000)
+    expect(result.initData.factory).toBe("0x2222222222222222222222222222222222222222")
+    expect(result.initData.intentExecutorInstalled).toBe(true)
     expect(fetchSpy).toHaveBeenCalledTimes(1)
+  })
+
+  it("createAgent decodes the dual-emit response (snake + camel duplicates)", async () => {
+    fetchSpy.mockImplementation(async () => jsonResponse(MOCK_AGENT_RESPONSE_DUAL_EMIT))
+
+    const client = new AmpersendManagementClient({ apiKey: "sk_test_123" })
+    const result = await client.createAgent({ name: "test-agent", privateKey: TEST_PRIVATE_KEY })
+
+    expect(result.userId).toBe("user-123")
+    expect(result.initData.factory).toBe("0x2222222222222222222222222222222222222222")
+    expect(result.createdAt).toBe(1700000000000)
+    expect(result.updatedAt).toBe(1700000000000)
   })
 
   it("createAgent passes spend config and authorized sellers", async () => {
@@ -92,9 +142,10 @@ describe("AmpersendManagementClient", () => {
   })
 
   it("listAgents returns a list of agent records", async () => {
-    // API returns paginated response
+    // API returns paginated response. Mix a plain wire item with a dual-emit
+    // item so the list path is exercised against both shapes.
     const paginatedResponse = {
-      items: [MOCK_AGENT_RESPONSE, { ...MOCK_AGENT_RESPONSE, name: "agent-2" }],
+      items: [MOCK_AGENT_RESPONSE, { ...MOCK_AGENT_RESPONSE_DUAL_EMIT, name: "agent-2" }],
       total: 2,
       limit: 50,
       offset: 0,
@@ -113,7 +164,9 @@ describe("AmpersendManagementClient", () => {
 
     expect(result).toHaveLength(2)
     expect(result[0].name).toBe("test-agent")
+    expect(result[0].userId).toBe("user-123")
     expect(result[1].name).toBe("agent-2")
+    expect(result[1].userId).toBe("user-123")
   })
 
   it("throws ApiError on HTTP error response", async () => {
