@@ -16,6 +16,15 @@ export const AgentInitData = Schema.Struct({
 }).annotate({ identifier: "AgentInitData" })
 export type AgentInitData = typeof AgentInitData.Type
 
+// The public property surface stays camelCase (`userId`, `initData`, `createdAt`,
+// `updatedAt`) for backwards compatibility, but the real wire format from the
+// `/v1/sdk/agents` endpoints is snake_case (`user_id`, `init_data`, `created_at`,
+// `updated_at`) — see packages/domain `Agent.ts` / `AgentDTO`. `Schema.encodeKeys`
+// takes a `{ decodedKey: encodedKey }` mapping and renames only the encoded (wire)
+// keys, so decoding reads snake_case while the decoded type keeps camelCase.
+// Excess keys (e.g. a camelCase duplicate the API may dual-emit, or extra fields
+// like `status`/`team_id`) are ignored by default. `address`, `name`, `balance`
+// and `nonce` match on both sides, so they are left out of the mapping.
 export const AgentResponse = Schema.Struct({
   address: AddressSchema,
   name: NonEmptyTrimmedString,
@@ -25,7 +34,16 @@ export const AgentResponse = Schema.Struct({
   nonce: Schema.String,
   createdAt: Schema.Number,
   updatedAt: Schema.Number,
-}).annotate({ identifier: "AgentResponse" })
+})
+  .pipe(
+    Schema.encodeKeys({
+      userId: "user_id",
+      initData: "init_data",
+      createdAt: "created_at",
+      updatedAt: "updated_at",
+    }),
+  )
+  .annotate({ identifier: "AgentResponse" })
 export type AgentResponse = typeof AgentResponse.Type
 
 // ============ Request Types ============

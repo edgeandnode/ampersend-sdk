@@ -5,7 +5,7 @@ from typing import Any, Dict, List, Optional, Self
 
 import httpx
 from eth_account import Account
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import AliasChoices, BaseModel, Field
 
 from .types import ApiError
 
@@ -39,31 +39,51 @@ class SpendConfig(BaseModel):
 
 
 class AgentInitData(BaseModel):
-    """Agent initialization data returned from the API."""
+    """Agent initialization data returned from the API.
+
+    ``init_data`` is a raw JSONB value; its inner keys are camelCase on the wire
+    (``factoryData``, ``intentExecutorInstalled``) — only the outer ``init_data``
+    key is snake_case. Each alias lists the snake_case field name first and the
+    camelCase wire key second via ``AliasChoices`` so both spellings validate.
+    """
 
     address: Optional[str] = None
     factory: Optional[str] = None
-    factory_data: Optional[str] = Field(default=None, validation_alias="factoryData")
-    intent_executor_installed: Optional[bool] = Field(
-        default=None, validation_alias="intentExecutorInstalled"
+    factory_data: Optional[str] = Field(
+        default=None,
+        validation_alias=AliasChoices("factory_data", "factoryData"),
     )
-
-    model_config = ConfigDict(validate_by_name=True)
+    intent_executor_installed: Optional[bool] = Field(
+        default=None,
+        validation_alias=AliasChoices(
+            "intent_executor_installed", "intentExecutorInstalled"
+        ),
+    )
 
 
 class AgentResponse(BaseModel):
-    """Agent record returned from the API."""
+    """Agent record returned from the API.
+
+    The canonical wire format from ``/v1/sdk/agents`` is snake_case
+    (``user_id``, ``init_data``, ``created_at``, ``updated_at`` — see the
+    monorepo ``AgentDTO``). Each ``AliasChoices`` lists the snake_case wire key
+    first and the legacy camelCase spelling second, so 0.0.29 decodes both the
+    real wire shape and any camelCase-duplicate compatibility response. We keep
+    the pydantic floor at ``>=2.0`` and rely on ``AliasChoices`` (available since
+    2.0) instead of ``validate_by_name``, which is unrecognized on 2.0-2.10 and
+    silently fails to accept field names there.
+    """
 
     address: str
     name: str
-    user_id: str = Field(validation_alias="userId")
+    user_id: str = Field(validation_alias=AliasChoices("user_id", "userId"))
     balance: str
-    init_data: AgentInitData = Field(validation_alias="initData")
+    init_data: AgentInitData = Field(
+        validation_alias=AliasChoices("init_data", "initData")
+    )
     nonce: str
-    created_at: int = Field(validation_alias="createdAt")
-    updated_at: int = Field(validation_alias="updatedAt")
-
-    model_config = ConfigDict(validate_by_name=True)
+    created_at: int = Field(validation_alias=AliasChoices("created_at", "createdAt"))
+    updated_at: int = Field(validation_alias=AliasChoices("updated_at", "updatedAt"))
 
 
 class AmpersendManagementClient:
