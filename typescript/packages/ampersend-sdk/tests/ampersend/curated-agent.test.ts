@@ -53,9 +53,21 @@ describe("CuratedAgentDTO", () => {
     expect(result._tag).toBe("Success")
   })
 
-  it("rejects an unknown source value", () => {
-    const result = Schema.decodeUnknownResult(CuratedAgentDTO)({ ...validAgent, source: "unknown" })
-    expect(result._tag).toBe("Failure")
+  // Enum-valued response fields are open (tolerant reader): values the
+  // server adds later must not fail the whole marketplace response decode.
+  it("keeps unknown source, methods, and protocol version instead of failing", () => {
+    const evolved = {
+      ...validAgent,
+      source: "partner",
+      endpoints: [{ ...validAgent.endpoints[0], methods: ["GET", "HEAD"], x402_protocol_version: 3 }],
+    }
+    const result = Schema.decodeUnknownResult(CuratedAgentDTO)(evolved)
+    expect(result._tag).toBe("Success")
+    if (result._tag === "Success") {
+      expect(result.success.source).toBe("partner")
+      expect(result.success.endpoints[0]!.methods).toEqual(["GET", "HEAD"])
+      expect(result.success.endpoints[0]!.x402_protocol_version).toBe(3)
+    }
   })
 
   it("rejects an invalid id (not a UUID)", () => {

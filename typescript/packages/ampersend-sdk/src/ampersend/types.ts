@@ -17,6 +17,39 @@ export type NonEmptyTrimmedString = typeof NonEmptyTrimmedString.Type
 export const NonNegativeInt = Schema.Int.check(Schema.isGreaterThanOrEqualTo(0))
 export type NonNegativeInt = typeof NonNegativeInt.Type
 
+type WidenLiteral<A> = A extends string ? string & {} : A extends number ? number & {} : never
+
+/**
+ * Open enum for server-owned response fields (tolerant reader): decodes any
+ * string (or number), but the static type keeps the known members —
+ * `"earn" | "spend" | (string & {})` — so autocomplete and narrowing still
+ * work while a value the server adds later flows through instead of failing
+ * the whole response decode. Keep a default branch when switching on these.
+ *
+ * Response fields only. Request-side enums stay closed (`Schema.Literals`)
+ * so a typo in caller code fails at compile/decode time, not as a 4xx.
+ */
+export interface OpenEnum<L extends ReadonlyArray<string | number>> extends Schema.Bottom<
+  L[number] | WidenLiteral<L[number]>,
+  L[number] | WidenLiteral<L[number]>,
+  never,
+  never,
+  Schema.Top["ast"],
+  OpenEnum<L>
+> {}
+
+export function OpenEnum<const L extends readonly [string | number, ...Array<string | number>]>(
+  literals: L,
+): OpenEnum<L> {
+  // The runtime schema is just the widened primitive — since every value of
+  // that type must decode, validating against the known list would add nothing.
+  // The list lives in the static type and the description.
+  const base = typeof literals[0] === "string" ? Schema.String : Schema.Number
+  return base.annotate({
+    description: `Known values: ${literals.join(", ")}. Newer API versions may send values not in this list; handle them with a default branch.`,
+  }) as unknown as OpenEnum<L>
+}
+
 export const Scheme = Schema.Literals(["exact", "deferred"])
 export type Scheme = typeof Scheme.Type
 
@@ -489,10 +522,20 @@ export const ApprovalStatusBlocked = Schema.Struct({
   }),
 })
 
+/**
+ * Catch-all so a status added on the server doesn't throw in deployed polling
+ * loops (tried last, so it also absorbs known statuses whose other fields
+ * didn't match). Treat an unrecognized status as still-pending.
+ */
+export const ApprovalStatusUnknown = Schema.Struct({
+  status: OpenEnum(["pending", "resolved", "rejected", "blocked"]),
+})
+
 export const ApprovalStatus = Schema.Union([
   ApprovalStatusPending,
   ApprovalStatusResolved,
   ApprovalStatusRejected,
   ApprovalStatusBlocked,
+  ApprovalStatusUnknown,
 ])
 export type ApprovalStatus = typeof ApprovalStatus.Type

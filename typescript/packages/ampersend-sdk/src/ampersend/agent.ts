@@ -7,6 +7,7 @@ import {
   ID,
   NonEmptyTrimmedString,
   NonNegativeInt,
+  OpenEnum,
   Scheme,
   TxHash,
 } from "./types.ts"
@@ -16,8 +17,11 @@ import {
 // this file (via `@ampersend_ai/ampersend-sdk/ampersend`) rather than defining
 // its own copies. Keep field sets stable — adding/removing a field here is a
 // breaking change for both SDK consumers and server callers.
+//
+// Enum-valued fields use `OpenEnum`: deployed agents can't be force-upgraded,
+// so a value added on the server must not fail the whole response decode.
 
-const DeploymentStatus = Schema.Literals(["deploying", "deployed", "failed"])
+const DeploymentStatus = OpenEnum(["deploying", "deployed", "failed"])
 
 /**
  * Full agent snapshot with live USDC balance.
@@ -81,8 +85,8 @@ export type AgentAutoCollectConfigDTO = typeof AgentAutoCollectConfigDTO.Type
 export const AgentSelfPaymentDTO = Schema.Struct({
   seller_address: Address,
   amount_usdc_micro: Schema.BigIntFromString,
-  scheme: Schema.NullOr(Scheme),
-  status: Schema.Literals([
+  scheme: Schema.NullOr(OpenEnum(Scheme.literals)),
+  status: OpenEnum([
     "requested",
     "authorized",
     "denied",
@@ -102,12 +106,12 @@ export type AgentSelfPaymentDTO = typeof AgentSelfPaymentDTO.Type
 
 /** Single row in the unified spend + earn activity feed. */
 export const UnifiedAgentActivityDTO = Schema.Struct({
-  type: Schema.Literals(["earn", "spend"]),
+  type: OpenEnum(["earn", "spend"]),
   id: Schema.String,
   agent_address: Address,
   receiver: Address,
   amount: Schema.Union([Schema.Number, Schema.NumberFromString]),
-  status: Schema.Literals(["received", "settled", "authorized", "failed", "denied"]),
+  status: OpenEnum(["received", "settled", "authorized", "failed", "denied"]),
   timestamp: Schema.BigIntFromString,
   tx_hash: Schema.NullOr(Schema.String),
   chain_caip2id: Schema.NullOr(Schema.String),

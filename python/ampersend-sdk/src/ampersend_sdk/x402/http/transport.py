@@ -105,9 +105,11 @@ class X402HttpTransport(httpx.AsyncBaseTransport):
     ) -> httpx.Response:
         try:
             payment_required = x402PaymentRequiredResponse(**json.loads(body))
-        except Exception:
-            logger.debug(
-                "402 response body is not a valid x402 payload, passing through"
+        except Exception as e:
+            # Warning, not debug: a decode failure here silently skips payment
+            # and the caller only sees an unexplained 402.
+            logger.warning(
+                f'402 response body is not a valid x402 payload, passing through: "{e}"'
             )
             return httpx.Response(
                 status_code=402, headers=response.headers, content=body
@@ -135,8 +137,10 @@ class X402HttpTransport(httpx.AsyncBaseTransport):
     ) -> httpx.Response:
         try:
             payment_required, v2_ctx = parse_v2_payment_required(header_value)
-        except Exception:
-            logger.debug("402 v2 header is not a valid x402 payload, passing through")
+        except Exception as e:
+            logger.warning(
+                f'402 v2 header is not a valid x402 payload, passing through: "{e}"'
+            )
             return httpx.Response(
                 status_code=402, headers=response.headers, content=body
             )

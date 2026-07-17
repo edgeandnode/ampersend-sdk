@@ -1,5 +1,5 @@
 import { AgentReadClient } from "@/ampersend/agent-client.ts"
-import { AgentSelfDTO } from "@/ampersend/agent.ts"
+import { AgentActivityResponse, AgentSelfDTO, AgentSelfPaymentDTO } from "@/ampersend/agent.ts"
 import type { ApiClient } from "@/ampersend/client.ts"
 import { Schema } from "effect"
 import { afterEach, describe, expect, it, vi } from "vitest"
@@ -163,5 +163,54 @@ describe("AgentReadClient", () => {
 
     expect(decoded.address).toBe(wire.address)
     expect(decoded.balance_usdc_micro).toBe(1000000n)
+  })
+
+  // Tolerant reader: enum-valued response fields are OpenEnum, so a value the
+  // server adds later (e.g. a "topup" activity type) must decode instead of
+  // failing the whole response for every deployed SDK.
+  describe("forward compatibility with server-added enum values", () => {
+    it("decodes an activity feed containing an unknown row type and status", () => {
+      const row = {
+        type: "topup",
+        id: "row-1",
+        agent_address: "0x1234567890123456789012345678901234567890",
+        receiver: "0x1234567890123456789012345678901234567890",
+        amount: 5,
+        status: "refunded",
+        timestamp: "1778000431596",
+        tx_hash: null,
+        chain_caip2id: null,
+      }
+      const wire = {
+        activity: [row, { ...row, id: "row-2", type: "earn", status: "settled" }],
+        hasNextPage: false,
+        totalCount: 2,
+      }
+
+      const decoded = Schema.decodeUnknownSync(AgentActivityResponse)(wire)
+
+      expect(decoded.activity[0]!.type).toBe("topup")
+      expect(decoded.activity[0]!.status).toBe("refunded")
+      expect(decoded.activity[1]!.type).toBe("earn")
+    })
+
+    it("decodes a payment row with an unknown status and scheme", () => {
+      const payment = {
+        seller_address: "0x1234567890123456789012345678901234567890",
+        amount_usdc_micro: "1000",
+        scheme: "permit",
+        status: "refunding",
+        tx_hash: null,
+        chain_caip2id: null,
+        created_at: 1778000431596,
+        expires_at: null,
+      }
+
+      const decoded = Schema.decodeUnknownSync(AgentSelfPaymentDTO)(payment)
+      expect(decoded.status).toBe("refunding")
+      expect(decoded.scheme).toBe("permit")
+
+      expect(() => Schema.decodeUnknownSync(AgentSelfPaymentDTO)({ ...payment, status: 42 })).toThrow()
+    })
   })
 })
