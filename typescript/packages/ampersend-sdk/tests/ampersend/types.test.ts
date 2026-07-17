@@ -1,10 +1,12 @@
 import {
   Address,
   AgentAuthorizeResponse,
+  ApprovalStatus,
   Caip2ID,
   Hex32Bytes,
   Hex65Bytes,
   NonNegativeIntegerString,
+  OpenEnum,
   TxHash,
 } from "@/ampersend/types.ts"
 import { Schema } from "effect"
@@ -217,5 +219,42 @@ describe("AgentAuthorizeResponse", () => {
     const decoded = Schema.decodeUnknownSync(AgentAuthorizeResponse)(wireWithReasonCode)
     const reEncoded = Schema.encodeSync(AgentAuthorizeResponse)(decoded)
     expect((reEncoded.rejected[0] as { reasonCode?: string }).reasonCode).toBe("daily_limit_exceeded")
+  })
+})
+
+describe("OpenEnum (tolerant reader for server-owned enum fields)", () => {
+  const ActivityType = OpenEnum(["earn", "spend"])
+  const Version = OpenEnum([1, 2])
+
+  it("decodes known and unknown values of the right primitive type", () => {
+    expect(Schema.decodeUnknownSync(ActivityType)("earn")).toBe("earn")
+    expect(Schema.decodeUnknownSync(ActivityType)("topup")).toBe("topup")
+    expect(Schema.decodeUnknownSync(Version)(3)).toBe(3)
+    expect(Schema.encodeSync(ActivityType)("topup")).toBe("topup")
+  })
+
+  it("rejects the wrong primitive type", () => {
+    expect(() => Schema.decodeUnknownSync(ActivityType)(42)).toThrow()
+    expect(() => Schema.decodeUnknownSync(Version)("3")).toThrow()
+  })
+})
+
+describe("ApprovalStatus forward compatibility", () => {
+  it("decodes a known status into its specific member", () => {
+    const resolved = Schema.decodeUnknownSync(ApprovalStatus)({
+      status: "resolved",
+      resolved_at: "2026-07-17T00:00:00Z",
+      agent: { address: "0x1234567890123456789012345678901234567890" },
+    })
+    expect(resolved.status).toBe("resolved")
+    expect("agent" in resolved && resolved.agent?.address).toBe("0x1234567890123456789012345678901234567890")
+  })
+
+  it("falls back to the catch-all member for a status this SDK doesn't know", () => {
+    const decoded = Schema.decodeUnknownSync(ApprovalStatus)({
+      status: "expired",
+      resolved_at: "2026-07-17T00:00:00Z",
+    })
+    expect(decoded.status).toBe("expired")
   })
 })

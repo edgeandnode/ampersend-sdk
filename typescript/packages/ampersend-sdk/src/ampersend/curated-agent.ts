@@ -1,6 +1,9 @@
 import * as Schema from "effect/Schema"
 
-import { Address, ConvertedTimestamp, ID, NonEmptyTrimmedString, Scheme } from "./types.js"
+import { Address, ConvertedTimestamp, ID, NonEmptyTrimmedString, OpenEnum, Scheme } from "./types.js"
+
+// These closed literals validate request-side input (e.g. marketplace query
+// filters); response DTO fields wrap them in `OpenEnum(X.literals)` instead.
 
 export const CuratedAgentSource = Schema.Literals(["catalog", "bazaar", "ampersend", "registry"])
 export type CuratedAgentSource = typeof CuratedAgentSource.Type
@@ -31,7 +34,7 @@ export const CuratedAgentEndpointX402PricingConfig = Schema.Struct({
   }),
   assetAddress: Address,
   payTo: Schema.NullOr(Address),
-  x402Schema: Schema.NullOr(Scheme),
+  x402Schema: Schema.NullOr(OpenEnum(Scheme.literals)),
 }).annotate({
   identifier: "Ampersend/db/tables/CuratedAgentEndpoint/CuratedAgentEndpointX402PricingConfig",
 })
@@ -51,14 +54,14 @@ export const CuratedAgentEndpointDTO = Schema.Struct({
     identifier: "curated_agent_endpoint.url",
     examples: ["https://api.venice.ai/api/v1/chat/completions"],
   }),
-  methods: Schema.Array(HTTPMethod).annotate({
+  methods: Schema.Array(OpenEnum(HTTPMethod.literals)).annotate({
     identifier: "curated_agent_endpoint.methods",
     description: "What HTTP method(s) does the endpoint allow/support",
   }),
   x402_enabled: Schema.Boolean.annotate({
     identifier: "curated_agent_endpoint.x402_enabled",
   }),
-  x402_protocol_version: x402ProtocolVersion.annotate({
+  x402_protocol_version: OpenEnum(x402ProtocolVersion.literals).annotate({
     identifier: "curated_agent_endpoint.x402_protocol_version",
     description:
       "Identified which version of x402 the endpoint supports, which shows how to use the endpoint correctly",
@@ -124,7 +127,7 @@ export const CuratedAgentDTO = Schema.Struct({
   description: Schema.NullOr(Schema.String).annotate({
     identifier: "curated_agent.description",
   }),
-  source: CuratedAgentSource.annotate({
+  source: OpenEnum(CuratedAgentSource.literals).annotate({
     identifier: "curated_agent.source",
   }),
   enabled: Schema.Boolean.annotate({
