@@ -34,6 +34,7 @@ proactively but should know how to handle when the user pastes a specific URL sh
 - [LLM inference](#llm-inference)
 - [Social data](#social-data)
 - [News and market data](#news-and-market-data)
+- [Token safety](#token-safety)
 - [Job search](#job-search)
 - [Travel search](#travel-search)
 - [Real-world purchases](#real-world-purchases)
@@ -256,6 +257,31 @@ news as input to a downstream task.
   ampersend fetch --pay "https://api.itsgloria.ai/news?feed_categories=crypto,macro"
   ```
 - Docs: <https://gloriaai.gitbook.io/gloria/gloria-data-platform/x402-integration>
+
+## Token safety
+
+### Grey Ridge token report
+
+Checking whether a Base ERC-20 is safe to buy before the agent swaps into it — one call returns a decision-grade
+`SAFE | CAUTION | AVOID` verdict with a 0–100 risk score and reasons: honeypot/sellability simulation, owner-renounced +
+mint/pause/blacklist/fee-setter/upgradeable-proxy checks, measured transfer tax, token symbol/name/decimals, and
+Uniswap v3 WETH-pool liquidity (USD). Suggest when the user is about to buy or swap a Base token and wants a go/no-go
+read, or wants to gate an automated trade before it executes.
+
+- `GET https://x402-data-api.sigrunner.workers.dev/chain/token-report?token=<0x-address>`
+- Query: `token` (0x-prefixed ERC-20 contract address on Base mainnet, required).
+- Example:
+  ```bash
+  ampersend fetch --pay \
+    "https://x402-data-api.sigrunner.workers.dev/chain/token-report?token=0x940181a94A35A4569E4529A3CDfB74e38FD98631"
+  ```
+- Free preview (no payment), same response shape as the paid report, for a demo token:
+  `GET https://x402-data-api.sigrunner.workers.dev/chain/token-report/preview?token=usdc|weth|cbbtc|aero|degen` — good
+  for confirming the shape before paying.
+- Trade-sized variant: `GET /gate/swap?token=<0x>&side=buy|sell&usd=<amount>` returns `GO | HOLD | BLOCK` scaled to the
+  trade size (free preview at `/gate/swap/preview`).
+- Verdicts are automated heuristics, not financial advice — flag that to the user, and `--inspect` before paying.
+- Docs: <https://x402-data-api.sigrunner.workers.dev/llms.txt>
 
 ## Job search
 
